@@ -126,7 +126,7 @@ enum CookingMethod: String, Codable, CaseIterable, Identifiable {
     case stirFried = "stir-fried"
     case deepFried = "deep-fried"
     case braised
-    case restaurantChinese = "restaurant_chinese"
+    case restaurantHighOil = "restaurant_high_oil"
     case unknown
 
     var id: String { rawValue }
@@ -134,7 +134,7 @@ enum CookingMethod: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .stirFried: return "Stir-fried"
         case .deepFried: return "Deep-fried"
-        case .restaurantChinese: return "Restaurant Chinese"
+        case .restaurantHighOil: return "Restaurant (High Oil)"
         default: return rawValue.capitalized
         }
     }

@@ -71,7 +71,7 @@ struct MealPhotoAnalysisView: View {
                 Picker("Meal", selection: $model.mealType) {
                     ForEach(MealType.allCases) { Text($0.label).tag($0) }
                 }
-                Toggle("Chinese / home-cooked", isOn: $model.isChineseFood)
+                Toggle("Home-cooked meal", isOn: $model.isHomeCooked)
                 TextField("Describe the meal (optional)", text: $model.userDescription, axis: .vertical)
             }
 

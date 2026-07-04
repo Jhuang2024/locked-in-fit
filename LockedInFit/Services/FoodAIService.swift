@@ -25,12 +25,12 @@ enum FoodAIError: LocalizedError {
 struct MealAnalysisContext {
     var mealType: MealType
     var userDescription: String
-    var isLikelyChineseHomeCooked: Bool
+    var isLikelyHomeCooked: Bool
 
-    init(mealType: MealType = .guess(), userDescription: String = "", isLikelyChineseHomeCooked: Bool = true) {
+    init(mealType: MealType = .guess(), userDescription: String = "", isLikelyHomeCooked: Bool = true) {
         self.mealType = mealType
         self.userDescription = userDescription
-        self.isLikelyChineseHomeCooked = isLikelyChineseHomeCooked
+        self.isLikelyHomeCooked = isLikelyHomeCooked
     }
 }
 

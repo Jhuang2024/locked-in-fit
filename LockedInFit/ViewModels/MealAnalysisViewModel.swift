@@ -16,7 +16,7 @@ final class MealAnalysisViewModel {
     var image: UIImage?
     var mealType: MealType = .guess()
     var userDescription = ""
-    var isChineseFood = true
+    var isHomeCooked = true
     var estimate: MealEstimate?
     var providerUsed = ""
 
@@ -28,7 +28,7 @@ final class MealAnalysisViewModel {
         do {
             let context = MealAnalysisContext(mealType: mealType,
                                               userDescription: userDescription,
-                                              isLikelyChineseHomeCooked: isChineseFood)
+                                              isLikelyHomeCooked: isHomeCooked)
             estimate = try await service.analyzeMeal(image: image, context: context)
             phase = .reviewing
         } catch {

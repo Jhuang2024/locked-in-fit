@@ -142,10 +142,21 @@ struct SettingsView: View {
                     Text(option.label).tag(option)
                 }
             }
+            Text(settings.exerciseCalorieAdjustment.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } header: {
             Text("Energy Model")
         } footer: {
-            Text("Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend. Exercise adjustment controls how much active energy is added back to today's calorie target. Default is Conservative.")
+            Text("""
+            Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend.
+
+            Exercise calorie adjustment controls how much of today's estimated workout/step calories get added back to your target — useful because activity estimates run high:
+            • Off — no calories added back; your target stays fixed regardless of activity.
+            • Conservative (default) — adds back 45%. Safest choice if you tend to overeat on training days.
+            • Moderate — adds back 65%. A middle ground for reasonably accurate trackers.
+            • Full — adds back 100%. Only use this if your activity data (e.g. a chest-strap HR monitor) is highly accurate.
+            """)
         }
     }
 }

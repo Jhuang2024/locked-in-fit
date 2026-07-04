@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Offline mock analyzer. Produces realistic estimates, biased toward
-/// Chinese home-cooked meals with honest hidden-oil uncertainty.
+/// home-cooked meals with honest hidden-oil uncertainty.
 struct MockFoodAIService: FoodAIService {
     let providerName = "Mock (offline)"
 
@@ -13,7 +13,7 @@ struct MockFoodAIService: FoodAIService {
 
     private static let templates: [Template] = [
         Template(
-            notes: "Estimate includes likely stir-fry oil. Home-cooked Chinese dishes vary widely in oil.",
+            notes: "Estimate includes likely stir-fry oil. Home-cooked dishes vary widely in oil.",
             items: [
                 .init(name: "stir-fried eggplant", grams: 180, calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, cookingMethod: "stir-fried", confidence: 0.6),
                 .init(name: "steamed white rice", grams: 200, calories: 260, protein: 5, carbs: 57, fat: 1, fiber: 1, sodium: 5, cookingMethod: "steamed", confidence: 0.85),

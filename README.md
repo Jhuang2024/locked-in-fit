@@ -8,7 +8,7 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **Photo meal analysis** with two modes:
   - **Mock Mode** (default) — offline, realistic fake estimates.
   - **OpenRouter Mode** — paste your OpenRouter API key in *Settings → AI Meal Analysis* (stored in Keychain, never in the DB), pick a model (default `openai/gpt-4o-mini`), Test Connection, and analyze real meal photos. Falls back to Mock automatically if no valid key.
-- **Honest uncertainty**: every estimate shows a calorie range plus hidden-oil uncertainty by cooking method (stir-fried eggplant is treated as the oil sponge it is). Chinese home-cooked food presets included.
+- **Honest uncertainty**: every estimate shows a calorie range plus hidden-oil uncertainty by cooking method (stir-fried eggplant is treated as the oil sponge it is). Save your own frequent meals as reusable food presets.
 - **Goals**: cut / maintain / lean bulk / aggressive bulk / custom, with trend weight (exponential smoothing), adaptive maintenance (formula blended with observed intake vs. weight trend), TEF, projected finish date, pace warnings, adherence score.
 - **Workouts**: generator (phase, equipment, time, fatigue, focus muscles), set-by-set logging (weight/reps/duration/RPE), templates, repeat workout, exercise history charts.
 - **Strength scores**: 0–1000 per movement pattern (squat, hinge, pushes, pulls, core, conditioning) from bodyweight-relative e1RM + progress + volume + consistency. Levels, badges, PR celebrations, weekly streaks, and a daily "Locked In" score.
