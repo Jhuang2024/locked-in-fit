@@ -182,6 +182,39 @@ enum ActivityAssumption: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum ExerciseCalorieAdjustment: String, Codable, CaseIterable, Identifiable {
+    case off, conservative, moderate, full
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off: return "Off"
+        case .conservative: return "Conservative"
+        case .moderate: return "Moderate"
+        case .full: return "Full"
+        }
+    }
+
+    var multiplier: Double {
+        switch self {
+        case .off: return 0
+        case .conservative: return 0.45
+        case .moderate: return 0.65
+        case .full: return 1
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .off: return "Do not add exercise calories back."
+        case .conservative: return "Add back 45% of estimated activity calories."
+        case .moderate: return "Add back 65% of estimated activity calories."
+        case .full: return "Add back all tracked activity calories."
+        }
+    }
+}
+
 enum Equipment: String, Codable, CaseIterable, Identifiable {
     case barbell, dumbbell, machine, cable, bodyweight, kettlebell, band, cardioMachine = "cardio_machine"
     var id: String { rawValue }

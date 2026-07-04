@@ -41,21 +41,27 @@ struct WeightTrendsView: View {
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
                 }
 
-                ChartCard(title: "Bodyweight", subtitle: "Dots are scale readings; the line is your smoothed trend.") {
-                    Chart {
-                        ForEach(trendPoints) { point in
-                            PointMark(x: .value("Date", point.date), y: .value("kg", point.weightKg))
-                                .foregroundStyle(Color.accentColor.opacity(0.35))
-                                .symbolSize(24)
-                        }
-                        ForEach(trendPoints) { point in
-                            LineMark(x: .value("Date", point.date), y: .value("kg", point.trendKg))
-                                .foregroundStyle(Color.accentColor)
-                                .lineStyle(StrokeStyle(lineWidth: 2.5))
-                                .interpolationMethod(.monotone)
-                        }
+                if trendPoints.isEmpty {
+                    DashboardCard(title: "Bodyweight", systemImage: "scalemass") {
+                        EmptyStateView(systemImage: "scalemass", title: "Connect HealthKit or enter weight manually", message: "Your trend appears once you have weigh-ins.")
                     }
-                    .chartYScale(domain: .automatic(includesZero: false))
+                } else {
+                    ChartCard(title: "Bodyweight", subtitle: "Dots are scale readings; the line is your smoothed trend.") {
+                        Chart {
+                            ForEach(trendPoints) { point in
+                                PointMark(x: .value("Date", point.date), y: .value("kg", point.weightKg))
+                                    .foregroundStyle(Color.accentColor.opacity(0.35))
+                                    .symbolSize(24)
+                            }
+                            ForEach(trendPoints) { point in
+                                LineMark(x: .value("Date", point.date), y: .value("kg", point.trendKg))
+                                    .foregroundStyle(Color.accentColor)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                                    .interpolationMethod(.monotone)
+                            }
+                        }
+                        .chartYScale(domain: .automatic(includesZero: false))
+                    }
                 }
 
                 if !fatPoints.isEmpty {
@@ -94,17 +100,21 @@ struct WeightTrendsView: View {
 
     private var recentEntries: some View {
         DashboardCard(title: "Recent Entries", systemImage: "scalemass") {
-            VStack(spacing: 8) {
-                ForEach(Array(weights.suffix(7).reversed()), id: \.persistentModelID) { entry in
-                    HStack {
-                        Text(Formatters.mediumDate(entry.date))
-                            .font(.subheadline)
-                        Spacer()
-                        Text(entry.source.label)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(Formatters.kg(entry.weightKg))
-                            .font(.subheadline.weight(.semibold))
+            if weights.isEmpty {
+                EmptyStateView(systemImage: "scalemass", title: "No weigh-ins yet", message: "Log weight manually or sync Apple Health.")
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(Array(weights.suffix(7).reversed()), id: \.persistentModelID) { entry in
+                        HStack {
+                            Text(Formatters.mediumDate(entry.date))
+                                .font(.subheadline)
+                            Spacer()
+                            Text(entry.source.label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(Formatters.kg(entry.weightKg))
+                                .font(.subheadline.weight(.semibold))
+                        }
                     }
                 }
             }

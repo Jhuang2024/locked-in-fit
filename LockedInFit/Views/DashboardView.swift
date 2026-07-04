@@ -9,6 +9,7 @@ struct DashboardView: View {
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
+    @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
     private var completedWorkouts: [Workout]
     @Query private var strengthScores: [StrengthScore]
@@ -18,20 +19,19 @@ struct DashboardView: View {
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
+    private var viewModel: DashboardViewModel {
+        DashboardViewModel(
+            settings: settings,
+            goal: goal,
+            meals: meals,
+            weights: weights,
+            steps: steps,
+            activeEnergy: activeEnergy,
+            workouts: completedWorkouts
+        )
+    }
 
     private var todayMeals: [MealLog] { meals.filter { $0.date.isToday } }
-    private var todayCalories: Double { todayMeals.reduce(0) { $0 + $1.calories } }
-    private var todayProtein: Double { todayMeals.reduce(0) { $0 + $1.protein } }
-    private var todayCarbs: Double { todayMeals.reduce(0) { $0 + $1.carbs } }
-    private var todayFat: Double { todayMeals.reduce(0) { $0 + $1.fat } }
-    private var todayOilLow: Double { todayMeals.reduce(0) { $0 + $1.hiddenOilLow } }
-    private var todayOilHigh: Double { todayMeals.reduce(0) { $0 + $1.hiddenOilHigh } }
-    private var todaySteps: Int { steps.first(where: { $0.date.isToday })?.steps ?? 0 }
-
-    private var workoutsThisWeek: Int {
-        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start ?? Date().daysAgo(7)
-        return completedWorkouts.filter { $0.date >= weekStart }.count
-    }
 
     private var maintenance: Double {
         guard let settings else { return 2400 }
@@ -40,22 +40,16 @@ struct DashboardView: View {
 
     private var calorieTarget: Double { goal?.calorieTarget ?? maintenance }
     private var proteinTarget: Double { goal?.proteinTarget ?? 140 }
-    private var stepTarget: Int { goal?.stepTarget ?? 8000 }
-
-    private var lockedInScore: Int {
-        Analytics.lockedInScore(
-            todayCalories: todayCalories, calorieTarget: calorieTarget,
-            todayProtein: todayProtein, proteinTarget: proteinTarget,
-            todaySteps: todaySteps, stepTarget: stepTarget,
-            trainedThisWeek: workoutsThisWeek, weeklyTrainingTarget: 4)
-    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                lockedInCard
+                header
+                quickActions
                 calorieCard
                 macroCard
+                activityCard
+                trendCard
                 if let goal {
                     goalSnippet(goal)
                 }
@@ -65,7 +59,7 @@ struct DashboardView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Locked In Fit")
+        .navigationTitle("Today")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { showPhotoAnalysis = true } label: { Image(systemName: "camera") }
@@ -76,29 +70,67 @@ struct DashboardView: View {
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
     }
 
-    private var lockedInCard: some View {
-        DashboardCard(title: "Locked In Score", systemImage: "lock.fill") {
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                AppBrandMark(size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Date.now.formatted(date: .complete, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(goal?.phase.label ?? "No active phase")
+                        .font(.title3.weight(.semibold))
+                }
+                Spacer()
+                Label("\(viewModel.lockedInScore)", systemImage: "lock.fill")
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.thinMaterial, in: Capsule())
+                    .accessibilityLabel("Locked In Score \(viewModel.lockedInScore)")
+            }
+
             HStack(spacing: 16) {
                 ZStack {
                     Circle().stroke(Color.accentColor.opacity(0.15), lineWidth: 9)
                     Circle()
-                        .trim(from: 0, to: Double(lockedInScore) / 100)
+                        .trim(from: 0, to: Double(viewModel.lockedInScore) / 100)
                         .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 9, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    Text("\(lockedInScore)")
+                    Text("\(viewModel.lockedInScore)")
                         .font(.system(.title2, design: .rounded, weight: .bold))
                 }
                 .frame(width: 76, height: 76)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    scoreRow("Calories", done: todayCalories > 0 && abs(todayCalories - calorieTarget) / max(calorieTarget, 1) < 0.15)
-                    scoreRow("Protein \(Int(todayProtein))/\(Int(proteinTarget))g", done: todayProtein >= proteinTarget)
-                    scoreRow("Steps \(todaySteps)/\(stepTarget)", done: todaySteps >= stepTarget)
-                    scoreRow("Training \(workoutsThisWeek)/4 this week", done: workoutsThisWeek >= 4)
+                    scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
+                    scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
+                    scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
+                    scoreRow("Workouts today \(viewModel.completedWorkoutsToday)", done: viewModel.completedWorkoutsToday > 0)
                 }
                 Spacer()
             }
         }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var quickActions: some View {
+        HStack(spacing: 10) {
+            Button { showAddMeal = true } label: {
+                Label("Meal", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+
+            Button { createBlankWorkout() } label: {
+                Label("Workout", systemImage: "dumbbell.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .controlSize(.large)
     }
 
     private func scoreRow(_ label: String, done: Bool) -> some View {
@@ -113,23 +145,30 @@ struct DashboardView: View {
     }
 
     private var calorieCard: some View {
-        DashboardCard(title: "Today's Intake", systemImage: "flame") {
-            VStack(alignment: .leading, spacing: 8) {
+        DashboardCard(title: "Calories Remaining", systemImage: "flame") {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(Int(todayCalories))")
+                    Text("\(Int(viewModel.calories.remaining))")
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("/ \(Int(calorieTarget)) kcal")
+                        .foregroundStyle(viewModel.calories.remaining < 0 ? .red : .primary)
+                    Text("kcal left")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(Int(calorieTarget - todayCalories)) left")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(todayCalories > calorieTarget ? .red : .green)
                 }
-                ProgressView(value: min(todayCalories, calorieTarget), total: max(calorieTarget, 1))
-                    .tint(todayCalories > calorieTarget ? .red : .accentColor)
-                if todayOilHigh > 0 {
-                    Label("Hidden oil could add +\(Int(todayOilLow))–\(Int(todayOilHigh)) kcal today", systemImage: "drop.fill")
+                ProgressView(value: min(viewModel.nutrition.calories, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
+                    .tint(viewModel.nutrition.calories > viewModel.calories.adjustedTarget ? .red : .accentColor)
+                HStack {
+                    StatChip(label: "Eaten", value: "\(Int(viewModel.nutrition.calories))")
+                    StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
+                    StatChip(label: "Adjustment", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
+                }
+                Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if viewModel.nutrition.hiddenOilHigh > 0 {
+                    Label("Hidden oil could add +\(Int(viewModel.nutrition.hiddenOilLow))-\(Int(viewModel.nutrition.hiddenOilHigh)) kcal today", systemImage: "drop.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -140,18 +179,58 @@ struct DashboardView: View {
         }
     }
 
+    private var adjustmentLabel: String {
+        let prefix = settings?.exerciseCalorieAdjustment.label ?? ExerciseCalorieAdjustment.conservative.label
+        let base = "\(prefix): \(Int(viewModel.activity.adjustmentCalories)) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
+        return viewModel.activity.isEstimated ? base + " (estimate)" : base
+    }
+
     private var macroCard: some View {
         DashboardCard(title: "Macros", systemImage: "chart.pie") {
             HStack {
-                MacroRingView(label: "Protein", current: todayProtein, target: proteinTarget, unit: "g", color: .red)
+                MacroRingView(label: "Protein", current: viewModel.nutrition.protein, target: proteinTarget, unit: "g", color: .red)
                 Spacer()
-                MacroRingView(label: "Carbs", current: todayCarbs, target: max(1, (calorieTarget * 0.4) / 4), unit: "g", color: .blue)
+                MacroRingView(label: "Carbs", current: viewModel.nutrition.carbs, target: max(1, (calorieTarget * 0.4) / 4), unit: "g", color: .blue)
                 Spacer()
-                MacroRingView(label: "Fat", current: todayFat, target: max(1, (calorieTarget * 0.25) / 9), unit: "g", color: .yellow)
+                MacroRingView(label: "Fat", current: viewModel.nutrition.fat, target: max(1, (calorieTarget * 0.25) / 9), unit: "g", color: .yellow)
                 Spacer()
-                MacroRingView(label: "Fiber", current: todayMeals.reduce(0) { $0 + $1.fiber }, target: 30, unit: "g", color: .green)
+                MacroRingView(label: "Fiber", current: viewModel.nutrition.fiber, target: 30, unit: "g", color: .green)
             }
         }
+    }
+
+    private var activityCard: some View {
+        DashboardCard(title: "Activity", systemImage: "figure.walk") {
+            HStack {
+                StatChip(label: "Steps", value: "\(viewModel.stepsToday)/\(viewModel.stepTarget)")
+                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))")
+                StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)")
+            }
+        }
+    }
+
+    private var trendCard: some View {
+        DashboardCard(title: "Trends", systemImage: "chart.line.uptrend.xyaxis") {
+            HStack {
+                let trend = WeightTrendCalculator.currentTrendKg(entries: weights)
+                StatChip(label: "Weight trend", value: trend.map { Formatters.kg($0) } ?? "Log weight")
+                StatChip(label: "7-day calories", value: viewModel.weeklyCalorieAverage.map { "\(Int($0))" } ?? "No meals")
+                StatChip(label: "Adherence", value: adherenceLabel)
+            }
+            NavigationLink(destination: WeightTrendsView()) {
+                Label("Log weight", systemImage: "scalemass")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .padding(.top, 6)
+        }
+    }
+
+    private var adherenceLabel: String {
+        guard viewModel.nutrition.calories > 0 else { return "No logs" }
+        let deviation = abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
+        return deviation <= 0.1 ? "On track" : deviation <= 0.2 ? "Close" : "Review"
     }
 
     private func goalSnippet(_ goal: Goal) -> some View {
@@ -180,9 +259,7 @@ struct DashboardView: View {
     private var mealsCard: some View {
         DashboardCard(title: "Today's Meals", systemImage: "fork.knife") {
             if todayMeals.isEmpty {
-                Text("Nothing logged yet. Add a meal or snap a photo.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                EmptyStateView(systemImage: "fork.knife.circle", title: "No meals logged yet", message: "Add your first meal or analyze a photo when you eat.")
             } else {
                 VStack(spacing: 10) {
                     ForEach(todayMeals) { meal in
@@ -194,5 +271,9 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private func createBlankWorkout() {
+        context.insert(Workout(date: .now, title: "Workout", type: .custom))
     }
 }

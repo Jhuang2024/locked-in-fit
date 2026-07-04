@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// One-time realistic sample data so the app is usable on first launch.
+/// One-time reference-data seeding. Real user history must start empty.
 enum SeedDataService {
 
     static func seedIfNeeded(context: ModelContext) {
@@ -9,20 +9,7 @@ enum SeedDataService {
         guard !settings.seededSampleData else { return }
         settings.seededSampleData = true
 
-        seedPresets(context: context)
-        seedBodyData(context: context)
-        seedMeals(context: context)
-        seedWorkouts(context: context)
-        seedGoal(context: context)
-        seedMeasurements(context: context)
-        context.insert(ProgressPhoto(date: Date().daysAgo(28), notes: "Start of cut. Photos not bundled — take your own from the Progress Photos screen."))
-
-        try? context.save()
-
-        // Compute initial strength scores from the seeded workouts.
-        let workouts = (try? context.fetch(FetchDescriptor<Workout>())) ?? []
-        let scores = (try? context.fetch(FetchDescriptor<StrengthScore>())) ?? []
-        StrengthScoreCalculator.recompute(workouts: workouts, bodyWeightKg: 78, existing: scores, context: context)
+        seedPresetsIfNeeded(context: context)
         try? context.save()
     }
 
@@ -37,7 +24,10 @@ enum SeedDataService {
 
     // MARK: - Presets (China-friendly list)
 
-    private static func seedPresets(context: ModelContext) {
+    private static func seedPresetsIfNeeded(context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<FoodPreset>())) ?? []
+        guard existing.isEmpty else { return }
+
         let presets: [FoodPreset] = [
             FoodPreset(name: "Stir-fried Eggplant", serving: "1 bowl (180 g)", calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, category: "Chinese Home-Cooked", notes: "Eggplant soaks up oil — real value can run 60–200 kcal higher.", cookingMethod: .stirFried),
             FoodPreset(name: "Stir-fried String Beans", serving: "1 bowl (150 g)", calories: 160, protein: 4, carbs: 12, fat: 11, fiber: 5, sodium: 420, category: "Chinese Home-Cooked", notes: "Often flash-fried first at restaurants.", cookingMethod: .stirFried),
@@ -65,6 +55,24 @@ enum SeedDataService {
             FoodPreset(name: "Protein Ice Cream", serving: "1 tub (280 g)", calories: 330, protein: 28, carbs: 35, fat: 9, fiber: 5, sodium: 300, category: "Snacks", cookingMethod: .raw)
         ]
         presets.forEach { context.insert($0) }
+    }
+
+#if DEBUG
+    /// Debug-only history for SwiftUI previews and local design checks.
+    static func seedPreviewHistory(context: ModelContext) {
+        seedPresetsIfNeeded(context: context)
+        seedBodyData(context: context)
+        seedMeals(context: context)
+        seedWorkouts(context: context)
+        seedGoal(context: context)
+        seedMeasurements(context: context)
+        context.insert(ProgressPhoto(date: Date().daysAgo(28), notes: "Preview-only progress photo placeholder."))
+        try? context.save()
+
+        let workouts = (try? context.fetch(FetchDescriptor<Workout>())) ?? []
+        let scores = (try? context.fetch(FetchDescriptor<StrengthScore>())) ?? []
+        StrengthScoreCalculator.recompute(workouts: workouts, bodyWeightKg: 78, existing: scores, context: context)
+        try? context.save()
     }
 
     // MARK: - Body data
@@ -228,4 +236,5 @@ enum SeedDataService {
                                             notes: daysBack == 2 ? "Waist trending down nicely." : ""))
         }
     }
+#endif
 }

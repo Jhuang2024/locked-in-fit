@@ -1,5 +1,20 @@
 import SwiftUI
 
+// MARK: - Brand
+
+struct AppBrandMark: View {
+    let size: CGFloat
+
+    var body: some View {
+        Image("AppMark")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - DashboardCard
 
 struct DashboardCard<Content: View>: View {
@@ -31,7 +46,7 @@ struct DashboardCard<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -100,7 +115,7 @@ struct ChartCard<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -114,8 +129,10 @@ struct EmptyStateView: View {
     var body: some View {
         ContentUnavailableView {
             Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
         } description: {
             Text(message)
+                .font(.caption)
         }
     }
 }
@@ -162,7 +179,7 @@ struct StrengthScoreCard: View {
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private var levelColor: Color {
@@ -203,7 +220,7 @@ struct GoalProgressCard: View {
             ProgressView(value: max(0, min(1, progress)))
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

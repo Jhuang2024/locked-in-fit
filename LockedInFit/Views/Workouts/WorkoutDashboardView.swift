@@ -44,21 +44,25 @@ struct WorkoutDashboardView: View {
                 }
 
                 DashboardCard(title: "Overall Strength", systemImage: "trophy") {
-                    NavigationLink(destination: StrengthScoresView()) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(Int(overall)) / 1000")
-                                    .font(.system(.title2, design: .rounded, weight: .bold))
-                                Text(StrengthScoreCalculator.levelName(for: overall))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.tint)
+                    if strengthScores.isEmpty {
+                        EmptyStateView(systemImage: "trophy", title: "No strength scores yet", message: "Complete workouts with logged sets to build your strength profile.")
+                    } else {
+                        NavigationLink(destination: StrengthScoresView()) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(Int(overall)) / 1000")
+                                        .font(.system(.title2, design: .rounded, weight: .bold))
+                                    Text(StrengthScoreCalculator.levelName(for: overall))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.tint)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(.tertiary)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
 
                 if !weeklyVolume.isEmpty {
@@ -93,9 +97,7 @@ struct WorkoutDashboardView: View {
 
                 DashboardCard(title: "History", systemImage: "clock.arrow.circlepath") {
                     if history.isEmpty {
-                        Text("No workouts yet. Generate one to get started.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        EmptyStateView(systemImage: "dumbbell", title: "Add your first workout", message: "Generate a plan or start a blank workout when you train.")
                     } else {
                         VStack(spacing: 10) {
                             ForEach(history.prefix(12)) { workout in

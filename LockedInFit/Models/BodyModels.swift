@@ -121,3 +121,22 @@ final class StepEntry {
         self.sourceRaw = source.rawValue
     }
 }
+
+@Model
+final class ActiveEnergyEntry {
+    var date: Date = Date()
+    /// Active calories for the day.
+    var calories: Double = 0
+    var sourceRaw: String = EntrySource.healthKit.rawValue
+
+    var source: EntrySource {
+        get { EntrySource(rawValue: sourceRaw) ?? .healthKit }
+        set { sourceRaw = newValue.rawValue }
+    }
+
+    init(date: Date = .now, calories: Double, source: EntrySource = .healthKit) {
+        self.date = date
+        self.calories = calories
+        self.sourceRaw = source.rawValue
+    }
+}

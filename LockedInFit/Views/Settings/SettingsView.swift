@@ -14,6 +14,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             if let settings = settingsList.first {
+                brandSection
                 profileSection(settings)
                 energySection(settings)
             }
@@ -83,6 +84,22 @@ struct SettingsView: View {
         }
     }
 
+    private var brandSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                AppBrandMark(size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Locked In Fit")
+                        .font(.headline)
+                    Text("Local-first training and nutrition")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
     private func profileSection(_ settings: UserSettings) -> some View {
         @Bindable var settings = settings
         return Section("Profile") {
@@ -120,10 +137,15 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
             }
+            Picker("Exercise calorie adjustment", selection: $settings.exerciseCalorieAdjustment) {
+                ForEach(ExerciseCalorieAdjustment.allCases) { option in
+                    Text(option.label).tag(option)
+                }
+            }
         } header: {
             Text("Energy Model")
         } footer: {
-            Text("Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend. TEF assumes protein 25%, carbs 7.5%, fat 1.5%.")
+            Text("Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend. Exercise adjustment controls how much active energy is added back to today's calorie target. Default is Conservative.")
         }
     }
 }

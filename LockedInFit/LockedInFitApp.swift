@@ -10,7 +10,7 @@ struct LockedInFitApp: App {
             container = try ModelContainer(for:
                 MealLog.self, FoodItem.self, FoodPreset.self,
                 BodyWeightEntry.self, BodyFatEntry.self, MeasurementEntry.self,
-                ProgressPhoto.self, StepEntry.self, Goal.self,
+                ProgressPhoto.self, StepEntry.self, ActiveEnergyEntry.self, Goal.self,
                 Workout.self, Exercise.self, WorkoutSet.self,
                 StrengthScore.self, UserSettings.self)
         } catch {

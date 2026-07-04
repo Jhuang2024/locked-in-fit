@@ -38,6 +38,7 @@ final class HealthKitManager {
         do {
             try await requestAuthorization()
             let steps = try await dailySteps(days: days)
+            let activeEnergy = try await dailyActiveEnergy(days: days)
             let weights = try await samples(.bodyMass, unit: .gramUnit(with: .kilo), days: days)
             let bodyFats = try await samples(.bodyFatPercentage, unit: .percent(), days: days)
 
@@ -52,6 +53,18 @@ final class HealthKitManager {
                     if existing.steps != count { existing.steps = count; imported += 1 }
                 } else if !stepDays.contains(day) {
                     context.insert(StepEntry(date: day, steps: count, source: .healthKit))
+                    imported += 1
+                }
+            }
+
+            let existingEnergy = (try? context.fetch(FetchDescriptor<ActiveEnergyEntry>(
+                predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
+            let energyDays = Set(existingEnergy.map { $0.date.startOfDay })
+            for (day, calories) in activeEnergy where calories > 0 {
+                if let existing = existingEnergy.first(where: { $0.date.startOfDay == day }) {
+                    if abs(existing.calories - calories) >= 1 { existing.calories = calories; imported += 1 }
+                } else if !energyDays.contains(day) {
+                    context.insert(ActiveEnergyEntry(date: day, calories: calories, source: .healthKit))
                     imported += 1
                 }
             }
@@ -109,6 +122,32 @@ final class HealthKitManager {
                 results?.enumerateStatistics(from: start, to: .now) { stats, _ in
                     let count = Int(stats.sumQuantity()?.doubleValue(for: .count()) ?? 0)
                     output.append((stats.startDate.startOfDay, count))
+                }
+                continuation.resume(returning: output)
+            }
+            store.execute(query)
+        }
+    }
+
+    private func dailyActiveEnergy(days: Int) async throws -> [(Date, Double)] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else { return [] }
+        let start = Date().daysAgo(days).startOfDay
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: .now)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum,
+                anchorDate: start,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, results, error in
+                if let error { continuation.resume(throwing: error); return }
+                var output: [(Date, Double)] = []
+                results?.enumerateStatistics(from: start, to: .now) { stats, _ in
+                    let calories = stats.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                    output.append((stats.startDate.startOfDay, calories))
                 }
                 continuation.resume(returning: output)
             }

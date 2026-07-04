@@ -64,6 +64,7 @@ final class UserSettings {
     /// Adaptive maintenance learned from intake + weight trend, updated over time.
     var adaptiveMaintenance: Double = 0
     var adaptiveMaintenanceUpdated: Date?
+    var exerciseCalorieAdjustmentRaw: String = ExerciseCalorieAdjustment.conservative.rawValue
     // AI settings metadata. The API key itself lives in the Keychain only.
     var aiModelName: String = "openai/gpt-4o-mini"
     var aiModeRaw: String = "mock"
@@ -81,6 +82,10 @@ final class UserSettings {
     var activityAssumption: ActivityAssumption {
         get { ActivityAssumption(rawValue: activityAssumptionRaw) ?? .light }
         set { activityAssumptionRaw = newValue.rawValue }
+    }
+    var exerciseCalorieAdjustment: ExerciseCalorieAdjustment {
+        get { ExerciseCalorieAdjustment(rawValue: exerciseCalorieAdjustmentRaw) ?? .conservative }
+        set { exerciseCalorieAdjustmentRaw = newValue.rawValue }
     }
 
     init() {}
