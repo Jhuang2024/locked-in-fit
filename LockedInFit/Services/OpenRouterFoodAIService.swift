@@ -12,7 +12,7 @@ struct OpenRouterFoodAIService: FoodAIService {
     private static let systemPrompt = """
     You are estimating calories and macros from a food image for a private nutrition tracker. \
     Return strict JSON only — no markdown, no code fences, no commentary. \
-    Estimate conservatively and honestly. Account for hidden cooking oil, especially in Chinese \
+    Estimate conservatively and honestly. Account for hidden cooking oil, especially in \
     home-cooked or restaurant foods (stir-fried vegetables like eggplant absorb large amounts of oil; \
     noodles and sauced rice dishes carry sauce oil; steamed and boiled dishes carry little). \
     Include uncertainty ranges. Do not pretend precision. \
@@ -23,7 +23,7 @@ struct OpenRouterFoodAIService: FoodAIService {
     "grams":180,"calories":260,"protein":4,"carbs":22,"fat":18,"fiber":6,"sodium":480,\
     "cookingMethod":"stir-fried","confidence":0.65}]} \
     mealType must be one of breakfast/lunch/dinner/snack. cookingMethod should be one of \
-    steamed/boiled/soup/grilled/baked/raw/stir-fried/deep-fried/braised/restaurant_chinese/unknown. \
+    steamed/boiled/soup/grilled/baked/raw/stir-fried/deep-fried/braised/restaurant_high_oil/unknown. \
     All numbers are plain numbers (kcal, grams, mg for sodium). confidence is 0-1.
     """
 
@@ -34,8 +34,8 @@ struct OpenRouterFoodAIService: FoodAIService {
         }
 
         var userText = "Meal type: \(context.mealType.rawValue)."
-        if context.isLikelyChineseHomeCooked {
-            userText += " This is likely Chinese home-cooked or restaurant food — reason explicitly about hidden oil."
+        if context.isLikelyHomeCooked {
+            userText += " This is likely home-cooked or restaurant food — reason explicitly about hidden oil."
         }
         if !context.userDescription.isEmpty {
             userText += " User description: \(context.userDescription)"

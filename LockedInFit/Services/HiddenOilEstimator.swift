@@ -22,7 +22,7 @@ enum HiddenOilEstimator {
             base = (40, 130)
         case .deepFried:
             base = (80, 200)
-        case .restaurantChinese:
+        case .restaurantHighOil:
             base = (60, 180)
         case .unknown:
             base = (20, 100)
@@ -67,7 +67,7 @@ enum HiddenOilEstimator {
         case .braised: return "Medium–high oil risk"
         case .stirFried: return "Medium–high oil risk"
         case .deepFried: return "Very high oil risk"
-        case .restaurantChinese: return "High oil risk"
+        case .restaurantHighOil: return "High oil risk"
         case .unknown: return "Unknown — assume oil"
         }
     }

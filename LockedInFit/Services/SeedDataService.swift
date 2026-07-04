@@ -77,7 +77,7 @@ enum SeedDataService {
                 mealType: .lunch, calories: 620, protein: 38, carbs: 54, fat: 24, fiber: 8, sodium: 900,
                 confidence: 0.68, calorieLow: 520, calorieHigh: 820,
                 hiddenOilLow: 80, hiddenOilHigh: 260,
-                notes: "Home-cooked Chinese. Estimate includes likely stir-fry oil.",
+                notes: "Home-cooked meal. Estimate includes likely stir-fry oil.",
                 foodItems: [
                     FoodItem(name: "stir-fried eggplant", grams: 180, calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, cookingMethod: .stirFried, confidence: 0.65),
                     FoodItem(name: "steamed white rice", grams: 200, calories: 260, protein: 5, carbs: 57, fat: 1, fiber: 1, sodium: 5, cookingMethod: .steamed, confidence: 0.9),
