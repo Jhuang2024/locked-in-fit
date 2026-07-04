@@ -46,7 +46,7 @@ struct HealthKitSyncView: View {
 
             Section {
                 LabeledContent("Steps", value: "Read")
-                LabeledContent("Body mass", value: "Read + write manual weigh-ins")
+                LabeledContent("Body mass", value: "Read + write")
                 LabeledContent("Body fat %", value: "Read")
                 LabeledContent("Active energy", value: "Read")
             } header: {
