@@ -19,6 +19,7 @@ struct DashboardView: View {
     @State private var showLogWeight = false
     @State private var newWeight = ""
     @State private var healthKit = HealthKitManager.shared
+    @State private var activeWorkout: Workout?
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -65,6 +66,9 @@ struct DashboardView: View {
         .navigationTitle("Today")
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+        .sheet(item: $activeWorkout) { workout in
+            NavigationStack { WorkoutLogView(workout: workout) }
+        }
         .alert("Log Weigh-In", isPresented: $showLogWeight) {
             TextField("Weight (kg)", text: $newWeight)
                 .keyboardType(.decimalPad)
@@ -302,6 +306,8 @@ struct DashboardView: View {
     }
 
     private func createBlankWorkout() {
-        context.insert(Workout(date: .now, title: "Workout", type: .custom))
+        let workout = Workout(date: .now, title: "Workout", type: .custom)
+        context.insert(workout)
+        activeWorkout = workout
     }
 }
