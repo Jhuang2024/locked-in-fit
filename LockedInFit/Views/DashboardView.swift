@@ -16,6 +16,9 @@ struct DashboardView: View {
 
     @State private var showAddMeal = false
     @State private var showPhotoAnalysis = false
+    @State private var showLogWeight = false
+    @State private var newWeight = ""
+    @State private var healthKit = HealthKitManager.shared
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -60,21 +63,28 @@ struct DashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Today")
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { showPhotoAnalysis = true } label: { Image(systemName: "camera") }
-                Button { showAddMeal = true } label: { Image(systemName: "plus") }
-            }
-        }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+        .alert("Log Weigh-In", isPresented: $showLogWeight) {
+            TextField("Weight (kg)", text: $newWeight)
+                .keyboardType(.decimalPad)
+            Button("Save") { saveWeight() }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func saveWeight() {
+        defer { newWeight = "" }
+        guard let kg = Double(newWeight), kg > 20, kg < 300 else { return }
+        context.insert(BodyWeightEntry(date: .now, weightKg: kg, source: .manual))
+        Task { await HealthKitManager.shared.writeWeight(kg, date: .now) }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                AppBrandMark(size: 40)
-                VStack(alignment: .leading, spacing: 2) {
+                AppBrandMark(size: 36)
+                VStack(alignment: .leading, spacing: 1) {
                     Text(Date.now.formatted(date: .complete, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -82,55 +92,73 @@ struct DashboardView: View {
                         .font(.title3.weight(.semibold))
                 }
                 Spacer()
-                Label("\(viewModel.lockedInScore)", systemImage: "lock.fill")
-                    .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.thinMaterial, in: Capsule())
-                    .accessibilityLabel("Locked In Score \(viewModel.lockedInScore)")
             }
 
             HStack(spacing: 16) {
                 ZStack {
-                    Circle().stroke(Color.accentColor.opacity(0.15), lineWidth: 9)
+                    Circle().stroke(Color.accentColor.opacity(0.15), lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: Double(viewModel.lockedInScore) / 100)
-                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                    Text("\(viewModel.lockedInScore)")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .animation(.easeInOut(duration: 0.4), value: viewModel.lockedInScore)
+                    VStack(spacing: 0) {
+                        Text("\(viewModel.lockedInScore)")
+                            .font(.system(.title2, design: .rounded, weight: .bold))
+                        Text("SCORE")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .tracking(0.5)
+                    }
                 }
-                .frame(width: 76, height: 76)
+                .frame(width: 72, height: 72)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
 
                 VStack(alignment: .leading, spacing: 6) {
                     scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
-                    scoreRow("Workouts today \(viewModel.completedWorkoutsToday)", done: viewModel.completedWorkoutsToday > 0)
+                    scoreRow("Workout today", done: viewModel.completedWorkoutsToday > 0)
                 }
                 Spacer()
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .cardBackground()
     }
 
     private var quickActions: some View {
-        HStack(spacing: 10) {
-            Button { showAddMeal = true } label: {
-                Label("Meal", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
+        HStack(spacing: 8) {
+            quickActionButton("Meal", systemImage: "fork.knife", prominent: true) { showAddMeal = true }
+            quickActionButton("Photo", systemImage: "camera.fill") { showPhotoAnalysis = true }
+            quickActionButton("Workout", systemImage: "dumbbell.fill") { createBlankWorkout() }
+            quickActionButton("Weight", systemImage: "scalemass.fill") { showLogWeight = true }
+            quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing) {
+                Task { await healthKit.sync(context: context) }
             }
-            .buttonStyle(.borderedProminent)
-
-            Button { createBlankWorkout() } label: {
-                Label("Workout", systemImage: "dumbbell.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
         }
-        .controlSize(.large)
+    }
+
+    private func quickActionButton(_ label: String, systemImage: String, prominent: Bool = false, spinning: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .symbolEffect(.pulse, isActive: spinning)
+                Text(label)
+                    .font(.caption2.weight(.medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .foregroundStyle(prominent ? Color.black : Color.primary)
+            .background(
+                prominent ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(spinning)
     }
 
     private func scoreRow(_ label: String, done: Bool) -> some View {
@@ -188,13 +216,13 @@ struct DashboardView: View {
     private var macroCard: some View {
         DashboardCard(title: "Macros", systemImage: "chart.pie") {
             HStack {
-                MacroRingView(label: "Protein", current: viewModel.nutrition.protein, target: proteinTarget, unit: "g", color: .red)
+                MacroRingView(label: "Protein", current: viewModel.nutrition.protein, target: proteinTarget, unit: "g", color: .accentColor)
                 Spacer()
-                MacroRingView(label: "Carbs", current: viewModel.nutrition.carbs, target: max(1, (calorieTarget * 0.4) / 4), unit: "g", color: .blue)
+                MacroRingView(label: "Carbs", current: viewModel.nutrition.carbs, target: max(1, (calorieTarget * 0.4) / 4), unit: "g", color: .indigo)
                 Spacer()
-                MacroRingView(label: "Fat", current: viewModel.nutrition.fat, target: max(1, (calorieTarget * 0.25) / 9), unit: "g", color: .yellow)
+                MacroRingView(label: "Fat", current: viewModel.nutrition.fat, target: max(1, (calorieTarget * 0.25) / 9), unit: "g", color: .orange)
                 Spacer()
-                MacroRingView(label: "Fiber", current: viewModel.nutrition.fiber, target: 30, unit: "g", color: .green)
+                MacroRingView(label: "Fiber", current: viewModel.nutrition.fiber, target: 30, unit: "g", color: .teal)
             }
         }
     }
@@ -218,7 +246,7 @@ struct DashboardView: View {
                 StatChip(label: "Adherence", value: adherenceLabel)
             }
             NavigationLink(destination: WeightTrendsView()) {
-                Label("Log weight", systemImage: "scalemass")
+                Label("View weight trends", systemImage: "chart.line.uptrend.xyaxis")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
             }

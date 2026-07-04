@@ -35,7 +35,7 @@ struct ExerciseDetailView: View {
         ScrollView {
             VStack(spacing: 14) {
                 if sessions.isEmpty {
-                    EmptyStateView(systemImage: "dumbbell", title: "No History",
+                    EmptyStateView(systemImage: "dumbbell", title: "No history yet",
                                    message: "Complete a workout with \(exerciseName) to see progress here.")
                 } else {
                     HStack {
@@ -44,7 +44,7 @@ struct ExerciseDetailView: View {
                         StatChip(label: "Last top set", value: sessions.last?.topSet ?? "—")
                     }
                     .padding(14)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                    .cardBackground()
 
                     ChartCard(title: "Estimated 1RM", subtitle: "Epley formula from best completed set") {
                         Chart(sessions) { session in

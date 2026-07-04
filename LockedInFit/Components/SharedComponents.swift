@@ -1,5 +1,32 @@
 import SwiftUI
 
+// MARK: - Design tokens
+
+enum CardMetrics {
+    static let cornerRadius: CGFloat = 18
+    static let padding: CGFloat = 16
+    static let spacing: CGFloat = 14
+}
+
+/// Consistent card chrome used across every card in the app: soft fill,
+/// a hairline border for definition in both appearances, no heavy shadow.
+struct CardBackground: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05), lineWidth: 1)
+            )
+    }
+}
+
+extension View {
+    func cardBackground() -> some View { modifier(CardBackground()) }
+}
+
 // MARK: - Brand
 
 struct AppBrandMark: View {
@@ -39,14 +66,15 @@ struct DashboardCard<Content: View>: View {
                 Text(title)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .tracking(0.3)
                     .textCase(.uppercase)
                 Spacer()
             }
             content
         }
-        .padding(16)
+        .padding(CardMetrics.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .cardBackground()
     }
 }
 
@@ -65,10 +93,10 @@ struct MacroRingView: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .stroke(color.opacity(0.18), lineWidth: 7)
+                    .stroke(color.opacity(0.16), lineWidth: 6)
                 Circle()
                     .trim(from: 0, to: min(1, progress))
-                    .stroke(color, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 0) {
                     Text("\(Int(current))")
@@ -80,7 +108,7 @@ struct MacroRingView: View {
                 }
                 .padding(6)
             }
-            .frame(width: 64, height: 64)
+            .frame(width: 60, height: 60)
             Text(label)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -113,27 +141,36 @@ struct ChartCard<Content: View>: View {
             content
                 .frame(height: 180)
         }
-        .padding(16)
+        .padding(CardMetrics.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .cardBackground()
     }
 }
 
 // MARK: - EmptyStateView
 
+/// A quiet, non-demo empty state: an outlined glyph, a short title, and one line
+/// of guidance. No illustrations, no sample data — just what to do next.
 struct EmptyStateView: View {
     let systemImage: String
     let title: String
     let message: String
 
     var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: systemImage)
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(.tertiary)
+            Text(title)
                 .font(.subheadline.weight(.semibold))
-        } description: {
+                .foregroundStyle(.primary)
             Text(message)
                 .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
 }
 
@@ -179,7 +216,7 @@ struct StrengthScoreCard: View {
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .cardBackground()
     }
 
     private var levelColor: Color {
@@ -220,7 +257,7 @@ struct GoalProgressCard: View {
             ProgressView(value: max(0, min(1, progress)))
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .cardBackground()
     }
 }
 
@@ -236,10 +273,29 @@ struct StatChip: View {
             Text(value)
                 .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(color)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - SectionLabel
+
+/// Small caps section label for use above groups of cards or list sections,
+/// matching the DashboardCard header treatment for a consistent hierarchy.
+struct SectionLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .tracking(0.3)
+            .textCase(.uppercase)
     }
 }

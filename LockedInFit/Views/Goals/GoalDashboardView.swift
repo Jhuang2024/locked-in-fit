@@ -18,10 +18,16 @@ struct GoalDashboardView: View {
             if let goal = activeGoals.first, let settings = settingsList.first {
                 content(goal: goal, settings: settings)
             } else {
-                EmptyStateView(systemImage: "target", title: "No Active Goal",
-                               message: "Set a goal phase to get calorie, protein, and step recommendations.")
-                Button("Set Up Goal") { showEdit = true }
-                    .buttonStyle(.borderedProminent)
+                VStack(spacing: 16) {
+                    Spacer()
+                    EmptyStateView(systemImage: "target", title: "No active goal",
+                                   message: "Set a goal phase to get calorie, protein, and step recommendations.")
+                    Button("Set Up Goal") { showEdit = true }
+                        .buttonStyle(.borderedProminent)
+                    Spacer()
+                }
+                .padding()
+                .background(Color(.systemGroupedBackground))
             }
         }
         .navigationTitle("Goal")
@@ -66,7 +72,7 @@ struct GoalDashboardView: View {
                         .foregroundStyle(.orange)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
                 }
 
                 if let trend = projection.currentTrendKg {

@@ -38,7 +38,7 @@ struct WeightTrendsView: View {
                         StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "—")
                     }
                     .padding(14)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                    .cardBackground()
                 }
 
                 if trendPoints.isEmpty {

@@ -31,7 +31,7 @@ struct MeasurementsView: View {
 
             Section("History") {
                 if entries.isEmpty {
-                    EmptyStateView(systemImage: "ruler", title: "No Measurements",
+                    EmptyStateView(systemImage: "ruler", title: "No measurements yet",
                                    message: "Log waist, chest, arms and more to track body recomposition.")
                 }
                 ForEach(entries.reversed()) { entry in
