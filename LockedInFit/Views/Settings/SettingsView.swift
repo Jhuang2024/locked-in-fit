@@ -6,16 +6,23 @@ import UIKit
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
+    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @Query(sort: \MealLog.date) private var meals: [MealLog]
+    @Query(sort: \StepEntry.date) private var steps: [StepEntry]
 
     @State private var exportURL: URL?
     @State private var showImporter = false
     @State private var importResult: String?
+    @State private var weightInput = ""
+
+    private var latestWeight: BodyWeightEntry? { weights.last }
 
     var body: some View {
         Form {
             if let settings = settingsList.first {
                 brandSection
                 profileSection(settings)
+                weightSection(settings)
                 energySection(settings)
             }
 
@@ -81,6 +88,9 @@ struct SettingsView: View {
             if settingsList.isEmpty {
                 context.insert(UserSettings())
             }
+            if weightInput.isEmpty, let latestWeight {
+                weightInput = String(format: "%.1f", latestWeight.weightKg)
+            }
         }
     }
 
@@ -120,6 +130,44 @@ struct SettingsView: View {
                 ForEach(UnitSystem.allCases) { Text($0.label).tag($0) }
             }
         }
+    }
+
+    private func weightSection(_ settings: UserSettings) -> some View {
+        Section {
+            HStack {
+                Text("Current weight")
+                Spacer()
+                TextField("kg", text: $weightInput)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .onSubmit { saveWeight() }
+                Text("kg").font(.caption).foregroundStyle(.secondary)
+            }
+            if let latestWeight {
+                LabeledContent("Last logged", value: Formatters.mediumDate(latestWeight.date))
+            }
+            LabeledContent("Estimated maintenance", value: Formatters.kcal(estimatedMaintenance(settings)))
+        } header: {
+            Text("Body")
+        } footer: {
+            Text("Your current weight drives the maintenance estimate, exercise calorie adjustment, and every calorie/protein/step target derived from it. Update it here whenever it changes — no need to visit Weight Trends just to log a number.")
+        }
+        .onChange(of: weightInput) { saveWeight() }
+    }
+
+    private func estimatedMaintenance(_ settings: UserSettings) -> Double {
+        Analytics.estimateMaintenance(settings: settings, weights: weights, meals: meals, steps: steps)
+    }
+
+    private func saveWeight() {
+        guard let kg = Double(weightInput), kg > 20, kg < 300 else { return }
+        if let latestWeight, latestWeight.date.isToday {
+            latestWeight.weightKg = kg
+        } else {
+            context.insert(BodyWeightEntry(date: .now, weightKg: kg, source: .manual))
+        }
+        Task { await HealthKitManager.shared.writeWeight(kg, date: .now) }
     }
 
     private func energySection(_ settings: UserSettings) -> some View {
