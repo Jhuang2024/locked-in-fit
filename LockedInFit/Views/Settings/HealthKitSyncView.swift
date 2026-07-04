@@ -1,0 +1,59 @@
+import SwiftUI
+import SwiftData
+
+/// Opt-in Apple Health sync. Renpho weight/body-fat lands here via Apple Health.
+struct HealthKitSyncView: View {
+    @Environment(\.modelContext) private var context
+    @State private var manager = HealthKitManager.shared
+    @State private var syncDays = 60
+
+    var body: some View {
+        Form {
+            Section {
+                if manager.isAvailable {
+                    Picker("Range", selection: $syncDays) {
+                        Text("2 weeks").tag(14)
+                        Text("2 months").tag(60)
+                        Text("6 months").tag(180)
+                    }
+                    Button {
+                        Task { await manager.sync(days: syncDays, context: context) }
+                    } label: {
+                        if manager.syncing {
+                            HStack { ProgressView(); Text("Syncing…") }
+                        } else {
+                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(manager.syncing)
+                    if let lastSync = manager.lastSync {
+                        LabeledContent("Last sync", value: lastSync.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    if !manager.lastSyncSummary.isEmpty {
+                        Text(manager.lastSyncSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Label("HealthKit isn't available on this device.", systemImage: "heart.slash")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Apple Health")
+            } footer: {
+                Text("Reads steps, body mass, body fat %, and active energy. Renpho scale data syncs through Apple Health — pair the Renpho app with Health and it flows in here. The app works fully without this permission; everything can be logged manually.")
+            }
+
+            Section {
+                LabeledContent("Steps", value: "Read")
+                LabeledContent("Body mass", value: "Read + write manual weigh-ins")
+                LabeledContent("Body fat %", value: "Read")
+                LabeledContent("Active energy", value: "Read")
+            } header: {
+                Text("Data Types")
+            }
+        }
+        .navigationTitle("Apple Health")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
