@@ -58,31 +58,30 @@ enum Analytics {
         return NutritionCalculator.blendedMaintenance(formula: formula, observed: observed, observationDays: intakes.count).rounded()
     }
 
-    /// "Locked In" daily score 0–100: nutrition, protein, steps, training, sleep placeholder.
+    /// "Locked In" daily score 0–100, entirely earned from today's logged behavior.
+    /// A day with nothing logged yet must read as 0 — no free credit.
     static func lockedInScore(todayCalories: Double, calorieTarget: Double,
                               todayProtein: Double, proteinTarget: Double,
                               todaySteps: Int, stepTarget: Int,
                               trainedThisWeek: Int, weeklyTrainingTarget: Int) -> Int {
         var score = 0.0
-        // Nutrition (30): within ±10% of target is full credit, fades to 0 at ±40%.
+        // Nutrition (34): within ±10% of target is full credit, fades to 0 at ±40%.
         if calorieTarget > 0, todayCalories > 0 {
             let deviation = abs(todayCalories - calorieTarget) / calorieTarget
-            score += 30 * max(0, min(1, (0.4 - deviation) / 0.3))
+            score += 34 * max(0, min(1, (0.4 - deviation) / 0.3))
         }
-        // Protein (25)
+        // Protein (28)
         if proteinTarget > 0 {
-            score += 25 * min(1, todayProtein / proteinTarget)
+            score += 28 * min(1, todayProtein / proteinTarget)
         }
-        // Steps (20)
+        // Steps (22)
         if stepTarget > 0 {
-            score += 20 * min(1, Double(todaySteps) / Double(stepTarget))
+            score += 22 * min(1, Double(todaySteps) / Double(stepTarget))
         }
-        // Training (15): sessions this week vs target frequency.
+        // Training (16): sessions this week vs target frequency.
         if weeklyTrainingTarget > 0 {
-            score += 15 * min(1, Double(trainedThisWeek) / Double(weeklyTrainingTarget))
+            score += 16 * min(1, Double(trainedThisWeek) / Double(weeklyTrainingTarget))
         }
-        // Sleep placeholder (10): granted until sleep tracking exists.
-        score += 10
         return Int(score.rounded())
     }
 }

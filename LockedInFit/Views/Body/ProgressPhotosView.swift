@@ -12,7 +12,7 @@ struct ProgressPhotosView: View {
         ScrollView {
             VStack(spacing: 14) {
                 if photos.isEmpty {
-                    EmptyStateView(systemImage: "photo.on.rectangle", title: "No Progress Photos",
+                    EmptyStateView(systemImage: "photo.on.rectangle", title: "No progress photos yet",
                                    message: "Take front, side, and back photos every few weeks. The scale lies; photos don't.")
                 }
                 ForEach(photos) { photo in

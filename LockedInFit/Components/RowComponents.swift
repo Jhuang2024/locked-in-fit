@@ -184,7 +184,7 @@ struct ProgressPhotoCard: View {
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .cardBackground()
     }
 
     @ViewBuilder
