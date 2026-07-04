@@ -8,8 +8,6 @@ enum SeedDataService {
         let settings = fetchOrCreateSettings(context: context)
         guard !settings.seededSampleData else { return }
         settings.seededSampleData = true
-
-        seedPresetsIfNeeded(context: context)
         try? context.save()
     }
 
@@ -22,45 +20,9 @@ enum SeedDataService {
         return settings
     }
 
-    // MARK: - Presets (China-friendly list)
-
-    private static func seedPresetsIfNeeded(context: ModelContext) {
-        let existing = (try? context.fetch(FetchDescriptor<FoodPreset>())) ?? []
-        guard existing.isEmpty else { return }
-
-        let presets: [FoodPreset] = [
-            FoodPreset(name: "Stir-fried Eggplant", serving: "1 bowl (180 g)", calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, category: "Chinese Home-Cooked", notes: "Eggplant soaks up oil — real value can run 60–200 kcal higher.", cookingMethod: .stirFried),
-            FoodPreset(name: "Stir-fried String Beans", serving: "1 bowl (150 g)", calories: 160, protein: 4, carbs: 12, fat: 11, fiber: 5, sodium: 420, category: "Chinese Home-Cooked", notes: "Often flash-fried first at restaurants.", cookingMethod: .stirFried),
-            FoodPreset(name: "Stir-fried Leafy Greens", serving: "1 bowl (150 g)", calories: 110, protein: 3, carbs: 6, fat: 9, fiber: 3, sodium: 350, category: "Chinese Home-Cooked", notes: "Garlic + oil; moderate hidden oil.", cookingMethod: .stirFried),
-            FoodPreset(name: "Winter Melon Soup", serving: "1 bowl (300 g)", calories: 90, protein: 4, carbs: 8, fat: 5, fiber: 2, sodium: 620, category: "Chinese Home-Cooked", notes: "Low oil unless made with pork bones.", cookingMethod: .soup),
-            FoodPreset(name: "Bamboo Shoots (braised)", serving: "1 bowl (120 g)", calories: 110, protein: 3, carbs: 10, fat: 7, fiber: 4, sodium: 520, category: "Chinese Home-Cooked", notes: "Braised in oil + soy.", cookingMethod: .braised),
-            FoodPreset(name: "Braised Tofu", serving: "1 bowl (180 g)", calories: 220, protein: 16, carbs: 8, fat: 14, fiber: 2, sodium: 560, category: "Chinese Home-Cooked", notes: "Medium oil risk; pan-fried first.", cookingMethod: .braised),
-            FoodPreset(name: "Black Fungus Salad", serving: "1 plate (90 g)", calories: 70, protein: 2, carbs: 8, fat: 4, fiber: 3, sodium: 410, category: "Chinese Home-Cooked", notes: "Dressed with sesame oil.", cookingMethod: .raw),
-            FoodPreset(name: "Boiled Shrimp", serving: "10 shrimp (100 g)", calories: 100, protein: 22, carbs: 0.5, fat: 1, fiber: 0, sodium: 300, category: "Protein", cookingMethod: .boiled),
-            FoodPreset(name: "Braised Duck", serving: "1 plate (120 g)", calories: 320, protein: 22, carbs: 4, fat: 24, fiber: 0, sodium: 680, category: "Protein", notes: "Fatty; skin adds a lot.", cookingMethod: .braised),
-            FoodPreset(name: "Lamb Slices (hot pot)", serving: "1 plate (100 g)", calories: 230, protein: 19, carbs: 0, fat: 17, fiber: 0, sodium: 90, category: "Protein", cookingMethod: .boiled),
-            FoodPreset(name: "Stir-fried Pork Slices", serving: "1 plate (100 g)", calories: 230, protein: 18, carbs: 3, fat: 16, fiber: 0, sodium: 420, category: "Protein", cookingMethod: .stirFried),
-            FoodPreset(name: "Braised Beef", serving: "1 plate (100 g)", calories: 250, protein: 26, carbs: 3, fat: 15, fiber: 0, sodium: 550, category: "Protein", cookingMethod: .braised),
-            FoodPreset(name: "Noodles with Sauce", serving: "1 bowl (320 g)", calories: 520, protein: 16, carbs: 78, fat: 15, fiber: 4, sodium: 1100, category: "Staples", notes: "Sauce oil is the wildcard.", cookingMethod: .stirFried),
-            FoodPreset(name: "Pork & Chive Dumplings", serving: "10 pcs (220 g)", calories: 420, protein: 18, carbs: 52, fat: 15, fiber: 3, sodium: 780, category: "Staples", cookingMethod: .boiled),
-            FoodPreset(name: "Steamed White Rice", serving: "1 bowl (200 g)", calories: 260, protein: 5, carbs: 57, fat: 1, fiber: 1, sodium: 5, category: "Staples", cookingMethod: .steamed),
-            FoodPreset(name: "Corn on the Cob", serving: "1 ear (150 g)", calories: 130, protein: 5, carbs: 27, fat: 2, fiber: 3, sodium: 20, category: "Staples", cookingMethod: .boiled),
-            FoodPreset(name: "Boiled Eggs", serving: "2 eggs (100 g)", calories: 155, protein: 13, carbs: 1, fat: 11, fiber: 0, sodium: 125, category: "Protein", cookingMethod: .boiled),
-            FoodPreset(name: "Quail Eggs", serving: "6 eggs (60 g)", calories: 95, protein: 8, carbs: 0.5, fat: 7, fiber: 0, sodium: 85, category: "Protein", cookingMethod: .boiled),
-            FoodPreset(name: "Marinated Cucumber", serving: "1 plate (80 g)", calories: 45, protein: 1, carbs: 5, fat: 2.5, fiber: 1, sodium: 340, category: "Sides", cookingMethod: .raw),
-            FoodPreset(name: "Seaweed Snack Pack", serving: "1 pack (5 g)", calories: 25, protein: 1, carbs: 1, fat: 2, fiber: 1, sodium: 90, category: "Snacks", cookingMethod: .raw),
-            FoodPreset(name: "Grilled Chicken Breast", serving: "160 g", calories: 265, protein: 49, carbs: 0, fat: 6, fiber: 0, sodium: 380, category: "Protein", cookingMethod: .grilled),
-            FoodPreset(name: "Baked Potato", serving: "1 medium (200 g)", calories: 190, protein: 4, carbs: 43, fat: 0.3, fiber: 4, sodium: 15, category: "Staples", cookingMethod: .baked),
-            FoodPreset(name: "Protein Bar", serving: "1 bar (60 g)", calories: 210, protein: 20, carbs: 22, fat: 7, fiber: 3, sodium: 200, category: "Snacks", cookingMethod: .raw),
-            FoodPreset(name: "Protein Ice Cream", serving: "1 tub (280 g)", calories: 330, protein: 28, carbs: 35, fat: 9, fiber: 5, sodium: 300, category: "Snacks", cookingMethod: .raw)
-        ]
-        presets.forEach { context.insert($0) }
-    }
-
 #if DEBUG
     /// Debug-only history for SwiftUI previews and local design checks.
     static func seedPreviewHistory(context: ModelContext) {
-        seedPresetsIfNeeded(context: context)
         seedBodyData(context: context)
         seedMeals(context: context)
         seedWorkouts(context: context)
