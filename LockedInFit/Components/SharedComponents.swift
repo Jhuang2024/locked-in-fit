@@ -1,4 +1,24 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Keyboard dismissal
+
+/// Numeric keypads (.decimalPad/.numberPad) have no built-in return key, so
+/// without this the keyboard has no way to close. Adds a "Done" button above
+/// the keyboard that resigns first responder.
+extension View {
+    func keyboardDoneToolbar() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .fontWeight(.semibold)
+            }
+        }
+    }
+}
 
 // MARK: - Design tokens
 

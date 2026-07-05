@@ -132,6 +132,7 @@ struct MeasurementEditorView: View {
         }
         .navigationTitle(entry == nil ? "New Measurement" : "Edit Measurement")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             if entry == nil {

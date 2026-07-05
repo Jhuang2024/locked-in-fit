@@ -66,6 +66,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .keyboardDoneToolbar()
         .sheet(item: Binding(
             get: { exportURL.map { ShareItem(url: $0) } },
             set: { _ in exportURL = nil })) { item in

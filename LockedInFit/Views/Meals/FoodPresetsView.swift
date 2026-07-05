@@ -87,6 +87,7 @@ struct PresetEditorView: View {
             }
             .navigationTitle(preset == nil ? "New Preset" : "Edit Preset")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

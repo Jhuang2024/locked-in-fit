@@ -59,6 +59,7 @@ struct WorkoutLogView: View {
         }
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .sheet(isPresented: $showAddExercise) {
             ExercisePickerView { library in
                 let exercise = Exercise(name: library.name, muscleGroups: library.muscles,

@@ -30,6 +30,7 @@ struct MealPhotoAnalysisView: View {
             }
             .navigationTitle("Meal Photo")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }

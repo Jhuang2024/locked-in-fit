@@ -66,6 +66,7 @@ struct AddMealView: View {
             }
             .navigationTitle("Add Meal")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

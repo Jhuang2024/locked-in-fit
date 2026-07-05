@@ -75,6 +75,7 @@ struct MealDetailView: View {
         }
         .navigationTitle(meal.mealType.label)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 ImageStore.delete(meal.photoPath)
