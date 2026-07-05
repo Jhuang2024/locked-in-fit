@@ -13,18 +13,15 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **Workouts**: generator (phase, equipment, time, fatigue, focus muscles), set-by-set logging (weight/reps/duration/RPE), templates, repeat workout, exercise history charts.
 - **Strength scores**: 0–1000 per movement pattern (squat, hinge, pushes, pulls, core, conditioning) from bodyweight-relative e1RM + progress + volume + consistency. Levels, badges, PR celebrations, weekly streaks, and a daily "Locked In" score.
 - **HealthKit** (optional): reads steps, body mass, body fat %, active energy — Renpho data flows in via Apple Health. The app works fully without the permission. Auto-syncs every second while the app is open, and instantly in the background via HKObserverQuery whenever new Health data lands (HealthKit has no true background polling interval — this is the event-driven equivalent).
-- **Home screen widget**: small/medium widget showing today's Locked In Score, calories remaining, and steps, backed by an App Group so it updates the moment the app syncs.
 - **Export/import**: JSON and CSV export via share sheet, JSON import. All data stays on device.
 
 ## Install on your iPhone (free Apple ID is fine)
 
 1. Open `LockedInFit.xcodeproj` in **Xcode 16+** on a Mac.
 2. Select the **LockedInFit** target → *Signing & Capabilities* → set **Team** to your personal team (add your Apple ID under Xcode → Settings → Accounts if needed). Change the bundle ID if Xcode complains it's taken (e.g. `com.yourname.LockedInFit`).
-3. Do the same on the **LockedInFitWidgetExtension** target (same Team). Xcode's automatic signing will register the `group.com.jerryhuang.LockedInFit` App Group for you the first time it builds — if it errors instead, open the App Groups capability on both targets and re-add/rename the group so it's unique to your account, then build again.
-4. Plug in your iPhone, enable **Developer Mode** on the phone (Settings → Privacy & Security → Developer Mode), and pick the phone as the run destination.
-5. Press **Run** (⌘R) on the **LockedInFit** scheme (not the widget scheme). First time: on the phone, trust the developer cert under Settings → General → VPN & Device Management.
-6. With a free Apple ID the app expires after 7 days — just press Run again to reinstall. Data survives reinstalls.
-7. To add the widget: long-press the home screen → **+** → search "Locked In Fit" → choose small or medium.
+3. Plug in your iPhone, enable **Developer Mode** on the phone (Settings → Privacy & Security → Developer Mode), and pick the phone as the run destination.
+4. Press **Run** (⌘R). First time: on the phone, trust the developer cert under Settings → General → VPN & Device Management.
+5. With a free Apple ID the app expires after 7 days — just press Run again to reinstall. Data survives reinstalls.
 
 ## OpenRouter setup (optional)
 
@@ -46,10 +43,7 @@ LockedInFit/
                  calculators (nutrition, trend weight, goal projection,
                  strength score), workout generator, export/import, seeding
   Components/    Reusable cards, rows, rings, pickers
-  Support/       Formatters, analytics helpers, widget snapshot/App Group bridge
-LockedInFitWidget/
-  Home screen widget target (WidgetKit). Reads the snapshot the app writes
-  to the shared App Group — no HealthKit/SwiftData access of its own.
+  Support/       Formatters, analytics helpers
 ```
 
 Sample data (meals, weights, workouts, goal, presets) is seeded on first launch so every screen has content immediately.

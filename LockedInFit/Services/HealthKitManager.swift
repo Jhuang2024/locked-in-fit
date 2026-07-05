@@ -147,7 +147,6 @@ final class HealthKitManager {
 
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
-            WidgetSnapshotService.refresh(context: context)
         } catch {
             lastSyncSummary = "Sync failed: \(error.localizedDescription)"
         }
