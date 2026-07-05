@@ -11,7 +11,22 @@ struct HealthKitSyncView: View {
         Form {
             Section {
                 if manager.isAvailable {
-                    Picker("Range", selection: $syncDays) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(manager.autoSyncEnabled ? Color.green : Color.secondary)
+                            .frame(width: 8, height: 8)
+                        Text(manager.autoSyncEnabled ? "Auto-sync is on" : "Auto-sync is off")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        if manager.syncing {
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                    Text("Refreshes every second while the app is open, and instantly in the background whenever new Health data arrives.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Picker("Full history range", selection: $syncDays) {
                         Text("2 weeks").tag(14)
                         Text("2 months").tag(60)
                         Text("6 months").tag(180)
@@ -22,7 +37,7 @@ struct HealthKitSyncView: View {
                         if manager.syncing {
                             HStack { ProgressView(); Text("Syncing…") }
                         } else {
-                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                            Label("Sync Full History Now", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
                     .disabled(manager.syncing)

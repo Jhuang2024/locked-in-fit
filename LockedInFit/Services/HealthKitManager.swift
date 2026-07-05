@@ -14,6 +14,11 @@ final class HealthKitManager {
     var lastSync: Date?
     var lastSyncSummary: String = ""
     var syncing = false
+    var autoSyncEnabled = false
+
+    private var container: ModelContainer?
+    private var observerQueries: [HKObserverQuery] = []
+    private var foregroundTimer: Timer?
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = []
@@ -27,6 +32,61 @@ final class HealthKitManager {
         guard isAvailable else { return }
         let writeTypes: Set<HKSampleType> = HKObjectType.quantityType(forIdentifier: .bodyMass).map { [$0] } ?? []
         try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
+    }
+
+    // MARK: - Auto sync
+
+    /// Wires the manager to the app's SwiftData store, then starts both the
+    /// event-driven background path and the always-on foreground refresh loop.
+    @MainActor
+    func configureAutoSync(container: ModelContainer) {
+        guard self.container == nil else { return }
+        self.container = container
+        startForegroundAutoSync()
+        Task {
+            try? await requestAuthorization()
+            startBackgroundObservers()
+        }
+    }
+
+    /// Apple Health has no concept of continuous per-second polling — HKObserverQuery
+    /// only fires when new data actually lands, and background delivery is scheduled
+    /// by iOS rather than on a fixed clock. While the app is in the foreground we
+    /// still honor a literal 1-second refresh here; in the background the observer
+    /// queries below take over so battery isn't spent polling for nothing.
+    private func startForegroundAutoSync() {
+        guard foregroundTimer == nil else { return }
+        autoSyncEnabled = true
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self, let container = self.container, !self.syncing else { return }
+            Task { @MainActor in await self.syncRecent(context: container.mainContext) }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        foregroundTimer = timer
+    }
+
+    /// Registers an HKObserverQuery per read type with immediate background delivery,
+    /// so a new Renpho weigh-in or step count synced into Health is pulled in as soon
+    /// as iOS wakes the app for it — no manual "Sync Now" tap required.
+    private func startBackgroundObservers() {
+        guard isAvailable else { return }
+        for case let sampleType as HKSampleType in readTypes {
+            let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] _, completionHandler, error in
+                defer { completionHandler() }
+                guard let self, error == nil, let container = self.container else { return }
+                Task { @MainActor in await self.syncRecent(context: container.mainContext) }
+            }
+            store.execute(query)
+            store.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { _, _ in }
+            observerQueries.append(query)
+        }
+    }
+
+    /// Cheap sync used by the auto-sync loop and background observers: only the
+    /// last couple of days, instead of the full historical range.
+    @MainActor
+    func syncRecent(context: ModelContext) async {
+        await sync(days: 2, context: context)
     }
 
     /// Pull the last `days` of data into SwiftData, deduplicating by day+source.
@@ -87,6 +147,7 @@ final class HealthKitManager {
 
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
+            WidgetSnapshotService.refresh(context: context)
         } catch {
             lastSyncSummary = "Sync failed: \(error.localizedDescription)"
         }

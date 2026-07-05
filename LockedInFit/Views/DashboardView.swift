@@ -20,6 +20,7 @@ struct DashboardView: View {
     @State private var newWeight = ""
     @State private var healthKit = HealthKitManager.shared
     @State private var activeWorkout: Workout?
+    @State private var actionTick = 0
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -63,6 +64,7 @@ struct DashboardView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
+        .refreshable { await healthKit.sync(context: context) }
         .navigationTitle("Today")
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
@@ -75,6 +77,7 @@ struct DashboardView: View {
             Button("Save") { saveWeight() }
             Button("Cancel", role: .cancel) {}
         }
+        .sensoryFeedback(.selection, trigger: actionTick)
     }
 
     private func saveWeight() {
@@ -138,18 +141,29 @@ struct DashboardView: View {
             quickActionButton("Photo", systemImage: "camera.fill") { showPhotoAnalysis = true }
             quickActionButton("Workout", systemImage: "dumbbell.fill") { createBlankWorkout() }
             quickActionButton("Weight", systemImage: "scalemass.fill") { showLogWeight = true }
-            quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing) {
+            quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing, badge: healthKit.autoSyncEnabled) {
                 Task { await healthKit.sync(context: context) }
             }
         }
     }
 
-    private func quickActionButton(_ label: String, systemImage: String, prominent: Bool = false, spinning: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func quickActionButton(_ label: String, systemImage: String, prominent: Bool = false, spinning: Bool = false, badge: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            actionTick += 1
+            action()
+        } label: {
             VStack(spacing: 5) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 17, weight: .semibold))
-                    .symbolEffect(.pulse, isActive: spinning)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .symbolEffect(.pulse, isActive: spinning)
+                    if badge {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                            .offset(x: 7, y: -3)
+                    }
+                }
                 Text(label)
                     .font(.caption2.weight(.medium))
             }
@@ -161,7 +175,7 @@ struct DashboardView: View {
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .disabled(spinning)
     }
 
@@ -278,7 +292,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
     }
 
     private func rateColor(_ rate: Double?, goal: Goal) -> Color {
@@ -298,7 +312,7 @@ struct DashboardView: View {
                         NavigationLink(destination: MealDetailView(meal: meal)) {
                             MealRowView(meal: meal)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressable)
                     }
                 }
             }

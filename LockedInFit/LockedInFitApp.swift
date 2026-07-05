@@ -18,6 +18,7 @@ struct LockedInFitApp: App {
         }
         SeedDataService.seedIfNeeded(context: container.mainContext)
         SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
+        HealthKitManager.shared.configureAutoSync(container: container)
     }
 
     var body: some Scene {

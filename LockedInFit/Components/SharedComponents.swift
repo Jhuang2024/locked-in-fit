@@ -40,11 +40,29 @@ struct CardBackground: ViewModifier {
                 RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
                     .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05), lineWidth: 1)
             )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.04), radius: 8, x: 0, y: 3)
     }
 }
 
 extension View {
     func cardBackground() -> some View { modifier(CardBackground()) }
+}
+
+// MARK: - Press feedback
+
+/// Subtle scale + fade feedback for tappable rows and buttons, so interactions
+/// feel responsive instead of just flat-flipping between two static states.
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }
 
 // MARK: - Brand
@@ -289,7 +307,7 @@ struct StatChip: View {
     var color: Color = .primary
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             Text(value)
                 .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(color)
@@ -301,6 +319,8 @@ struct StatChip: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
