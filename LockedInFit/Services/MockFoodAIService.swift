@@ -52,7 +52,16 @@ struct MockFoodAIService: FoodAIService {
     func analyzeMeal(image: UIImage, context: MealAnalysisContext) async throws -> MealEstimate {
         // Simulate a short analysis delay so the UI flow matches the real provider.
         try await Task.sleep(for: .seconds(1.2))
+        return estimate(context: context, source: "photo")
+    }
 
+    func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate {
+        // Simulate a short analysis delay so the UI flow matches the real provider.
+        try await Task.sleep(for: .seconds(0.8))
+        return estimate(context: context, source: "description")
+    }
+
+    private func estimate(context: MealAnalysisContext, source: String) -> MealEstimate {
         var template = Self.templates.randomElement()!
         // Small random scaling so repeated mock runs don't look identical.
         let scale = Double.random(in: 0.85...1.15)
@@ -86,7 +95,7 @@ struct MockFoodAIService: FoodAIService {
             confidence: (avgConfidence * 100).rounded() / 100,
             hiddenOilLow: oil.low.rounded(),
             hiddenOilHigh: oil.high.rounded(),
-            notes: "[Mock estimate] " + template.notes,
+            notes: "[Mock estimate from \(source)] " + template.notes,
             foodItems: items
         )
     }

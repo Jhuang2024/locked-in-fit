@@ -38,5 +38,6 @@ struct MealAnalysisContext {
 protocol FoodAIService {
     var providerName: String { get }
     func analyzeMeal(image: UIImage, context: MealAnalysisContext) async throws -> MealEstimate
+    func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate
     func testConnection() async throws -> String
 }
