@@ -17,6 +17,7 @@ struct LockedInFitApp: App {
             fatalError("Failed to create model container: \(error)")
         }
         SeedDataService.seedIfNeeded(context: container.mainContext)
+        SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
     }
 
     var body: some Scene {

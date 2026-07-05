@@ -70,6 +70,7 @@ final class UserSettings {
     var aiModeRaw: String = "mock"
     var hasStoredAPIKey: Bool = false
     var seededSampleData: Bool = false
+    var clearedEmptyWorkoutsV1: Bool = false
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }
