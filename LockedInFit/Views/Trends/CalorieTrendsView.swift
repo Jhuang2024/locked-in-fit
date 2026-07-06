@@ -23,6 +23,17 @@ struct CalorieTrendsView: View {
     private var cutoff: Date {
         windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
     }
+    private var chartEnd: Date { Date() }
+    private var chartDomain: ClosedRange<Date> {
+        let start: Date
+        if windowDays == Self.allTimeWindow {
+            let earliest = [meals.first?.date, steps.first?.date].compactMap { $0 }.min()
+            start = (earliest ?? chartEnd).startOfDay
+        } else {
+            start = cutoff
+        }
+        return start...max(chartEnd, start.addingTimeInterval(86400))
+    }
 
     private var caloriePoints: [DayPoint] {
         Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
@@ -70,6 +81,7 @@ struct CalorieTrendsView: View {
                         }
                     }
                     .id("calories-\(windowDays)")
+                    .chartXScale(domain: chartDomain)
                 }
 
                 ChartCard(title: "Deficit / Surplus", subtitle: "vs estimated maintenance (\(Int(maintenance)) kcal)") {
@@ -78,6 +90,7 @@ struct CalorieTrendsView: View {
                             .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)
                     }
                     .id("deficit-\(windowDays)")
+                    .chartXScale(domain: chartDomain)
                 }
 
                 ChartCard(title: "Protein", subtitle: goals.first.map { "Target \(Int($0.proteinTarget)) g" }) {
@@ -91,6 +104,7 @@ struct CalorieTrendsView: View {
                         }
                     }
                     .id("protein-\(windowDays)")
+                    .chartXScale(domain: chartDomain)
                 }
 
                 ChartCard(title: "Steps", subtitle: goals.first.map { "Target \($0.stepTarget)" }) {
@@ -104,6 +118,7 @@ struct CalorieTrendsView: View {
                         }
                     }
                     .id("steps-\(windowDays)")
+                    .chartXScale(domain: chartDomain)
                 }
             }
             .padding(.horizontal)
