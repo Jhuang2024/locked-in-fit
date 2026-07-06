@@ -102,7 +102,13 @@ struct WorkoutDashboardView: View {
                     } else {
                         VStack(spacing: 10) {
                             ForEach(history.prefix(12)) { workout in
-                                NavigationLink(destination: WorkoutLogView(workout: workout)) {
+                                NavigationLink {
+                                    if workout.completed {
+                                        CompletedWorkoutDetailView(workout: workout)
+                                    } else {
+                                        WorkoutLogView(workout: workout)
+                                    }
+                                } label: {
                                     WorkoutRowView(workout: workout)
                                 }
                                 .buttonStyle(.plain)

@@ -131,7 +131,7 @@ enum WorkoutGeneratorService {
             title: generatedTitle(for: request),
             type: request.type,
             duration: Double(request.timeAvailableMinutes),
-            notes: request.fatigueLevel >= 7 ? "Reduced volume — you reported high fatigue. Leave 2–3 reps in reserve." : "",
+            notes: request.fatigueLevel >= 7 ? "Reduced volume: you reported high fatigue. Leave 2-3 reps in reserve." : "",
             completed: false
         )
 
@@ -189,7 +189,7 @@ enum WorkoutGeneratorService {
     private static func progressionNote(for exercise: LibraryExercise, type: WorkoutType) -> String {
         switch type {
         case .strength:
-            return "Add 2.5 kg when all sets hit target reps at RPE ≤ 8."
+            return "Add 2.5 kg when all sets hit target reps with a rep or two still in the tank."
         case .hypertrophy:
             return "Add a rep each session; add weight when top of rep range is reached."
         case .conditioning:
@@ -197,7 +197,7 @@ enum WorkoutGeneratorService {
         case .mobility:
             return "Slow, controlled. Breathe into end range."
         default:
-            return exercise.priority >= 7 ? "Progress load when RPE drops below target." : "Chase quality reps, not load."
+            return exercise.priority >= 7 ? "Progress load once the sets start to feel easy." : "Chase quality reps, not load."
         }
     }
 }

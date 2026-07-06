@@ -17,6 +17,11 @@ enum Formatters {
         "\(Int(value.rounded())) g"
     }
 
+    /// Whole number when integral (100), one decimal otherwise (2.5).
+    static func trimmed(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
     static func percent(_ fraction: Double) -> String {
         "\(Int((fraction * 100).rounded()))%"
     }

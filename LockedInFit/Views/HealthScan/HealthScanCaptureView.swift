@@ -70,7 +70,7 @@ struct HealthScanCaptureView: View {
             } header: {
                 Text("Product or Food")
             } footer: {
-                Text("Photograph the packaging, ingredients list, or nutrition facts panel. This doesn't log anything you've eaten — it's just a lookup.")
+                Text("Photograph the packaging, ingredients list, or nutrition facts panel. This doesn't log anything you've eaten. It's just a lookup.")
             }
 
             Section {

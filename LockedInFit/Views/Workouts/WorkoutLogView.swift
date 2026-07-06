@@ -9,9 +9,15 @@ struct WorkoutLogView: View {
     @Query(filter: #Predicate<Workout> { !$0.isTemplate }) private var allWorkouts: [Workout]
 
     @Bindable var workout: Workout
+    /// `.log` drives a live logging session (with a Finish button); `.edit`
+    /// reuses the same form to amend an already-completed workout, with saving
+    /// handled by the presenting editor instead.
+    var mode: Mode = .log
     @State private var prMessages: [String] = []
     @State private var showPRCelebration = false
     @State private var showAddExercise = false
+
+    enum Mode { case log, edit }
 
     var body: some View {
         Form {
@@ -44,17 +50,19 @@ struct WorkoutLogView: View {
 
             Section("Wrap Up") {
                 Picker("Perceived difficulty", selection: $workout.perceivedDifficulty) {
-                    ForEach(0...10, id: \.self) { Text($0 == 0 ? "—" : "\($0)/10").tag($0) }
+                    ForEach(0...10, id: \.self) { Text($0 == 0 ? "Not rated" : "\($0)/10").tag($0) }
                 }
                 TextField("Notes", text: $workout.notes, axis: .vertical)
-                Button {
-                    finishWorkout()
-                } label: {
-                    Label(workout.completed ? "Completed ✓" : "Finish Workout", systemImage: "flag.checkered")
-                        .frame(maxWidth: .infinity)
+                if mode == .log {
+                    Button {
+                        finishWorkout()
+                    } label: {
+                        Label(workout.completed ? "Completed ✓" : "Finish Workout", systemImage: "flag.checkered")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(workout.completed)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(workout.completed)
             }
         }
         .navigationTitle(workout.title)
@@ -184,8 +192,6 @@ private struct ExerciseSectionView: View {
                     }
                 }
                 Spacer()
-                Text("RPE target \(String(format: "%.0f", exercise.targetRPE))")
-                    .font(.caption2)
             }
         } footer: {
             if !exercise.notes.isEmpty { Text(exercise.notes) }

@@ -40,7 +40,7 @@ enum GoalProjectionCalculator {
                 let weeksLeft = max(0.1, targetDate.timeIntervalSinceNow / (86400 * 7))
                 let requiredRate = remaining / weeksLeft
                 if abs(requiredRate) > 1.0 {
-                    warning = "Hitting \(Formatters.kg(goal.targetWeightKg)) by \(Formatters.shortDate(targetDate)) needs \(Formatters.kgChange(requiredRate))/week — that pace is unrealistic and would cost muscle. Extend the date or adjust the target."
+                    warning = "Hitting \(Formatters.kg(goal.targetWeightKg)) by \(Formatters.shortDate(targetDate)) needs \(Formatters.kgChange(requiredRate))/week. That pace is unrealistic and would cost muscle. Extend the date or adjust the target."
                 } else if abs(requiredRate) > 0.75, goal.phase == .cut {
                     warning = "Required pace of \(Formatters.kgChange(requiredRate))/week is aggressive. Expect hunger and plan protein carefully."
                 }

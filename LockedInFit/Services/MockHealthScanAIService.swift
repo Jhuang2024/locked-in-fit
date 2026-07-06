@@ -13,7 +13,7 @@ struct MockHealthScanAIService: HealthScanAIService {
             calories: 150, protein: 2, carbs: 22, fat: 6, fiber: 1, sugar: 12, sodium: 95,
             confidence: 0.6,
             concerningIngredients: ["high-fructose corn syrup", "partially hydrogenated oil", "artificial flavor"],
-            notes: "Marketed as healthy but closer to a candy bar nutritionally — high sugar, low protein and fiber won't keep you full."),
+            notes: "Marketed as healthy but closer to a candy bar nutritionally: high sugar, low protein and fiber won't keep you full."),
         HealthScanEstimate(
             productName: "Greek Yogurt (Plain, Whole Milk)", servingSize: "1 cup (245g)",
             healthScore: 84, satietyScore: 78, processedLevel: "minimally_processed",
@@ -27,7 +27,7 @@ struct MockHealthScanAIService: HealthScanAIService {
             calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 40,
             confidence: 0.65,
             concerningIngredients: ["aspartame", "phosphoric acid", "caramel color"],
-            notes: "Zero calories but no nutrition, and contains artificial sweeteners — fine occasionally, not a health food."),
+            notes: "Zero calories but no nutrition, and contains artificial sweeteners. Fine occasionally, not a health food."),
         HealthScanEstimate(
             productName: "Roasted Almonds (Unsalted)", servingSize: "1 oz (28g)",
             healthScore: 88, satietyScore: 82, processedLevel: "minimally_processed",
@@ -63,6 +63,6 @@ struct MockHealthScanAIService: HealthScanAIService {
     }
 
     func testConnection() async throws -> String {
-        "Mock mode is always available — no network needed."
+        "Mock mode is always available. No network needed."
     }
 }

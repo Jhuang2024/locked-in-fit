@@ -108,7 +108,7 @@ struct OpenRouterFoodAIService: FoodAIService {
             "max_tokens": 10
         ]
         let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
-        return "Connected — \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
+        return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 
     /// Tolerates code fences and stray text around the JSON object.

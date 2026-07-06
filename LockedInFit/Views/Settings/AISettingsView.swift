@@ -61,7 +61,7 @@ struct AISettingsView: View {
             } header: {
                 Text("OpenRouter API Key")
             } footer: {
-                Text("Paste your OpenRouter key once — it's stored in the iOS Keychain, never in the database or UserDefaults. Get a free key at openrouter.ai.")
+                Text("Paste your OpenRouter key once. It's stored in the iOS Keychain, never in the database or UserDefaults. Get a free key at openrouter.ai.")
             }
 
             Section {

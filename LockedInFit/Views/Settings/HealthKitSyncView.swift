@@ -57,7 +57,7 @@ struct HealthKitSyncView: View {
             } header: {
                 Text("Apple Health")
             } footer: {
-                Text("Reads steps, body mass, body fat %, and active energy. Renpho scale data syncs through Apple Health — pair the Renpho app with Health and it flows in here. All-time sync can take longer on the first run.")
+                Text("Reads steps, body mass, body fat %, and active energy. Renpho scale data syncs through Apple Health. Pair the Renpho app with Health and it flows in here. All-time sync can take longer on the first run.")
             }
 
             Section {

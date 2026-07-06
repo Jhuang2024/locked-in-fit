@@ -69,7 +69,7 @@ struct WorkoutGeneratorView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
                         .font(.subheadline.weight(.semibold))
-                    Text("\(exercise.setList.count) sets × \(exercise.setList.first?.reps ?? 0) reps · rest \(exercise.restSeconds)s · RPE \(String(format: "%.0f", exercise.targetRPE))")
+                    Text("\(exercise.setList.count) sets × \(exercise.setList.first?.reps ?? 0) reps · rest \(exercise.restSeconds)s")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if !exercise.notes.isEmpty {
