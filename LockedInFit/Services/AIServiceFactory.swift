@@ -23,4 +23,19 @@ enum AIServiceFactory {
             return OpenRouterFoodAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
         }
     }
+
+    /// Picks the health-scan (product label) provider. Same mode/key/model as meal analysis.
+    static func makeHealthScan(settings: UserSettings?) -> HealthScanAIService {
+        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
+        switch mode {
+        case .mock:
+            return MockHealthScanAIService()
+        case .openRouter:
+            guard KeychainService.openRouterAPIKey != nil else {
+                return MockHealthScanAIService() // no valid key → automatic mock fallback
+            }
+            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
+            return OpenRouterHealthScanAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
+        }
+    }
 }

@@ -68,7 +68,7 @@ enum HiddenOilEstimator {
         case .stirFried: return "Medium–high oil risk"
         case .deepFried: return "Very high oil risk"
         case .restaurantHighOil: return "High oil risk"
-        case .unknown: return "Unknown — assume oil"
+        case .unknown: return "Unknown, assume oil"
         }
     }
 }

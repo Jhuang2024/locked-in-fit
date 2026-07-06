@@ -98,6 +98,9 @@ struct DailyLogView: View {
             }
 
             Section {
+                NavigationLink(destination: HealthScanListView()) {
+                    Label("Health Scans", systemImage: "text.magnifyingglass")
+                }
                 NavigationLink(destination: FoodPresetsView()) {
                     Label("Food Presets", systemImage: "list.star")
                 }

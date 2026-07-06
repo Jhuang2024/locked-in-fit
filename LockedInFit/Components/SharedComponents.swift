@@ -154,6 +154,41 @@ struct MacroRingView: View {
     }
 }
 
+// MARK: - ScoreRingView
+
+/// A big "N / max" circular gauge, e.g. a health score or satiety score out of 100.
+struct ScoreRingView: View {
+    let label: String
+    let score: Double
+    let maxScore: Double
+    let color: Color
+
+    private var progress: Double { maxScore > 0 ? max(0, min(1, score / maxScore)) : 0 }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle().stroke(color.opacity(0.15), lineWidth: 9)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                VStack(spacing: 0) {
+                    Text("\(Int(score.rounded()))")
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                    Text("/\(Int(maxScore))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 84, height: 84)
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 // MARK: - ChartCard
 
 struct ChartCard<Content: View>: View {

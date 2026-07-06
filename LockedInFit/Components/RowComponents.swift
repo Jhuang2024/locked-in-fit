@@ -54,6 +54,49 @@ struct MealRowView: View {
     }
 }
 
+// MARK: - HealthScanRowView
+
+struct HealthScanRowView: View {
+    let scan: HealthScan
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let image = ImageStore.load(scan.photoPath) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                Image(systemName: scan.processedLevel.systemImage)
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+                    .frame(width: 48, height: 48)
+                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(scan.productName.isEmpty ? "Unnamed product" : scan.productName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text("\(scan.processedLevel.label) · \(Int(scan.calories)) kcal")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(Int(scan.healthScore))")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(HealthScanCoreSections.scoreColor(scan.healthScore))
+                Text("health")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 // MARK: - FoodPresetRowView
 
 struct FoodPresetRowView: View {
@@ -145,11 +188,6 @@ struct ExerciseSetRowView: View {
             }
 
             Spacer()
-
-            TextField("RPE", value: $set.rpe, format: .number)
-                .keyboardType(.decimalPad)
-                .frame(width: 44)
-                .textFieldStyle(.roundedBorder)
 
             Button {
                 set.completed.toggle()

@@ -41,7 +41,7 @@ struct ExerciseDetailView: View {
                     HStack {
                         StatChip(label: "Best e1RM", value: "\(Int(sessions.map(\.best1RM).max() ?? 0)) kg")
                         StatChip(label: "Sessions", value: "\(sessions.count)")
-                        StatChip(label: "Last top set", value: sessions.last?.topSet ?? "—")
+                        StatChip(label: "Last top set", value: sessions.last?.topSet ?? "N/A")
                     }
                     .padding(14)
                     .cardBackground()

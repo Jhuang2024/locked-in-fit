@@ -29,13 +29,46 @@ enum WeightTrendCalculator {
         return points
     }
 
+    /// Default lookback for "current" figures so a long-ago HealthKit import
+    /// (e.g. a heavier weight from years back) doesn't anchor the EWMA and
+    /// take dozens of readings to converge back to the present.
+    static let defaultRecentWindowDays = 120
+
+    /// Entries from the last `days`, falling back to the full history if that
+    /// window has no data (e.g. a fresh import with no recent weigh-ins yet).
+    static func recent(_ entries: [BodyWeightEntry], days: Int = defaultRecentWindowDays) -> [BodyWeightEntry] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        let windowed = entries.filter { $0.date >= cutoff }
+        return windowed.isEmpty ? entries : windowed
+    }
+
     static func currentTrendKg(entries: [BodyWeightEntry]) -> Double? {
-        trend(entries: entries).last?.trendKg
+        trend(entries: recent(entries)).last?.trendKg
+    }
+
+    /// The most recently logged scale reading (not smoothed). This is what the
+    /// dashboard shows as the user's current weight.
+    static func latestKg(entries: [BodyWeightEntry]) -> Double? {
+        entries.max(by: { $0.date < $1.date })?.weightKg
+    }
+
+    /// kg/week change measured between the two most recent logged entries.
+    /// Returns nil when there is no earlier entry to compare against, or when
+    /// both entries share the same day (no measurable weekly span).
+    static func weeklyChangeFromEntries(entries: [BodyWeightEntry]) -> Double? {
+        let sorted = entries.sorted { $0.date < $1.date }
+        guard sorted.count >= 2 else { return nil }
+        let latest = sorted[sorted.count - 1]
+        let previous = sorted[sorted.count - 2]
+        let daysBetween = latest.date.timeIntervalSince(previous.date) / 86400
+        let weeksBetween = daysBetween / 7.0
+        guard weeksBetween > 0 else { return nil }
+        return (latest.weightKg - previous.weightKg) / weeksBetween
     }
 
     /// kg/week change of the trend line over the last `days`.
     static func weeklyRate(entries: [BodyWeightEntry], days: Int = 14) -> Double? {
-        let points = trend(entries: entries)
+        let points = trend(entries: recent(entries))
         guard let last = points.last else { return nil }
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: last.date)!
         guard let start = points.last(where: { $0.date <= cutoff }) ?? points.first,

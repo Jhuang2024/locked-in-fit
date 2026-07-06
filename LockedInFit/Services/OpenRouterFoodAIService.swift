@@ -7,8 +7,6 @@ struct OpenRouterFoodAIService: FoodAIService {
     let providerName = "OpenRouter"
     let modelName: String
 
-    private static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-
     private static let systemPrompt = """
     You are estimating calories and macros from a food image for a private nutrition tracker. \
     Return strict JSON only — no markdown, no code fences, no commentary. \
@@ -55,7 +53,7 @@ struct OpenRouterFoodAIService: FoodAIService {
             "max_tokens": 1500
         ]
 
-        let content = try await send(body: body, apiKey: apiKey)
+        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
@@ -98,7 +96,7 @@ struct OpenRouterFoodAIService: FoodAIService {
             "max_tokens": 1200
         ]
 
-        let content = try await send(body: body, apiKey: apiKey)
+        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
@@ -109,42 +107,8 @@ struct OpenRouterFoodAIService: FoodAIService {
             "messages": [["role": "user", "content": "Reply with the single word: ok"]],
             "max_tokens": 10
         ]
-        let content = try await send(body: body, apiKey: apiKey)
-        return "Connected — \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
-    }
-
-    private func send(body: [String: Any], apiKey: String) async throws -> String {
-        var request = URLRequest(url: Self.endpoint)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 60
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("https://localhost/locked-in-fit", forHTTPHeaderField: "HTTP-Referer")
-        request.setValue("Locked In Fit", forHTTPHeaderField: "X-Title")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw FoodAIError.network(error.localizedDescription)
-        }
-
-        guard let http = response as? HTTPURLResponse else {
-            throw FoodAIError.network("No HTTP response.")
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            let snippet = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
-            throw FoodAIError.invalidResponse("HTTP \(http.statusCode). \(snippet)")
-        }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let message = choices.first?["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw FoodAIError.invalidResponse("Missing choices/message/content in response.")
-        }
-        return content
+        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 
     /// Tolerates code fences and stray text around the JSON object.

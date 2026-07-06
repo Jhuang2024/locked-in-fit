@@ -22,21 +22,23 @@ enum StrengthScoreCalculator {
     static func epley1RM(weight: Double, reps: Int) -> Double {
         guard weight > 0, reps > 0 else { return 0 }
         if reps == 1 { return weight }
-        return weight * (1 + Double(reps) / 30)
+        // Epley overestimates badly past ~12 reps; cap the rep bonus there.
+        let cappedReps = min(reps, 12)
+        return weight * (1 + Double(cappedReps) / 30)
     }
 
-    /// 1RM-to-bodyweight ratio that maps to a score of 1000 per pattern.
-    /// Intermediate lifters land mid-scale.
+    /// 1RM-to-bodyweight ratio that maps to a score of 850 (pre-bonus) per pattern,
+    /// set at genuinely elite raw-strength standards.
     private static func eliteRatio(for pattern: MovementPattern) -> Double {
         switch pattern {
-        case .squat: return 2.25
-        case .hinge: return 2.75
-        case .horizontalPush: return 1.6
-        case .verticalPush: return 1.1
-        case .horizontalPull: return 1.6
-        case .verticalPull: return 1.5 // weighted pull-up total / BW
-        case .core: return 1.0
-        case .conditioning: return 1.0
+        case .squat: return 2.5
+        case .hinge: return 3.0
+        case .horizontalPush: return 1.75
+        case .verticalPush: return 1.25
+        case .horizontalPull: return 1.75
+        case .verticalPull: return 2.0 // weighted pull-up total / BW
+        case .core: return 1.25
+        case .conditioning: return 1.25
         }
     }
 
@@ -131,17 +133,17 @@ enum StrengthScoreCalculator {
         return min(850, (ratio / eliteRatio(for: pattern)) * 850)
     }
 
-    /// Base (0–850) from relative strength + up to 150 bonus from volume trend and consistency.
+    /// Base (0–850) from relative strength + up to 100 bonus from volume trend and consistency.
     static func score(for pattern: MovementPattern, stats: MovementStats, bodyWeightKg: Double) -> Double {
         let base = baseScore(for: pattern, best1RM: stats.best1RM, bodyWeightKg: bodyWeightKg)
         guard base > 0 else { return 0 }
         var bonus = 0.0
-        bonus += min(60, Double(stats.weeklyStreak) * 10) // consistency
+        bonus += min(40, Double(stats.weeklyStreak) * 8) // consistency
         if stats.volumePrev30d > 0, stats.volume30d > stats.volumePrev30d {
-            bonus += min(40, (stats.volume30d / stats.volumePrev30d - 1) * 100)
+            bonus += min(30, (stats.volume30d / stats.volumePrev30d - 1) * 80)
         }
         if stats.best1RM30dAgo > 0, stats.best1RM > stats.best1RM30dAgo {
-            bonus += min(50, (stats.best1RM / stats.best1RM30dAgo - 1) * 500) // recent progress
+            bonus += min(30, (stats.best1RM / stats.best1RM30dAgo - 1) * 400) // recent progress
         }
         return min(1000, (base + bonus).rounded())
     }

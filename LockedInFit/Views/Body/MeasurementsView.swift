@@ -96,7 +96,7 @@ struct MeasurementEditorView: View {
                     HStack {
                         Text(field.label)
                         Spacer()
-                        TextField("—", text: Binding(
+                        TextField("cm", text: Binding(
                             get: { values[field.key] ?? "" },
                             set: { values[field.key] = $0 }))
                             .keyboardType(.decimalPad)

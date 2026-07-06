@@ -75,12 +75,12 @@ struct GoalDashboardView: View {
                         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
                 }
 
-                if let trend = projection.currentTrendKg {
+                if let latestWeight = weights.last?.weightKg {
                     GoalProgressCard(
                         title: "Weight",
-                        current: Formatters.kg(trend),
+                        current: Formatters.kg(latestWeight),
                         target: Formatters.kg(goal.targetWeightKg),
-                        progress: weightProgress(goal: goal, trend: trend))
+                        progress: weightProgress(goal: goal, current: latestWeight))
                 }
 
                 if let targetBF = goal.targetBodyFatPercentage, let latestBF = bodyFats.last {
@@ -94,9 +94,9 @@ struct GoalDashboardView: View {
                 DashboardCard(title: "Pace & Projection", systemImage: "calendar.badge.clock") {
                     VStack(spacing: 10) {
                         HStack {
-                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "—")
+                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "N/A")
                             StatChip(label: "Weekly target", value: Formatters.kgChange(goal.weeklyWeightChangeTarget))
-                            StatChip(label: "Projected finish", value: projection.projectedFinishDate.map { Formatters.shortDate($0) } ?? "—")
+                            StatChip(label: "Projected finish", value: projection.projectedFinishDate.map { Formatters.shortDate($0) } ?? "N/A")
                         }
                         if let targetDate = goal.targetDate {
                             Text("Goal date: \(Formatters.mediumDate(targetDate))")
@@ -136,10 +136,10 @@ struct GoalDashboardView: View {
         }
     }
 
-    private func weightProgress(goal: Goal, trend: Double) -> Double {
+    private func weightProgress(goal: Goal, current: Double) -> Double {
         let total = goal.targetWeightKg - goal.startWeightKg
         guard abs(total) > 0.1 else { return 1 }
-        return (trend - goal.startWeightKg) / total
+        return (current - goal.startWeightKg) / total
     }
 
     private func bodyFatProgress(goal: Goal, current: Double, target: Double) -> Double {
@@ -158,7 +158,7 @@ struct GoalDashboardView: View {
                         Text(key.capitalized)
                             .font(.subheadline)
                         Spacer()
-                        Text(current.map { String(format: "%.1f cm", $0) } ?? "—")
+                        Text(current.map { String(format: "%.1f cm", $0) } ?? "N/A")
                             .font(.subheadline.weight(.semibold))
                         Text("→ \(String(format: "%.1f cm", target))")
                             .font(.subheadline)

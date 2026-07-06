@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// AI Meal Analysis settings: mode, OpenRouter key (Keychain), model, test, clear.
+/// AI Analysis settings: mode, OpenRouter key (Keychain), model, test, clear.
 struct AISettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
@@ -24,7 +24,7 @@ struct AISettingsView: View {
                     .pickerStyle(.segmented)
                 }
             } footer: {
-                Text("Mock mode works offline and generates realistic fake estimates. OpenRouter mode sends the meal photo to your chosen model for real analysis. If no valid key is saved, the app automatically falls back to Mock mode.")
+                Text("Mock mode works offline and generates realistic fake estimates. OpenRouter mode sends the meal or product photo to your chosen model for real analysis. If no valid key is saved, the app automatically falls back to Mock mode.")
             }
 
             Section {
@@ -61,7 +61,7 @@ struct AISettingsView: View {
             } header: {
                 Text("OpenRouter API Key")
             } footer: {
-                Text("Paste your OpenRouter key once — it's stored in the iOS Keychain, never in the database or UserDefaults. Get a free key at openrouter.ai.")
+                Text("Paste your OpenRouter key once. It's stored in the iOS Keychain, never in the database or UserDefaults. Get a free key at openrouter.ai.")
             }
 
             Section {
@@ -95,7 +95,7 @@ struct AISettingsView: View {
                 }
             }
         }
-        .navigationTitle("AI Meal Analysis")
+        .navigationTitle("AI Analysis")
         .navigationBarTitleDisplayMode(.inline)
     }
 

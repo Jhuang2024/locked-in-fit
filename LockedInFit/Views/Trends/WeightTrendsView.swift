@@ -13,11 +13,33 @@ struct WeightTrendsView: View {
     @State private var newWeight = ""
     @State private var newBodyFat = ""
 
-    private var cutoff: Date { Date().daysAgo(windowDays).startOfDay }
+    static let allTimeWindow = Int.max
+
+    private var cutoff: Date {
+        windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
+    }
     private var chartEnd: Date { Date() }
-    private var chartDomain: ClosedRange<Date> { cutoff...max(chartEnd, cutoff.addingTimeInterval(86400)) }
+    private var chartDomain: ClosedRange<Date> {
+        let start: Date
+        if windowDays == Self.allTimeWindow {
+            let earliest = [weights.first?.date, bodyFats.first?.date].compactMap { $0 }.min()
+            start = (earliest ?? chartEnd).startOfDay
+        } else {
+            start = cutoff
+        }
+        return start...max(chartEnd, start.addingTimeInterval(86400))
+    }
+    /// For a bounded window, seed the smoothing from entries in that window only —
+    /// otherwise an all-time HealthKit import can anchor the EWMA to an old weight
+    /// and take dozens of readings to converge back to the present. "All" keeps the
+    /// full history since that's the point of viewing it.
+    private var trendSourceEntries: [BodyWeightEntry] {
+        guard windowDays != Self.allTimeWindow else { return weights }
+        let windowed = weights.filter { $0.date >= cutoff }
+        return windowed.isEmpty ? weights : windowed
+    }
     private var trendPoints: [WeightTrendCalculator.TrendPoint] {
-        WeightTrendCalculator.trend(entries: weights).filter { $0.date >= cutoff && $0.date <= chartEnd }
+        WeightTrendCalculator.trend(entries: trendSourceEntries).filter { $0.date >= cutoff && $0.date <= chartEnd }
     }
     private var fatPoints: [BodyFatEntry] {
         bodyFats
@@ -33,6 +55,7 @@ struct WeightTrendsView: View {
                     Text("2M").tag(60)
                     Text("6M").tag(180)
                     Text("1Y").tag(365)
+                    Text("All").tag(Self.allTimeWindow)
                 }
                 .pickerStyle(.segmented)
 
@@ -40,8 +63,8 @@ struct WeightTrendsView: View {
                     HStack {
                         StatChip(label: "Trend weight", value: Formatters.kg(last.trendKg))
                         StatChip(label: "Last scale", value: Formatters.kg(last.weightKg))
-                        let rate = WeightTrendCalculator.weeklyRate(entries: weights)
-                        StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "—")
+                        let rate = WeightTrendCalculator.weeklyChangeFromEntries(entries: weights)
+                        StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "Not enough data")
                     }
                     .padding(14)
                     .cardBackground()

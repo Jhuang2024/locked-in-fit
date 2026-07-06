@@ -9,9 +9,15 @@ struct WorkoutLogView: View {
     @Query(filter: #Predicate<Workout> { !$0.isTemplate }) private var allWorkouts: [Workout]
 
     @Bindable var workout: Workout
+    /// `.log` drives a live logging session (with a Finish button); `.edit`
+    /// reuses the same form to amend an already-completed workout, with saving
+    /// handled by the presenting editor instead.
+    var mode: Mode = .log
     @State private var prMessages: [String] = []
     @State private var showPRCelebration = false
     @State private var showAddExercise = false
+
+    enum Mode { case log, edit }
 
     var body: some View {
         Form {
@@ -33,7 +39,7 @@ struct WorkoutLogView: View {
             }
 
             ForEach(workout.exerciseList, id: \.persistentModelID) { exercise in
-                exerciseSection(exercise)
+                ExerciseSectionView(exercise: exercise)
             }
 
             Section {
@@ -44,17 +50,19 @@ struct WorkoutLogView: View {
 
             Section("Wrap Up") {
                 Picker("Perceived difficulty", selection: $workout.perceivedDifficulty) {
-                    ForEach(0...10, id: \.self) { Text($0 == 0 ? "—" : "\($0)/10").tag($0) }
+                    ForEach(0...10, id: \.self) { Text($0 == 0 ? "Not rated" : "\($0)/10").tag($0) }
                 }
                 TextField("Notes", text: $workout.notes, axis: .vertical)
-                Button {
-                    finishWorkout()
-                } label: {
-                    Label(workout.completed ? "Completed ✓" : "Finish Workout", systemImage: "flag.checkered")
-                        .frame(maxWidth: .infinity)
+                if mode == .log {
+                    Button {
+                        finishWorkout()
+                    } label: {
+                        Label(workout.completed ? "Completed ✓" : "Finish Workout", systemImage: "flag.checkered")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(workout.completed)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(workout.completed)
             }
         }
         .navigationTitle(workout.title)
@@ -73,47 +81,6 @@ struct WorkoutLogView: View {
             Button("Locked in 🔒", role: .cancel) {}
         } message: {
             Text(prMessages.joined(separator: "\n"))
-        }
-    }
-
-    @ViewBuilder
-    private func exerciseSection(_ exercise: Exercise) -> some View {
-        Section {
-            ForEach(exercise.setList, id: \.persistentModelID) { set in
-                ExerciseSetRowView(set: set, isDurationBased: exercise.movementPattern == .conditioning || set.duration > 0)
-            }
-            .onDelete { offsets in
-                let sorted = exercise.setList
-                for index in offsets {
-                    exercise.sets?.removeAll { $0 === sorted[index] }
-                }
-            }
-            Button {
-                let last = exercise.setList.last
-                let set = WorkoutSet(order: exercise.setList.count,
-                                     reps: last?.reps ?? 8,
-                                     weight: last?.weight ?? 0,
-                                     duration: last?.duration ?? 0)
-                exercise.sets?.append(set)
-            } label: {
-                Label("Add Set", systemImage: "plus")
-                    .font(.caption)
-            }
-        } header: {
-            HStack {
-                NavigationLink(destination: ExerciseDetailView(exerciseName: exercise.name)) {
-                    HStack(spacing: 4) {
-                        Text(exercise.name)
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.caption2)
-                    }
-                }
-                Spacer()
-                Text("rest \(exercise.restSeconds)s · RPE \(String(format: "%.0f", exercise.targetRPE))")
-                    .font(.caption2)
-            }
-        } footer: {
-            if !exercise.notes.isEmpty { Text(exercise.notes) }
         }
     }
 
@@ -145,6 +112,90 @@ struct WorkoutLogView: View {
             }
         }
         if !prMessages.isEmpty { showPRCelebration = true }
+    }
+}
+
+/// One exercise's sets, with quick controls for how many sets and the rest
+/// taken between them (rest only makes sense once there's more than one set).
+private struct ExerciseSectionView: View {
+    @Bindable var exercise: Exercise
+
+    private var setsBinding: Binding<Int> {
+        Binding(
+            get: { exercise.setList.count },
+            set: { newCount in
+                let current = exercise.setList
+                if newCount > current.count {
+                    for i in current.count..<newCount {
+                        let last = current.last
+                        exercise.sets?.append(WorkoutSet(order: i,
+                                                         reps: last?.reps ?? 8,
+                                                         weight: last?.weight ?? 0,
+                                                         duration: last?.duration ?? 0))
+                    }
+                } else if newCount < current.count {
+                    let toDrop = Set(current.suffix(current.count - newCount).map(\.persistentModelID))
+                    exercise.sets?.removeAll { toDrop.contains($0.persistentModelID) }
+                }
+            })
+    }
+
+    var body: some View {
+        Section {
+            Stepper(value: setsBinding, in: 1...20) {
+                Text("Sets: \(exercise.setList.count)")
+            }
+
+            HStack {
+                Text("Rest between sets")
+                Spacer()
+                TextField("sec", value: $exercise.restSeconds, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                    .disabled(exercise.setList.count <= 1)
+                Text("sec").font(.caption).foregroundStyle(.secondary)
+            }
+            if exercise.setList.count <= 1 {
+                Text("Add another set to time rest between sets.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(exercise.setList, id: \.persistentModelID) { set in
+                ExerciseSetRowView(set: set, isDurationBased: exercise.movementPattern == .conditioning || set.duration > 0)
+            }
+            .onDelete { offsets in
+                let sorted = exercise.setList
+                for index in offsets {
+                    exercise.sets?.removeAll { $0 === sorted[index] }
+                }
+            }
+            Button {
+                let last = exercise.setList.last
+                let set = WorkoutSet(order: exercise.setList.count,
+                                     reps: last?.reps ?? 8,
+                                     weight: last?.weight ?? 0,
+                                     duration: last?.duration ?? 0)
+                exercise.sets?.append(set)
+            } label: {
+                Label("Add Set", systemImage: "plus")
+                    .font(.caption)
+            }
+        } header: {
+            HStack {
+                NavigationLink(destination: ExerciseDetailView(exerciseName: exercise.name)) {
+                    HStack(spacing: 4) {
+                        Text(exercise.name)
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.caption2)
+                    }
+                }
+                Spacer()
+            }
+        } footer: {
+            if !exercise.notes.isEmpty { Text(exercise.notes) }
+        }
     }
 }
 
