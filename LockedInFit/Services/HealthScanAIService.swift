@@ -5,5 +5,6 @@ import UIKit
 protocol HealthScanAIService {
     var providerName: String { get }
     func analyzeProduct(image: UIImage) async throws -> HealthScanEstimate
+    func analyzeProduct(description: String) async throws -> HealthScanEstimate
     func testConnection() async throws -> String
 }

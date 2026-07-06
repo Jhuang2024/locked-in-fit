@@ -14,16 +14,22 @@ final class HealthScanAnalysisViewModel {
 
     var phase: Phase = .pickingPhoto
     var image: UIImage?
+    var productDescription = ""
     var estimate: HealthScanEstimate?
     var providerUsed = ""
 
     func analyze(settings: UserSettings?, forceMock: Bool = false) async {
-        guard let image else { return }
+        let text = productDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard image != nil || !text.isEmpty else { return }
         phase = .analyzing
         let service: HealthScanAIService = forceMock ? MockHealthScanAIService() : AIServiceFactory.makeHealthScan(settings: settings)
         providerUsed = service.providerName
         do {
-            estimate = try await service.analyzeProduct(image: image)
+            if let image {
+                estimate = try await service.analyzeProduct(image: image)
+            } else {
+                estimate = try await service.analyzeProduct(description: text)
+            }
             phase = .reviewing
         } catch {
             phase = .failed(error.localizedDescription)

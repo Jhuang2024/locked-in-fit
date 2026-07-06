@@ -74,6 +74,21 @@ struct HealthScanCaptureView: View {
             }
 
             Section {
+                TextField("What's the product? e.g. \"Quaker chewy chocolate chip granola bar\"",
+                          text: $model.productDescription, axis: .vertical)
+                    .lineLimit(2...4)
+                    .onChange(of: model.productDescription) {
+                        if !model.productDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            model.phase = .ready
+                        }
+                    }
+            } header: {
+                Text("Or Describe It")
+            } footer: {
+                Text("No photo on hand? Type the product name and get the same health score, satiety score, and ingredient breakdown.")
+            }
+
+            Section {
                 switch model.phase {
                 case .analyzing:
                     HStack {
@@ -105,7 +120,7 @@ struct HealthScanCaptureView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.image == nil)
+                    .disabled(model.image == nil && model.productDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             } footer: {
                 let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock

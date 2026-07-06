@@ -47,8 +47,18 @@ struct MockHealthScanAIService: HealthScanAIService {
     func analyzeProduct(image: UIImage) async throws -> HealthScanEstimate {
         // Simulate a short analysis delay so the UI flow matches the real provider.
         try await Task.sleep(for: .seconds(1.2))
+        return mockEstimate(source: "photo")
+    }
+
+    func analyzeProduct(description: String) async throws -> HealthScanEstimate {
+        // Simulate a short analysis delay so the UI flow matches the real provider.
+        try await Task.sleep(for: .seconds(0.8))
+        return mockEstimate(source: "description")
+    }
+
+    private func mockEstimate(source: String) -> HealthScanEstimate {
         var estimate = Self.templates.randomElement()!
-        estimate.notes = "[Mock estimate] " + estimate.notes
+        estimate.notes = "[Mock estimate from \(source)] " + estimate.notes
         return estimate
     }
 
