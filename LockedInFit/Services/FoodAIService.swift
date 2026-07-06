@@ -10,7 +10,7 @@ enum FoodAIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noAPIKey:
-            return "No OpenRouter API key saved. Add one in Settings → AI Meal Analysis, or use the mock estimate."
+            return "No OpenRouter API key saved. Add one in Settings → AI Analysis, or use the mock estimate."
         case .invalidResponse(let detail):
             return "The AI returned an unexpected response. \(detail)"
         case .network(let detail):

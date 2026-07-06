@@ -115,7 +115,7 @@ struct MealPhotoAnalysisView: View {
                 if mode == .openRouter && KeychainService.openRouterAPIKey != nil {
                     Text("Using OpenRouter (\(settings?.aiModelName ?? "")). Nothing is saved until you review the estimate.")
                 } else {
-                    Text("Mock mode: realistic offline estimates. Add an OpenRouter key in Settings → AI Meal Analysis for real photo analysis.")
+                    Text("Mock mode: realistic offline estimates. Add an OpenRouter key in Settings → AI Analysis for real photo analysis.")
                 }
             }
         }

@@ -140,6 +140,34 @@ enum CookingMethod: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum ProcessedLevel: String, Codable, CaseIterable, Identifiable {
+    case unprocessed
+    case minimallyProcessed = "minimally_processed"
+    case processed
+    case ultraProcessed = "ultra_processed"
+    case unknown
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .unprocessed: return "Unprocessed"
+        case .minimallyProcessed: return "Minimally Processed"
+        case .processed: return "Processed"
+        case .ultraProcessed: return "Ultra-Processed"
+        case .unknown: return "Unknown"
+        }
+    }
+    var systemImage: String {
+        switch self {
+        case .unprocessed: return "leaf"
+        case .minimallyProcessed: return "leaf.fill"
+        case .processed: return "shippingbox"
+        case .ultraProcessed: return "exclamationmark.triangle.fill"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+}
+
 enum EntrySource: String, Codable, CaseIterable {
     case manual
     case healthKit = "health_kit"

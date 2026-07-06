@@ -12,7 +12,7 @@ struct LockedInFitApp: App {
                 BodyWeightEntry.self, BodyFatEntry.self, MeasurementEntry.self,
                 ProgressPhoto.self, StepEntry.self, ActiveEnergyEntry.self, Goal.self,
                 Workout.self, Exercise.self, WorkoutSet.self,
-                StrengthScore.self, UserSettings.self)
+                StrengthScore.self, UserSettings.self, HealthScan.self)
         } catch {
             fatalError("Failed to create model container: \(error)")
         }

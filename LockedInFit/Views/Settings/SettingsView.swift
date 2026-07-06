@@ -29,7 +29,7 @@ struct SettingsView: View {
 
             Section("Integrations") {
                 NavigationLink(destination: AISettingsView()) {
-                    Label("AI Meal Analysis", systemImage: "sparkles")
+                    Label("AI Analysis", systemImage: "sparkles")
                 }
                 NavigationLink(destination: HealthKitSyncView()) {
                     Label("Apple Health Sync", systemImage: "heart.fill")
