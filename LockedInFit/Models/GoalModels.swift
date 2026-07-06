@@ -65,6 +65,7 @@ final class UserSettings {
     var adaptiveMaintenance: Double = 0
     var adaptiveMaintenanceUpdated: Date?
     var exerciseCalorieAdjustmentRaw: String = ExerciseCalorieAdjustment.conservative.rawValue
+    var sodiumLimitMg: Double = 2300
     // AI settings metadata. The API key itself lives in the Keychain only.
     var aiModelName: String = "openai/gpt-4o-mini"
     var aiModeRaw: String = "mock"

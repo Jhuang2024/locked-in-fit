@@ -24,6 +24,7 @@ struct SettingsView: View {
                 profileSection(settings)
                 weightSection(settings)
                 energySection(settings)
+                nutritionSection(settings)
             }
 
             Section("Integrations") {
@@ -206,6 +207,26 @@ struct SettingsView: View {
             • Moderate — adds back 65%. A middle ground for reasonably accurate trackers.
             • Full — adds back 100%. Only use this if your activity data (e.g. a chest-strap HR monitor) is highly accurate.
             """)
+        }
+    }
+
+    private func nutritionSection(_ settings: UserSettings) -> some View {
+        @Bindable var settings = settings
+        return Section {
+            HStack {
+                Text("Daily sodium limit")
+                Spacer()
+                TextField("mg", value: $settings.sodiumLimitMg, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 90)
+                Text("mg").font(.caption).foregroundStyle(.secondary)
+            }
+            LabeledContent("Default guidance", value: "2300 mg/day")
+        } header: {
+            Text("Nutrition Limits")
+        } footer: {
+            Text("Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.")
         }
     }
 }

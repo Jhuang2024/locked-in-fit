@@ -45,6 +45,7 @@ struct DashboardView: View {
 
     private var calorieTarget: Double { goal?.calorieTarget ?? maintenance }
     private var proteinTarget: Double { goal?.proteinTarget ?? 140 }
+    private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
         ScrollView {
@@ -125,6 +126,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
+                    scoreRow("Sodium \(Int(viewModel.nutrition.sodium))/\(Int(sodiumLimit))mg", done: viewModel.nutrition.sodium <= sodiumLimit)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
                     scoreRow("Workout today", done: viewModel.completedWorkoutsToday > 0)
                 }
@@ -242,7 +244,39 @@ struct DashboardView: View {
                 Spacer()
                 MacroRingView(label: "Fiber", current: viewModel.nutrition.fiber, target: 30, unit: "g", color: .teal)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Sodium", systemImage: "drop")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(viewModel.nutrition.sodium)) / \(Int(sodiumLimit)) mg")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(sodiumColor)
+                }
+                ProgressView(value: min(viewModel.nutrition.sodium, sodiumLimit), total: sodiumLimit)
+                    .tint(sodiumColor)
+                Text(sodiumStatus)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 6)
         }
+    }
+
+    private var sodiumColor: Color {
+        let ratio = viewModel.nutrition.sodium / sodiumLimit
+        if ratio > 1 { return .red }
+        if ratio >= 0.8 { return .orange }
+        return .green
+    }
+
+    private var sodiumStatus: String {
+        let remaining = sodiumLimit - viewModel.nutrition.sodium
+        if remaining >= 0 {
+            return "\(Int(remaining)) mg sodium remaining today"
+        }
+        return "\(Int(abs(remaining))) mg over today's sodium limit"
     }
 
     private var activityCard: some View {
