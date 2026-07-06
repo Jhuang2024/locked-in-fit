@@ -13,9 +13,22 @@ struct WeightTrendsView: View {
     @State private var newWeight = ""
     @State private var newBodyFat = ""
 
-    private var cutoff: Date { Date().daysAgo(windowDays).startOfDay }
+    static let allTimeWindow = Int.max
+
+    private var cutoff: Date {
+        windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
+    }
     private var chartEnd: Date { Date() }
-    private var chartDomain: ClosedRange<Date> { cutoff...max(chartEnd, cutoff.addingTimeInterval(86400)) }
+    private var chartDomain: ClosedRange<Date> {
+        let start: Date
+        if windowDays == Self.allTimeWindow {
+            let earliest = [weights.first?.date, bodyFats.first?.date].compactMap { $0 }.min()
+            start = (earliest ?? chartEnd).startOfDay
+        } else {
+            start = cutoff
+        }
+        return start...max(chartEnd, start.addingTimeInterval(86400))
+    }
     private var trendPoints: [WeightTrendCalculator.TrendPoint] {
         WeightTrendCalculator.trend(entries: weights).filter { $0.date >= cutoff && $0.date <= chartEnd }
     }
@@ -33,6 +46,7 @@ struct WeightTrendsView: View {
                     Text("2M").tag(60)
                     Text("6M").tag(180)
                     Text("1Y").tag(365)
+                    Text("All").tag(Self.allTimeWindow)
                 }
                 .pickerStyle(.segmented)
 
