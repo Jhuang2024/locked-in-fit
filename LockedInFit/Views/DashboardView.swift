@@ -292,8 +292,8 @@ struct DashboardView: View {
     private var trendCard: some View {
         DashboardCard(title: "Trends", systemImage: "chart.line.uptrend.xyaxis") {
             HStack {
-                let trend = WeightTrendCalculator.currentTrendKg(entries: weights)
-                StatChip(label: "Weight trend", value: trend.map { Formatters.kg($0) } ?? "Log weight")
+                let latest = WeightTrendCalculator.latestKg(entries: weights)
+                StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "Log weight")
                 StatChip(label: "7-day calories", value: viewModel.weeklyCalorieAverage.map { "\(Int($0))" } ?? "No meals")
                 StatChip(label: "Adherence", value: adherenceLabel)
             }
@@ -317,11 +317,11 @@ struct DashboardView: View {
         NavigationLink(destination: GoalDashboardView()) {
             DashboardCard(title: "\(goal.phase.label) Progress", systemImage: goal.phase.systemImage) {
                 HStack {
-                    let trend = WeightTrendCalculator.currentTrendKg(entries: weights)
-                    StatChip(label: "Trend weight", value: trend.map { Formatters.kg($0) } ?? "—")
+                    let latest = WeightTrendCalculator.latestKg(entries: weights)
+                    StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "No data")
                     StatChip(label: "Target", value: Formatters.kg(goal.targetWeightKg))
-                    let rate = WeightTrendCalculator.weeklyRate(entries: weights)
-                    StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "—",
+                    let rate = WeightTrendCalculator.weeklyChangeFromEntries(entries: weights)
+                    StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "Not enough data",
                              color: rateColor(rate, goal: goal))
                 }
             }

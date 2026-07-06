@@ -57,7 +57,7 @@ struct AddMealView: View {
                 } header: {
                     Text("Describe It")
                 } footer: {
-                    Text("Describe the meal in plain language and its calories/macros get added to the totals below — same AI model as photo analysis (Settings → AI Analysis), or the offline mock estimator.")
+                    Text("Describe the meal in plain language and its calories/macros get added to the totals below. It uses the same AI model as photo analysis (Settings → AI Analysis), or the offline mock estimator.")
                 }
 
                 Section("From presets") {

@@ -153,7 +153,7 @@ struct SettingsView: View {
         } header: {
             Text("Body")
         } footer: {
-            Text("Your current weight drives the maintenance estimate, exercise calorie adjustment, and every calorie/protein/step target derived from it. Update it here whenever it changes — no need to visit Weight Trends just to log a number.")
+            Text("Your current weight drives the maintenance estimate, exercise calorie adjustment, and every calorie/protein/step target derived from it. Update it here whenever it changes, with no need to visit Weight Trends just to log a number.")
         }
         .onChange(of: weightInput) { saveWeight() }
     }
@@ -201,11 +201,11 @@ struct SettingsView: View {
             Text("""
             Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend.
 
-            Exercise calorie adjustment controls how much of today's estimated workout/step calories get added back to your target — useful because activity estimates run high:
-            • Off — no calories added back; your target stays fixed regardless of activity.
-            • Conservative (default) — adds back 45%. Safest choice if you tend to overeat on training days.
-            • Moderate — adds back 65%. A middle ground for reasonably accurate trackers.
-            • Full — adds back 100%. Only use this if your activity data (e.g. a chest-strap HR monitor) is highly accurate.
+            Exercise calorie adjustment controls how much of today's estimated workout/step calories get added back to your target, useful because activity estimates run high:
+            • Off: no calories added back; your target stays fixed regardless of activity.
+            • Conservative (default): adds back 45%. Safest choice if you tend to overeat on training days.
+            • Moderate: adds back 65%. A middle ground for reasonably accurate trackers.
+            • Full: adds back 100%. Only use this if your activity data (e.g. a chest-strap HR monitor) is highly accurate.
             """)
         }
     }

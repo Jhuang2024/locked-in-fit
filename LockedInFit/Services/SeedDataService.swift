@@ -174,8 +174,7 @@ enum SeedDataService {
                                         order: index, restSeconds: 150, targetRPE: 8)
                 for setIndex in 0..<seed.sets {
                     let weight = seed.baseWeight > 0 ? seed.baseWeight + entry.progress : 0
-                    let set = WorkoutSet(order: setIndex, reps: seed.reps, weight: weight,
-                                         rpe: Double(Int.random(in: 7...9)), completed: true)
+                    let set = WorkoutSet(order: setIndex, reps: seed.reps, weight: weight, completed: true)
                     if seed.name == "Plank" { set.duration = 60; set.reps = 1 }
                     exercise.sets?.append(set)
                 }

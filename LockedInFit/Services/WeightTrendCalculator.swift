@@ -46,6 +46,26 @@ enum WeightTrendCalculator {
         trend(entries: recent(entries)).last?.trendKg
     }
 
+    /// The most recently logged scale reading (not smoothed). This is what the
+    /// dashboard shows as the user's current weight.
+    static func latestKg(entries: [BodyWeightEntry]) -> Double? {
+        entries.max(by: { $0.date < $1.date })?.weightKg
+    }
+
+    /// kg/week change measured between the two most recent logged entries.
+    /// Returns nil when there is no earlier entry to compare against, or when
+    /// both entries share the same day (no measurable weekly span).
+    static func weeklyChangeFromEntries(entries: [BodyWeightEntry]) -> Double? {
+        let sorted = entries.sorted { $0.date < $1.date }
+        guard sorted.count >= 2 else { return nil }
+        let latest = sorted[sorted.count - 1]
+        let previous = sorted[sorted.count - 2]
+        let daysBetween = latest.date.timeIntervalSince(previous.date) / 86400
+        let weeksBetween = daysBetween / 7.0
+        guard weeksBetween > 0 else { return nil }
+        return (latest.weightKg - previous.weightKg) / weeksBetween
+    }
+
     /// kg/week change of the trend line over the last `days`.
     static func weeklyRate(entries: [BodyWeightEntry], days: Int = 14) -> Double? {
         let points = trend(entries: recent(entries))

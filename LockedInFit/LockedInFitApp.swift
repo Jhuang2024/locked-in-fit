@@ -30,18 +30,54 @@ struct LockedInFitApp: App {
 }
 
 struct RootTabView: View {
+    private enum Tab: Hashable { case today, log, train, trends, settings }
+
+    @State private var selection: Tab = .today
+    // Each tab owns its own navigation stack so tabs never share nested state.
+    @State private var todayPath = NavigationPath()
+    @State private var logPath = NavigationPath()
+    @State private var trainPath = NavigationPath()
+    @State private var trendsPath = NavigationPath()
+    @State private var settingsPath = NavigationPath()
+
+    /// Tapping any bottom tab (whether re-tapping the current one or switching
+    /// to another) resets that tab to its root screen.
+    private var selectionBinding: Binding<Tab> {
+        Binding(
+            get: { selection },
+            set: { newValue in
+                resetPath(for: newValue)
+                selection = newValue
+            })
+    }
+
+    private func resetPath(for tab: Tab) {
+        switch tab {
+        case .today: todayPath = NavigationPath()
+        case .log: logPath = NavigationPath()
+        case .train: trainPath = NavigationPath()
+        case .trends: trendsPath = NavigationPath()
+        case .settings: settingsPath = NavigationPath()
+        }
+    }
+
     var body: some View {
-        TabView {
-            NavigationStack { DashboardView() }
+        TabView(selection: selectionBinding) {
+            NavigationStack(path: $todayPath) { DashboardView() }
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
-            NavigationStack { DailyLogView() }
+                .tag(Tab.today)
+            NavigationStack(path: $logPath) { DailyLogView() }
                 .tabItem { Label("Log", systemImage: "fork.knife") }
-            NavigationStack { WorkoutDashboardView() }
+                .tag(Tab.log)
+            NavigationStack(path: $trainPath) { WorkoutDashboardView() }
                 .tabItem { Label("Train", systemImage: "dumbbell") }
-            NavigationStack { TrendsHomeView() }
+                .tag(Tab.train)
+            NavigationStack(path: $trendsPath) { TrendsHomeView() }
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
-            NavigationStack { SettingsView() }
+                .tag(Tab.trends)
+            NavigationStack(path: $settingsPath) { SettingsView() }
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(Tab.settings)
         }
     }
 }

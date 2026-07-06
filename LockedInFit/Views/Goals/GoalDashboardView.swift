@@ -94,9 +94,9 @@ struct GoalDashboardView: View {
                 DashboardCard(title: "Pace & Projection", systemImage: "calendar.badge.clock") {
                     VStack(spacing: 10) {
                         HStack {
-                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "—")
+                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "N/A")
                             StatChip(label: "Weekly target", value: Formatters.kgChange(goal.weeklyWeightChangeTarget))
-                            StatChip(label: "Projected finish", value: projection.projectedFinishDate.map { Formatters.shortDate($0) } ?? "—")
+                            StatChip(label: "Projected finish", value: projection.projectedFinishDate.map { Formatters.shortDate($0) } ?? "N/A")
                         }
                         if let targetDate = goal.targetDate {
                             Text("Goal date: \(Formatters.mediumDate(targetDate))")
@@ -158,7 +158,7 @@ struct GoalDashboardView: View {
                         Text(key.capitalized)
                             .font(.subheadline)
                         Spacer()
-                        Text(current.map { String(format: "%.1f cm", $0) } ?? "—")
+                        Text(current.map { String(format: "%.1f cm", $0) } ?? "N/A")
                             .font(.subheadline.weight(.semibold))
                         Text("→ \(String(format: "%.1f cm", target))")
                             .font(.subheadline)

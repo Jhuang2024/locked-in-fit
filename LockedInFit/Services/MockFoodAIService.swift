@@ -101,6 +101,6 @@ struct MockFoodAIService: FoodAIService {
     }
 
     func testConnection() async throws -> String {
-        "Mock mode is always available — no network needed."
+        "Mock mode is always available. No network needed."
     }
 }

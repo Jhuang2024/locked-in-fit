@@ -98,7 +98,7 @@ struct StrengthScoresView: View {
                             Image(systemName: "medal.fill")
                                 .foregroundStyle(score.score >= 750 ? .yellow : (score.score >= 600 ? .purple : .blue))
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("\(score.movement.label) — \(score.levelName)")
+                                Text("\(score.movement.label): \(score.levelName)")
                                     .font(.subheadline.weight(.semibold))
                                 if !score.bestSetSummary.isEmpty {
                                     Text(score.bestSetSummary)
