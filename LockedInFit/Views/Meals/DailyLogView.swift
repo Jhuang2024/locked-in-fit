@@ -6,6 +6,7 @@ struct DailyLogView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \MealLog.date) private var allMeals: [MealLog]
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
+    @Query private var settingsList: [UserSettings]
 
     @State private var selectedDate = Date().startOfDay
     @State private var showAddMeal = false
@@ -14,6 +15,7 @@ struct DailyLogView: View {
     private var dayMeals: [MealLog] {
         allMeals.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
     }
+    private var sodiumLimit: Double { max(1, settingsList.first?.sodiumLimitMg ?? 2300) }
     private var totals: (kcal: Double, p: Double, c: Double, f: Double, fiber: Double, sodium: Double, oilLow: Double, oilHigh: Double) {
         dayMeals.reduce((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) {
             ($0.0 + $1.calories, $0.1 + $1.protein, $0.2 + $1.carbs, $0.3 + $1.fat,
@@ -39,11 +41,24 @@ struct DailyLogView: View {
                     }
                     HStack {
                         StatChip(label: "fiber", value: "\(Int(t.fiber))g", color: .green)
-                        StatChip(label: "sodium", value: "\(Int(t.sodium))mg")
+                        StatChip(label: "sodium", value: "\(Int(t.sodium))mg", color: sodiumColor(for: t.sodium))
                         if let goal = goals.first {
                             StatChip(label: "vs target", value: "\(Int(t.kcal - goal.calorieTarget))",
                                      color: t.kcal > goal.calorieTarget ? .red : .green)
                         }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Sodium limit")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(Int(t.sodium)) / \(Int(sodiumLimit)) mg")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(sodiumColor(for: t.sodium))
+                        }
+                        ProgressView(value: min(t.sodium, sodiumLimit), total: sodiumLimit)
+                            .tint(sodiumColor(for: t.sodium))
                     }
                     if t.oilHigh > 0 {
                         Label("Hidden oil uncertainty: +\(Int(t.oilLow)) to +\(Int(t.oilHigh)) kcal", systemImage: "drop.fill")
@@ -97,5 +112,12 @@ struct DailyLogView: View {
         }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+    }
+
+    private func sodiumColor(for sodium: Double) -> Color {
+        let ratio = sodium / sodiumLimit
+        if ratio > 1 { return .red }
+        if ratio >= 0.8 { return .orange }
+        return .green
     }
 }

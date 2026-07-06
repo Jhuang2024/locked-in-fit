@@ -11,6 +11,23 @@ enum SeedDataService {
         try? context.save()
     }
 
+    /// One-time cleanup for blank "Workout" entries left behind by the quick-add
+    /// buttons before they opened the logger immediately — untitled, unedited,
+    /// no exercises, never completed. Runs once per install; later blank
+    /// workouts a user is mid-way through filling in are left alone.
+    static func clearEmptyWorkoutsIfNeeded(context: ModelContext) {
+        let settings = fetchOrCreateSettings(context: context)
+        guard !settings.clearedEmptyWorkoutsV1 else { return }
+        settings.clearedEmptyWorkoutsV1 = true
+
+        let workouts = (try? context.fetch(FetchDescriptor<Workout>())) ?? []
+        for workout in workouts where !workout.isTemplate && !workout.completed
+            && workout.exerciseList.isEmpty && workout.title == "Workout" && workout.notes.isEmpty {
+            context.delete(workout)
+        }
+        try? context.save()
+    }
+
     static func fetchOrCreateSettings(context: ModelContext) -> UserSettings {
         if let existing = try? context.fetch(FetchDescriptor<UserSettings>()).first {
             return existing

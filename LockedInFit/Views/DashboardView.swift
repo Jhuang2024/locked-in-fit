@@ -19,6 +19,8 @@ struct DashboardView: View {
     @State private var showLogWeight = false
     @State private var newWeight = ""
     @State private var healthKit = HealthKitManager.shared
+    @State private var activeWorkout: Workout?
+    @State private var actionTick = 0
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -43,6 +45,7 @@ struct DashboardView: View {
 
     private var calorieTarget: Double { goal?.calorieTarget ?? maintenance }
     private var proteinTarget: Double { goal?.proteinTarget ?? 140 }
+    private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
         ScrollView {
@@ -62,15 +65,20 @@ struct DashboardView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
+        .refreshable { await healthKit.sync(context: context) }
         .navigationTitle("Today")
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+        .sheet(item: $activeWorkout) { workout in
+            NavigationStack { WorkoutLogView(workout: workout) }
+        }
         .alert("Log Weigh-In", isPresented: $showLogWeight) {
             TextField("Weight (kg)", text: $newWeight)
                 .keyboardType(.decimalPad)
             Button("Save") { saveWeight() }
             Button("Cancel", role: .cancel) {}
         }
+        .sensoryFeedback(.selection, trigger: actionTick)
     }
 
     private func saveWeight() {
@@ -118,6 +126,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
+                    scoreRow("Sodium \(Int(viewModel.nutrition.sodium))/\(Int(sodiumLimit))mg", done: viewModel.nutrition.sodium <= sodiumLimit)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
                     scoreRow("Workout today", done: viewModel.completedWorkoutsToday > 0)
                 }
@@ -134,18 +143,29 @@ struct DashboardView: View {
             quickActionButton("Photo", systemImage: "camera.fill") { showPhotoAnalysis = true }
             quickActionButton("Workout", systemImage: "dumbbell.fill") { createBlankWorkout() }
             quickActionButton("Weight", systemImage: "scalemass.fill") { showLogWeight = true }
-            quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing) {
+            quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing, badge: healthKit.autoSyncEnabled) {
                 Task { await healthKit.sync(context: context) }
             }
         }
     }
 
-    private func quickActionButton(_ label: String, systemImage: String, prominent: Bool = false, spinning: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func quickActionButton(_ label: String, systemImage: String, prominent: Bool = false, spinning: Bool = false, badge: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            actionTick += 1
+            action()
+        } label: {
             VStack(spacing: 5) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 17, weight: .semibold))
-                    .symbolEffect(.pulse, isActive: spinning)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .symbolEffect(.pulse, isActive: spinning)
+                    if badge {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                            .offset(x: 7, y: -3)
+                    }
+                }
                 Text(label)
                     .font(.caption2.weight(.medium))
             }
@@ -157,7 +177,7 @@ struct DashboardView: View {
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .disabled(spinning)
     }
 
@@ -224,7 +244,39 @@ struct DashboardView: View {
                 Spacer()
                 MacroRingView(label: "Fiber", current: viewModel.nutrition.fiber, target: 30, unit: "g", color: .teal)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Sodium", systemImage: "drop")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(viewModel.nutrition.sodium)) / \(Int(sodiumLimit)) mg")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(sodiumColor)
+                }
+                ProgressView(value: min(viewModel.nutrition.sodium, sodiumLimit), total: sodiumLimit)
+                    .tint(sodiumColor)
+                Text(sodiumStatus)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 6)
         }
+    }
+
+    private var sodiumColor: Color {
+        let ratio = viewModel.nutrition.sodium / sodiumLimit
+        if ratio > 1 { return .red }
+        if ratio >= 0.8 { return .orange }
+        return .green
+    }
+
+    private var sodiumStatus: String {
+        let remaining = sodiumLimit - viewModel.nutrition.sodium
+        if remaining >= 0 {
+            return "\(Int(remaining)) mg sodium remaining today"
+        }
+        return "\(Int(abs(remaining))) mg over today's sodium limit"
     }
 
     private var activityCard: some View {
@@ -274,7 +326,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
     }
 
     private func rateColor(_ rate: Double?, goal: Goal) -> Color {
@@ -294,7 +346,7 @@ struct DashboardView: View {
                         NavigationLink(destination: MealDetailView(meal: meal)) {
                             MealRowView(meal: meal)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressable)
                     }
                 }
             }
@@ -302,6 +354,8 @@ struct DashboardView: View {
     }
 
     private func createBlankWorkout() {
-        context.insert(Workout(date: .now, title: "Workout", type: .custom))
+        let workout = Workout(date: .now, title: "Workout", type: .custom)
+        context.insert(workout)
+        activeWorkout = workout
     }
 }

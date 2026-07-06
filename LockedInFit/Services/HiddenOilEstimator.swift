@@ -11,36 +11,36 @@ enum HiddenOilEstimator {
         var base: (Double, Double)
         switch method {
         case .steamed, .boiled, .raw:
-            base = (0, 15)
+            base = (0, 8)
         case .soup:
-            base = (5, 40)
+            base = (0, 25)
         case .grilled, .baked:
-            base = (10, 60)
+            base = (5, 35)
         case .braised:
-            base = (25, 100)
+            base = (20, 75)
         case .stirFried:
-            base = (40, 130)
+            base = (30, 95)
         case .deepFried:
-            base = (80, 200)
+            base = (70, 160)
         case .restaurantHighOil:
-            base = (60, 180)
+            base = (45, 140)
         case .unknown:
-            base = (20, 100)
+            base = (10, 65)
         }
         // Food-specific modifiers.
         if lowered.contains("eggplant") {
-            base = (max(base.0, 60), max(base.1, 200)) // eggplant is an oil sponge
+            base = (max(base.0, 45), max(base.1, 145)) // eggplant is an oil sponge
         }
         if lowered.contains("noodle") || lowered.contains("rice") && lowered.contains("sauce") || lowered.contains("fried rice") {
-            base = (max(base.0, 35), max(base.1, 120))
+            base = (max(base.0, 25), max(base.1, 90))
         }
         if lowered.contains("tofu") {
-            base = (max(base.0, 20), max(base.1, 90))
+            base = (max(base.0, 15), max(base.1, 65))
         }
         if method == .unknown, lowered.contains("pork") || lowered.contains("beef") || lowered.contains("lamb") || lowered.contains("duck") {
-            base = (max(base.0, 40), max(base.1, 150)) // unknown meat prep: assume oil/fat
+            base = (max(base.0, 25), max(base.1, 100)) // unknown meat prep: assume oil/fat
         }
-        let portionScale = max(0.4, min(2.5, grams / 150))
+        let portionScale = max(0.5, min(2.0, grams / 150))
         return (base.0 * portionScale, base.1 * portionScale)
     }
 

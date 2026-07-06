@@ -12,7 +12,7 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **Goals**: cut / maintain / lean bulk / aggressive bulk / custom, with trend weight (exponential smoothing), adaptive maintenance (formula blended with observed intake vs. weight trend), TEF, projected finish date, pace warnings, adherence score.
 - **Workouts**: generator (phase, equipment, time, fatigue, focus muscles), set-by-set logging (weight/reps/duration/RPE), templates, repeat workout, exercise history charts.
 - **Strength scores**: 0–1000 per movement pattern (squat, hinge, pushes, pulls, core, conditioning) from bodyweight-relative e1RM + progress + volume + consistency. Levels, badges, PR celebrations, weekly streaks, and a daily "Locked In" score.
-- **HealthKit** (optional): reads steps, body mass, body fat %, active energy — Renpho data flows in via Apple Health. The app works fully without the permission.
+- **HealthKit** (optional): reads steps, body mass, body fat %, active energy — Renpho data flows in via Apple Health. The app works fully without the permission. Auto-syncs every second while the app is open, and instantly in the background via HKObserverQuery whenever new Health data lands (HealthKit has no true background polling interval — this is the event-driven equivalent).
 - **Export/import**: JSON and CSV export via share sheet, JSON import. All data stays on device.
 
 ## Install on your iPhone (free Apple ID is fine)

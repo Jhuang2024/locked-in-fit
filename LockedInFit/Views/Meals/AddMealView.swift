@@ -6,6 +6,7 @@ struct AddMealView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
+    @Query private var settingsList: [UserSettings]
 
     @State private var mealType: MealType = .guess()
     @State private var date: Date = .now
@@ -18,6 +19,11 @@ struct AddMealView: View {
     @State private var notes = ""
     @State private var addedItems: [FoodItem] = []
     @State private var showPresetPicker = false
+    @State private var mealDescription = ""
+    @State private var estimating = false
+    @State private var estimateError: String?
+
+    private var settings: UserSettings? { settingsList.first }
 
     var body: some View {
         NavigationStack {
@@ -27,6 +33,31 @@ struct AddMealView: View {
                         ForEach(MealType.allCases) { Text($0.label).tag($0) }
                     }
                     DatePicker("Time", selection: $date)
+                }
+
+                Section {
+                    TextField("What did you eat? e.g. \"grilled chicken breast, rice, and broccoli\"",
+                              text: $mealDescription, axis: .vertical)
+                        .lineLimit(2...4)
+                    Button {
+                        estimateFromDescription()
+                    } label: {
+                        if estimating {
+                            HStack { ProgressView(); Text("Estimating…") }
+                        } else {
+                            Label("Estimate Calories", systemImage: "text.magnifyingglass")
+                        }
+                    }
+                    .disabled(estimating || mealDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if let estimateError {
+                        Text(estimateError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Describe It")
+                } footer: {
+                    Text("Describe the meal in plain language and its calories/macros get added to the totals below — same AI model as photo analysis (Settings → AI Meal Analysis), or the offline mock estimator.")
                 }
 
                 Section("From presets") {
@@ -66,6 +97,7 @@ struct AddMealView: View {
             }
             .navigationTitle("Add Meal")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -91,6 +123,43 @@ struct AddMealView: View {
                 }
             }
         }
+    }
+
+    private func estimateFromDescription() {
+        let text = mealDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        estimating = true
+        estimateError = nil
+        Task {
+            defer { estimating = false }
+            do {
+                let service = AIServiceFactory.make(settings: settings)
+                let aiContext = MealAnalysisContext(mealType: mealType, isLikelyHomeCooked: true)
+                let estimate = try await service.analyzeMeal(description: text, context: aiContext)
+                applyEstimate(estimate)
+            } catch {
+                estimateError = error.localizedDescription
+            }
+        }
+    }
+
+    private func applyEstimate(_ estimate: MealEstimate) {
+        let items = estimate.foodItems.map { item in
+            FoodItem(name: item.name, grams: item.grams, calories: item.calories,
+                     protein: item.protein, carbs: item.carbs, fat: item.fat,
+                     fiber: item.fiber, sodium: item.sodium,
+                     cookingMethod: CookingMethod(rawValue: item.cookingMethod.lowercased()) ?? .unknown,
+                     confidence: item.confidence)
+        }
+        addedItems.append(contentsOf: items)
+        calories += estimate.estimatedCalories
+        protein += estimate.protein
+        carbs += estimate.carbs
+        fat += estimate.fat
+        fiber += estimate.fiber
+        sodium += estimate.sodium
+        if notes.isEmpty { notes = estimate.notes }
+        mealDescription = ""
     }
 
     private func subtractItem(_ item: FoodItem) {

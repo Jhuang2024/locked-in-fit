@@ -6,6 +6,7 @@ struct DailyNutritionSummary {
     let carbs: Double
     let fat: Double
     let fiber: Double
+    let sodium: Double
     let hiddenOilLow: Double
     let hiddenOilHigh: Double
 }
@@ -19,6 +20,7 @@ enum DailyNutritionCalculator {
             carbs: dayMeals.reduce(0) { $0 + $1.carbs },
             fat: dayMeals.reduce(0) { $0 + $1.fat },
             fiber: dayMeals.reduce(0) { $0 + $1.fiber },
+            sodium: dayMeals.reduce(0) { $0 + $1.sodium },
             hiddenOilLow: dayMeals.reduce(0) { $0 + $1.hiddenOilLow },
             hiddenOilHigh: dayMeals.reduce(0) { $0 + $1.hiddenOilHigh }
         )

@@ -9,6 +9,7 @@ struct WorkoutDashboardView: View {
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
 
     @State private var showGenerator = false
+    @State private var activeWorkout: Workout?
 
     private var history: [Workout] { workouts.filter { !$0.isTemplate } }
     private var templates: [Workout] { workouts.filter(\.isTemplate) }
@@ -127,11 +128,15 @@ struct WorkoutDashboardView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Training")
         .sheet(isPresented: $showGenerator) { WorkoutGeneratorView() }
+        .sheet(item: $activeWorkout) { workout in
+            NavigationStack { WorkoutLogView(workout: workout) }
+        }
     }
 
     private func createBlankWorkout() {
         let workout = Workout(date: .now, title: "Workout", type: .custom)
         context.insert(workout)
+        activeWorkout = workout
     }
 
     private func startFromTemplate(_ template: Workout) {

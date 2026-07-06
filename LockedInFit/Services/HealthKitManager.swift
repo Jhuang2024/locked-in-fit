@@ -2,6 +2,13 @@ import Foundation
 import HealthKit
 import SwiftData
 
+fileprivate protocol DatedHealthEntry: AnyObject {
+    var date: Date { get set }
+}
+
+extension BodyWeightEntry: DatedHealthEntry {}
+extension BodyFatEntry: DatedHealthEntry {}
+
 /// Reads steps, body mass, body fat %, and active energy from Apple Health.
 /// Renpho data arrives here via Apple Health — no direct Renpho integration.
 /// The app works fully without HealthKit permission; sync is opt-in.
@@ -14,6 +21,11 @@ final class HealthKitManager {
     var lastSync: Date?
     var lastSyncSummary: String = ""
     var syncing = false
+    var autoSyncEnabled = false
+
+    private var container: ModelContainer?
+    private var observerQueries: [HKObserverQuery] = []
+    private var foregroundTimer: Timer?
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = []
@@ -27,6 +39,61 @@ final class HealthKitManager {
         guard isAvailable else { return }
         let writeTypes: Set<HKSampleType> = HKObjectType.quantityType(forIdentifier: .bodyMass).map { [$0] } ?? []
         try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
+    }
+
+    // MARK: - Auto sync
+
+    /// Wires the manager to the app's SwiftData store, then starts both the
+    /// event-driven background path and the always-on foreground refresh loop.
+    @MainActor
+    func configureAutoSync(container: ModelContainer) {
+        guard self.container == nil else { return }
+        self.container = container
+        startForegroundAutoSync()
+        Task {
+            try? await requestAuthorization()
+            startBackgroundObservers()
+        }
+    }
+
+    /// Apple Health has no concept of continuous per-second polling — HKObserverQuery
+    /// only fires when new data actually lands, and background delivery is scheduled
+    /// by iOS rather than on a fixed clock. While the app is in the foreground we
+    /// still honor a literal 1-second refresh here; in the background the observer
+    /// queries below take over so battery isn't spent polling for nothing.
+    private func startForegroundAutoSync() {
+        guard foregroundTimer == nil else { return }
+        autoSyncEnabled = true
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self, let container = self.container, !self.syncing else { return }
+            Task { @MainActor in await self.syncRecent(context: container.mainContext) }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        foregroundTimer = timer
+    }
+
+    /// Registers an HKObserverQuery per read type with immediate background delivery,
+    /// so a new Renpho weigh-in or step count synced into Health is pulled in as soon
+    /// as iOS wakes the app for it — no manual "Sync Now" tap required.
+    private func startBackgroundObservers() {
+        guard isAvailable else { return }
+        for case let sampleType as HKSampleType in readTypes {
+            let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] _, completionHandler, error in
+                defer { completionHandler() }
+                guard let self, error == nil, let container = self.container else { return }
+                Task { @MainActor in await self.syncRecent(context: container.mainContext) }
+            }
+            store.execute(query)
+            store.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { _, _ in }
+            observerQueries.append(query)
+        }
+    }
+
+    /// Cheap sync used by the auto-sync loop and background observers: only the
+    /// last couple of days, instead of the full historical range.
+    @MainActor
+    func syncRecent(context: ModelContext) async {
+        await sync(days: 2, context: context)
     }
 
     /// Pull the last `days` of data into SwiftData, deduplicating by day+source.
@@ -71,19 +138,11 @@ final class HealthKitManager {
 
             let existingWeights = (try? context.fetch(FetchDescriptor<BodyWeightEntry>(
                 predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
-            let weightDates = Set(existingWeights.map(\.date))
-            for sample in weights where !weightDates.contains(sample.date) {
-                context.insert(BodyWeightEntry(date: sample.date, weightKg: sample.value, source: .healthKit))
-                imported += 1
-            }
+            imported += upsertDailyHealthWeights(weights, existing: existingWeights, context: context)
 
             let existingFat = (try? context.fetch(FetchDescriptor<BodyFatEntry>(
                 predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
-            let fatDates = Set(existingFat.map(\.date))
-            for sample in bodyFats where !fatDates.contains(sample.date) {
-                context.insert(BodyFatEntry(date: sample.date, bodyFatPercentage: sample.value * 100, source: .healthKit))
-                imported += 1
-            }
+            imported += upsertDailyHealthBodyFat(bodyFats, existing: existingFat, context: context)
 
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
@@ -102,6 +161,91 @@ final class HealthKitManager {
     // MARK: - Queries
 
     private struct DatedValue { let date: Date; let value: Double }
+
+    @MainActor
+    private func upsertDailyHealthWeights(_ samples: [DatedValue], existing: [BodyWeightEntry], context: ModelContext) -> Int {
+        var changes = 0
+        var existingByDay = latestExistingByDay(existing, context: context, changes: &changes)
+        let samplesByDay = latestSamplesByDay(samples)
+
+        for sample in samplesByDay.values {
+            let day = sample.date.startOfDay
+            if let entry = existingByDay[day] {
+                if entry.date != sample.date || abs(entry.weightKg - sample.value) >= 0.01 {
+                    entry.date = sample.date
+                    entry.weightKg = sample.value
+                    changes += 1
+                }
+            } else {
+                let entry = BodyWeightEntry(date: sample.date, weightKg: sample.value, source: .healthKit)
+                context.insert(entry)
+                existingByDay[day] = entry
+                changes += 1
+            }
+        }
+
+        return changes
+    }
+
+    @MainActor
+    private func upsertDailyHealthBodyFat(_ samples: [DatedValue], existing: [BodyFatEntry], context: ModelContext) -> Int {
+        var changes = 0
+        var existingByDay = latestExistingByDay(existing, context: context, changes: &changes)
+        let samplesByDay = latestSamplesByDay(samples)
+
+        for sample in samplesByDay.values {
+            let day = sample.date.startOfDay
+            let percent = sample.value * 100
+            if let entry = existingByDay[day] {
+                if entry.date != sample.date || abs(entry.bodyFatPercentage - percent) >= 0.01 {
+                    entry.date = sample.date
+                    entry.bodyFatPercentage = percent
+                    changes += 1
+                }
+            } else {
+                let entry = BodyFatEntry(date: sample.date, bodyFatPercentage: percent, source: .healthKit)
+                context.insert(entry)
+                existingByDay[day] = entry
+                changes += 1
+            }
+        }
+
+        return changes
+    }
+
+    @MainActor
+    private func latestExistingByDay<T: AnyObject & PersistentModel>(_ entries: [T], context: ModelContext, changes: inout Int) -> [Date: T] where T: DatedHealthEntry {
+        var output: [Date: T] = [:]
+        let grouped = Dictionary(grouping: entries, by: { $0.date.startOfDay })
+
+        for (day, entries) in grouped {
+            let sorted = entries.sorted { $0.date > $1.date }
+            if let latest = sorted.first {
+                output[day] = latest
+            }
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+                changes += 1
+            }
+        }
+
+        return output
+    }
+
+    private func latestSamplesByDay(_ samples: [DatedValue]) -> [Date: DatedValue] {
+        var output: [Date: DatedValue] = [:]
+        for sample in samples {
+            let day = sample.date.startOfDay
+            if let existing = output[day] {
+                if sample.date > existing.date {
+                    output[day] = sample
+                }
+            } else {
+                output[day] = sample
+            }
+        }
+        return output
+    }
 
     private func dailySteps(days: Int) async throws -> [(Date, Int)] {
         guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else { return [] }

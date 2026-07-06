@@ -30,6 +30,7 @@ struct MealPhotoAnalysisView: View {
             }
             .navigationTitle("Meal Photo")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
@@ -252,11 +253,11 @@ struct FoodItemEditorRow: View {
                 ConfidenceBadge(confidence: item.confidence)
             }
             HStack(spacing: 8) {
-                labeledField("g", value: $item.grams)
-                labeledField("kcal", value: $item.calories)
-                labeledField("P", value: $item.protein)
-                labeledField("C", value: $item.carbs)
-                labeledField("F", value: $item.fat)
+                amountField("g")
+                labeledField("kcal", value: nutrientBinding(\.calories))
+                labeledField("P", value: nutrientBinding(\.protein))
+                labeledField("C", value: nutrientBinding(\.carbs))
+                labeledField("F", value: nutrientBinding(\.fat))
             }
             HStack {
                 Picker("", selection: Binding(get: { item.cookingMethod }, set: { item.cookingMethod = $0; onChanged() })) {
@@ -273,6 +274,36 @@ struct FoodItemEditorRow: View {
         .padding(.vertical, 2)
     }
 
+    private func amountField(_ label: String) -> some View {
+        labeledField(label, value: Binding(
+            get: { item.grams },
+            set: { newValue in
+                let oldValue = item.grams
+                item.grams = newValue
+                if oldValue > 0, newValue > 0, oldValue != newValue {
+                    let ratio = newValue / oldValue
+                    item.calories *= ratio
+                    item.protein *= ratio
+                    item.carbs *= ratio
+                    item.fat *= ratio
+                    item.fiber *= ratio
+                    item.sodium *= ratio
+                }
+                onChanged()
+            }
+        ))
+    }
+
+    private func nutrientBinding(_ keyPath: ReferenceWritableKeyPath<FoodItem, Double>) -> Binding<Double> {
+        Binding(
+            get: { item[keyPath: keyPath] },
+            set: { newValue in
+                item[keyPath: keyPath] = newValue
+                onChanged()
+            }
+        )
+    }
+
     private func labeledField(_ label: String, value: Binding<Double>) -> some View {
         VStack(spacing: 2) {
             TextField("0", value: value, format: .number)
@@ -281,7 +312,6 @@ struct FoodItemEditorRow: View {
                 .font(.callout)
                 .padding(.vertical, 4)
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 6))
-                .onSubmit { onChanged() }
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
