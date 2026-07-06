@@ -14,10 +14,16 @@ struct WeightTrendsView: View {
     @State private var newBodyFat = ""
 
     private var cutoff: Date { Date().daysAgo(windowDays).startOfDay }
+    private var chartEnd: Date { Date() }
+    private var chartDomain: ClosedRange<Date> { cutoff...max(chartEnd, cutoff.addingTimeInterval(86400)) }
     private var trendPoints: [WeightTrendCalculator.TrendPoint] {
-        WeightTrendCalculator.trend(entries: weights).filter { $0.date >= cutoff }
+        WeightTrendCalculator.trend(entries: weights).filter { $0.date >= cutoff && $0.date <= chartEnd }
     }
-    private var fatPoints: [BodyFatEntry] { bodyFats.filter { $0.date >= cutoff } }
+    private var fatPoints: [BodyFatEntry] {
+        bodyFats
+            .filter { $0.date >= cutoff && $0.date <= chartEnd }
+            .sorted { $0.date < $1.date }
+    }
 
     var body: some View {
         ScrollView {
@@ -60,6 +66,8 @@ struct WeightTrendsView: View {
                                     .interpolationMethod(.monotone)
                             }
                         }
+                        .id("weight-\(windowDays)")
+                        .chartXScale(domain: chartDomain)
                         .chartYScale(domain: .automatic(includesZero: false))
                     }
                 }
@@ -74,6 +82,8 @@ struct WeightTrendsView: View {
                                 .foregroundStyle(Color.orange.opacity(0.5))
                                 .symbolSize(20)
                         }
+                        .id("fat-\(windowDays)")
+                        .chartXScale(domain: chartDomain)
                         .chartYScale(domain: .automatic(includesZero: false))
                     }
                 }
