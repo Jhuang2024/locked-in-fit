@@ -57,8 +57,8 @@ struct TrendsHomeView: View {
                 NavigationLink(destination: WeightTrendsView()) {
                     Label("Weight Trends", systemImage: "scalemass")
                 }
-                NavigationLink(destination: WeeklyTrendsView()) {
-                    Label("Weekly Trends", systemImage: "calendar")
+                NavigationLink(destination: CalorieTrendsView()) {
+                    Label("Calorie Trends", systemImage: "calendar")
                 }
             }
             Section("Body") {

@@ -2,15 +2,17 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// Calories, protein, steps, and deficit/surplus over recent weeks.
-struct WeeklyTrendsView: View {
+/// Calories, protein, steps, and deficit/surplus over time.
+struct CalorieTrendsView: View {
     @Query(sort: \MealLog.date) private var meals: [MealLog]
     @Query(sort: \StepEntry.date) private var steps: [StepEntry]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query private var settingsList: [UserSettings]
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
 
-    @State private var windowDays = 28
+    @State private var windowDays = 30
+
+    static let allTimeWindow = Int.max
 
     private struct DayPoint: Identifiable {
         let date: Date
@@ -18,7 +20,9 @@ struct WeeklyTrendsView: View {
         var id: Date { date }
     }
 
-    private var cutoff: Date { Date().daysAgo(windowDays).startOfDay }
+    private var cutoff: Date {
+        windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
+    }
 
     private var caloriePoints: [DayPoint] {
         Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
@@ -47,9 +51,11 @@ struct WeeklyTrendsView: View {
         ScrollView {
             VStack(spacing: 14) {
                 Picker("Window", selection: $windowDays) {
-                    Text("2W").tag(14)
-                    Text("4W").tag(28)
-                    Text("8W").tag(56)
+                    Text("1M").tag(30)
+                    Text("2M").tag(60)
+                    Text("6M").tag(180)
+                    Text("1Y").tag(365)
+                    Text("All").tag(Self.allTimeWindow)
                 }
                 .pickerStyle(.segmented)
 
@@ -63,6 +69,7 @@ struct WeeklyTrendsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .id("calories-\(windowDays)")
                 }
 
                 ChartCard(title: "Deficit / Surplus", subtitle: "vs estimated maintenance (\(Int(maintenance)) kcal)") {
@@ -70,6 +77,7 @@ struct WeeklyTrendsView: View {
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)
                     }
+                    .id("deficit-\(windowDays)")
                 }
 
                 ChartCard(title: "Protein", subtitle: goals.first.map { "Target \(Int($0.proteinTarget)) g" }) {
@@ -82,6 +90,7 @@ struct WeeklyTrendsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .id("protein-\(windowDays)")
                 }
 
                 ChartCard(title: "Steps", subtitle: goals.first.map { "Target \($0.stepTarget)" }) {
@@ -94,12 +103,13 @@ struct WeeklyTrendsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .id("steps-\(windowDays)")
                 }
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Weekly Trends")
+        .navigationTitle("Calorie Trends")
     }
 }
