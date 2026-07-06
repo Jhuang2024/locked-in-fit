@@ -2,6 +2,13 @@ import Foundation
 import HealthKit
 import SwiftData
 
+fileprivate protocol DatedHealthEntry: AnyObject {
+    var date: Date { get set }
+}
+
+extension BodyWeightEntry: DatedHealthEntry {}
+extension BodyFatEntry: DatedHealthEntry {}
+
 /// Reads steps, body mass, body fat %, and active energy from Apple Health.
 /// Renpho data arrives here via Apple Health — no direct Renpho integration.
 /// The app works fully without HealthKit permission; sync is opt-in.
@@ -131,19 +138,11 @@ final class HealthKitManager {
 
             let existingWeights = (try? context.fetch(FetchDescriptor<BodyWeightEntry>(
                 predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
-            let weightDates = Set(existingWeights.map(\.date))
-            for sample in weights where !weightDates.contains(sample.date) {
-                context.insert(BodyWeightEntry(date: sample.date, weightKg: sample.value, source: .healthKit))
-                imported += 1
-            }
+            imported += upsertDailyHealthWeights(weights, existing: existingWeights, context: context)
 
             let existingFat = (try? context.fetch(FetchDescriptor<BodyFatEntry>(
                 predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
-            let fatDates = Set(existingFat.map(\.date))
-            for sample in bodyFats where !fatDates.contains(sample.date) {
-                context.insert(BodyFatEntry(date: sample.date, bodyFatPercentage: sample.value * 100, source: .healthKit))
-                imported += 1
-            }
+            imported += upsertDailyHealthBodyFat(bodyFats, existing: existingFat, context: context)
 
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
@@ -162,6 +161,91 @@ final class HealthKitManager {
     // MARK: - Queries
 
     private struct DatedValue { let date: Date; let value: Double }
+
+    @MainActor
+    private func upsertDailyHealthWeights(_ samples: [DatedValue], existing: [BodyWeightEntry], context: ModelContext) -> Int {
+        var changes = 0
+        var existingByDay = latestExistingByDay(existing, context: context, changes: &changes)
+        let samplesByDay = latestSamplesByDay(samples)
+
+        for sample in samplesByDay.values {
+            let day = sample.date.startOfDay
+            if let entry = existingByDay[day] {
+                if entry.date != sample.date || abs(entry.weightKg - sample.value) >= 0.01 {
+                    entry.date = sample.date
+                    entry.weightKg = sample.value
+                    changes += 1
+                }
+            } else {
+                let entry = BodyWeightEntry(date: sample.date, weightKg: sample.value, source: .healthKit)
+                context.insert(entry)
+                existingByDay[day] = entry
+                changes += 1
+            }
+        }
+
+        return changes
+    }
+
+    @MainActor
+    private func upsertDailyHealthBodyFat(_ samples: [DatedValue], existing: [BodyFatEntry], context: ModelContext) -> Int {
+        var changes = 0
+        var existingByDay = latestExistingByDay(existing, context: context, changes: &changes)
+        let samplesByDay = latestSamplesByDay(samples)
+
+        for sample in samplesByDay.values {
+            let day = sample.date.startOfDay
+            let percent = sample.value * 100
+            if let entry = existingByDay[day] {
+                if entry.date != sample.date || abs(entry.bodyFatPercentage - percent) >= 0.01 {
+                    entry.date = sample.date
+                    entry.bodyFatPercentage = percent
+                    changes += 1
+                }
+            } else {
+                let entry = BodyFatEntry(date: sample.date, bodyFatPercentage: percent, source: .healthKit)
+                context.insert(entry)
+                existingByDay[day] = entry
+                changes += 1
+            }
+        }
+
+        return changes
+    }
+
+    @MainActor
+    private func latestExistingByDay<T: AnyObject & PersistentModel>(_ entries: [T], context: ModelContext, changes: inout Int) -> [Date: T] where T: DatedHealthEntry {
+        var output: [Date: T] = [:]
+        let grouped = Dictionary(grouping: entries, by: { $0.date.startOfDay })
+
+        for (day, entries) in grouped {
+            let sorted = entries.sorted { $0.date > $1.date }
+            if let latest = sorted.first {
+                output[day] = latest
+            }
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+                changes += 1
+            }
+        }
+
+        return output
+    }
+
+    private func latestSamplesByDay(_ samples: [DatedValue]) -> [Date: DatedValue] {
+        var output: [Date: DatedValue] = [:]
+        for sample in samples {
+            let day = sample.date.startOfDay
+            if let existing = output[day] {
+                if sample.date > existing.date {
+                    output[day] = sample
+                }
+            } else {
+                output[day] = sample
+            }
+        }
+        return output
+    }
 
     private func dailySteps(days: Int) async throws -> [(Date, Int)] {
         guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else { return [] }
