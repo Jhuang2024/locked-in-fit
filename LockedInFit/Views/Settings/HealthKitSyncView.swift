@@ -30,9 +30,10 @@ struct HealthKitSyncView: View {
                         Text("2 weeks").tag(14)
                         Text("2 months").tag(60)
                         Text("6 months").tag(180)
+                        Text("All time").tag(0)
                     }
                     Button {
-                        Task { await manager.sync(days: syncDays, context: context) }
+                        Task { await manager.sync(days: syncDays > 0 ? syncDays : nil, context: context) }
                     } label: {
                         if manager.syncing {
                             HStack { ProgressView(); Text("Syncing…") }
@@ -56,7 +57,7 @@ struct HealthKitSyncView: View {
             } header: {
                 Text("Apple Health")
             } footer: {
-                Text("Reads steps, body mass, body fat %, and active energy. Renpho scale data syncs through Apple Health — pair the Renpho app with Health and it flows in here. The app works fully without this permission; everything can be logged manually.")
+                Text("Reads steps, body mass, body fat %, and active energy. Renpho scale data syncs through Apple Health — pair the Renpho app with Health and it flows in here. All-time sync can take longer on the first run.")
             }
 
             Section {

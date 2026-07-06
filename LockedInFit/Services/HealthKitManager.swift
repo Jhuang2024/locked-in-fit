@@ -96,9 +96,9 @@ final class HealthKitManager {
         await sync(days: 2, context: context)
     }
 
-    /// Pull the last `days` of data into SwiftData, deduplicating by day+source.
+    /// Pull Health data into SwiftData, deduplicating by day+source. Pass nil for all available history.
     @MainActor
-    func sync(days: Int = 60, context: ModelContext) async {
+    func sync(days: Int? = 60, context: ModelContext) async {
         guard isAvailable else { return }
         syncing = true
         defer { syncing = false }
@@ -247,9 +247,9 @@ final class HealthKitManager {
         return output
     }
 
-    private func dailySteps(days: Int) async throws -> [(Date, Int)] {
+    private func dailySteps(days: Int?) async throws -> [(Date, Int)] {
         guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else { return [] }
-        let start = Date().daysAgo(days).startOfDay
+        guard let start = try await queryStartDate(for: type, days: days) else { return [] }
         let predicate = HKQuery.predicateForSamples(withStart: start, end: .now)
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -273,9 +273,9 @@ final class HealthKitManager {
         }
     }
 
-    private func dailyActiveEnergy(days: Int) async throws -> [(Date, Double)] {
+    private func dailyActiveEnergy(days: Int?) async throws -> [(Date, Double)] {
         guard let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else { return [] }
-        let start = Date().daysAgo(days).startOfDay
+        guard let start = try await queryStartDate(for: type, days: days) else { return [] }
         let predicate = HKQuery.predicateForSamples(withStart: start, end: .now)
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -299,18 +299,42 @@ final class HealthKitManager {
         }
     }
 
-    private func samples(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int) async throws -> [DatedValue] {
+    private func samples(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int?) async throws -> [DatedValue] {
         guard let type = HKObjectType.quantityType(forIdentifier: id) else { return [] }
-        let predicate = HKQuery.predicateForSamples(withStart: Date().daysAgo(days), end: .now)
+        let start = days.map { Date().daysAgo($0) }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: .now)
 
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 500,
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
                                       sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
                 let values = (samples as? [HKQuantitySample])?.map {
                     DatedValue(date: $0.startDate, value: $0.quantity.doubleValue(for: unit))
                 } ?? []
                 continuation.resume(returning: values)
+            }
+            store.execute(query)
+        }
+    }
+
+    private func queryStartDate(for type: HKQuantityType, days: Int?) async throws -> Date? {
+        if let days {
+            return Date().daysAgo(days).startOfDay
+        }
+
+        return try await earliestSampleDate(for: type)?.startOfDay
+    }
+
+    private func earliestSampleDate(for type: HKSampleType) async throws -> Date? {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                continuation.resume(returning: samples?.first?.startDate)
             }
             store.execute(query)
         }
