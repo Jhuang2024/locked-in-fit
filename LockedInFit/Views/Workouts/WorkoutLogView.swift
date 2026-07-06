@@ -33,7 +33,7 @@ struct WorkoutLogView: View {
             }
 
             ForEach(workout.exerciseList, id: \.persistentModelID) { exercise in
-                exerciseSection(exercise)
+                ExerciseSectionView(exercise: exercise)
             }
 
             Section {
@@ -76,9 +76,84 @@ struct WorkoutLogView: View {
         }
     }
 
-    @ViewBuilder
-    private func exerciseSection(_ exercise: Exercise) -> some View {
+    private func finishWorkout() {
+        workout.completed = true
+        detectPRs()
+        let bodyweight = weights.last?.weightKg ?? 75
+        StrengthScoreCalculator.recompute(workouts: allWorkouts, bodyWeightKg: bodyweight,
+                                          existing: strengthScores, context: context)
+    }
+
+    /// Compare each exercise's best e1RM today vs all previous history.
+    private func detectPRs() {
+        prMessages = []
+        for exercise in workout.exerciseList {
+            guard let best = exercise.bestSet else { continue }
+            let todayBest = StrengthScoreCalculator.epley1RM(weight: best.weight, reps: best.reps)
+            guard todayBest > 0 else { continue }
+            var previousBest = 0.0
+            for other in allWorkouts where other !== workout && other.completed {
+                for otherExercise in other.exerciseList where otherExercise.name == exercise.name {
+                    for set in otherExercise.setList where set.completed {
+                        previousBest = max(previousBest, StrengthScoreCalculator.epley1RM(weight: set.weight, reps: set.reps))
+                    }
+                }
+            }
+            if todayBest > previousBest, previousBest > 0 {
+                prMessages.append("\(exercise.name): e1RM \(Int(todayBest)) kg (was \(Int(previousBest)))")
+            }
+        }
+        if !prMessages.isEmpty { showPRCelebration = true }
+    }
+}
+
+/// One exercise's sets, with quick controls for how many sets and the rest
+/// taken between them (rest only makes sense once there's more than one set).
+private struct ExerciseSectionView: View {
+    @Bindable var exercise: Exercise
+
+    private var setsBinding: Binding<Int> {
+        Binding(
+            get: { exercise.setList.count },
+            set: { newCount in
+                let current = exercise.setList
+                if newCount > current.count {
+                    for i in current.count..<newCount {
+                        let last = current.last
+                        exercise.sets?.append(WorkoutSet(order: i,
+                                                         reps: last?.reps ?? 8,
+                                                         weight: last?.weight ?? 0,
+                                                         duration: last?.duration ?? 0))
+                    }
+                } else if newCount < current.count {
+                    let toDrop = Set(current.suffix(current.count - newCount).map(\.persistentModelID))
+                    exercise.sets?.removeAll { toDrop.contains($0.persistentModelID) }
+                }
+            })
+    }
+
+    var body: some View {
         Section {
+            Stepper(value: setsBinding, in: 1...20) {
+                Text("Sets: \(exercise.setList.count)")
+            }
+
+            HStack {
+                Text("Rest between sets")
+                Spacer()
+                TextField("sec", value: $exercise.restSeconds, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                    .disabled(exercise.setList.count <= 1)
+                Text("sec").font(.caption).foregroundStyle(.secondary)
+            }
+            if exercise.setList.count <= 1 {
+                Text("Add another set to time rest between sets.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             ForEach(exercise.setList, id: \.persistentModelID) { set in
                 ExerciseSetRowView(set: set, isDurationBased: exercise.movementPattern == .conditioning || set.duration > 0)
             }
@@ -109,42 +184,12 @@ struct WorkoutLogView: View {
                     }
                 }
                 Spacer()
-                Text("rest \(exercise.restSeconds)s · RPE \(String(format: "%.0f", exercise.targetRPE))")
+                Text("RPE target \(String(format: "%.0f", exercise.targetRPE))")
                     .font(.caption2)
             }
         } footer: {
             if !exercise.notes.isEmpty { Text(exercise.notes) }
         }
-    }
-
-    private func finishWorkout() {
-        workout.completed = true
-        detectPRs()
-        let bodyweight = weights.last?.weightKg ?? 75
-        StrengthScoreCalculator.recompute(workouts: allWorkouts, bodyWeightKg: bodyweight,
-                                          existing: strengthScores, context: context)
-    }
-
-    /// Compare each exercise's best e1RM today vs all previous history.
-    private func detectPRs() {
-        prMessages = []
-        for exercise in workout.exerciseList {
-            guard let best = exercise.bestSet else { continue }
-            let todayBest = StrengthScoreCalculator.epley1RM(weight: best.weight, reps: best.reps)
-            guard todayBest > 0 else { continue }
-            var previousBest = 0.0
-            for other in allWorkouts where other !== workout && other.completed {
-                for otherExercise in other.exerciseList where otherExercise.name == exercise.name {
-                    for set in otherExercise.setList where set.completed {
-                        previousBest = max(previousBest, StrengthScoreCalculator.epley1RM(weight: set.weight, reps: set.reps))
-                    }
-                }
-            }
-            if todayBest > previousBest, previousBest > 0 {
-                prMessages.append("\(exercise.name): e1RM \(Int(todayBest)) kg (was \(Int(previousBest)))")
-            }
-        }
-        if !prMessages.isEmpty { showPRCelebration = true }
     }
 }
 

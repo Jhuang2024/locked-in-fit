@@ -75,12 +75,12 @@ struct GoalDashboardView: View {
                         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
                 }
 
-                if let trend = projection.currentTrendKg {
+                if let latestWeight = weights.last?.weightKg {
                     GoalProgressCard(
                         title: "Weight",
-                        current: Formatters.kg(trend),
+                        current: Formatters.kg(latestWeight),
                         target: Formatters.kg(goal.targetWeightKg),
-                        progress: weightProgress(goal: goal, trend: trend))
+                        progress: weightProgress(goal: goal, current: latestWeight))
                 }
 
                 if let targetBF = goal.targetBodyFatPercentage, let latestBF = bodyFats.last {
@@ -136,10 +136,10 @@ struct GoalDashboardView: View {
         }
     }
 
-    private func weightProgress(goal: Goal, trend: Double) -> Double {
+    private func weightProgress(goal: Goal, current: Double) -> Double {
         let total = goal.targetWeightKg - goal.startWeightKg
         guard abs(total) > 0.1 else { return 1 }
-        return (trend - goal.startWeightKg) / total
+        return (current - goal.startWeightKg) / total
     }
 
     private func bodyFatProgress(goal: Goal, current: Double, target: Double) -> Double {

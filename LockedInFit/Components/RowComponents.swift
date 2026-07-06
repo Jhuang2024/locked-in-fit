@@ -146,10 +146,13 @@ struct ExerciseSetRowView: View {
 
             Spacer()
 
-            TextField("RPE", value: $set.rpe, format: .number)
-                .keyboardType(.decimalPad)
-                .frame(width: 44)
-                .textFieldStyle(.roundedBorder)
+            VStack(spacing: 2) {
+                Text("RPE").font(.caption2).foregroundStyle(.secondary)
+                TextField("—", value: $set.rpe, format: .number)
+                    .keyboardType(.decimalPad)
+                    .frame(width: 44)
+                    .textFieldStyle(.roundedBorder)
+            }
 
             Button {
                 set.completed.toggle()
