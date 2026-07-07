@@ -31,4 +31,19 @@ enum ImageStore {
         guard let relativePath, !relativePath.isEmpty else { return }
         try? FileManager.default.removeItem(at: directory.appendingPathComponent(relativePath))
     }
+
+    /// Delete a batch of photos (nil/empty entries are skipped).
+    static func deleteAll(_ relativePaths: [String?]) {
+        for path in relativePaths { delete(path) }
+    }
+
+    /// Delete every stored photo whose filename starts with one of the given
+    /// prefixes (e.g. "face", "body-front"). Belt-and-braces cleanup for
+    /// "Delete All Looks Data" so no orphaned files survive.
+    static func deleteAll(withPrefixes prefixes: [String]) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return }
+        for file in files where prefixes.contains(where: { file.lastPathComponent.hasPrefix($0 + "-") }) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
 }

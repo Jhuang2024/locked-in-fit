@@ -34,6 +34,9 @@ struct SettingsView: View {
                 NavigationLink(destination: HealthKitSyncView()) {
                     Label("Apple Health Sync", systemImage: "heart.fill")
                 }
+                NavigationLink(destination: LooksSettingsView()) {
+                    Label("Looks & Calendar", systemImage: "face.smiling")
+                }
             }
 
             Section("Data") {

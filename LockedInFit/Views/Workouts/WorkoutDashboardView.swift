@@ -8,12 +8,33 @@ struct WorkoutDashboardView: View {
     @Query private var strengthScores: [StrengthScore]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
 
+    @Query(sort: \WorkoutSchedule.createdAt, order: .reverse) private var schedules: [WorkoutSchedule]
+
     @State private var showGenerator = false
+    @State private var showScheduleGenerator = false
     @State private var activeWorkout: Workout?
 
     private var history: [Workout] { workouts.filter { !$0.isTemplate } }
     private var templates: [Workout] { workouts.filter(\.isTemplate) }
     private var completed: [Workout] { history.filter(\.completed) }
+
+    private var activeSchedules: [WorkoutSchedule] { schedules.filter(\.isActive) }
+    /// Next upcoming session across active schedules within the next 7 days.
+    private var upcomingSession: (session: WorkoutScheduleSession, date: Date)? {
+        let now = Date()
+        return activeSchedules
+            .flatMap { $0.sessionList }
+            .map { session -> (session: WorkoutScheduleSession, date: Date) in
+                let base = session.date ?? now
+                var next = Weekday.nextOccurrence(of: session.weekday, from: now)
+                // Carry the session's time of day onto the next occurrence.
+                let time = Calendar.current.dateComponents([.hour, .minute], from: base)
+                next = Calendar.current.date(bySettingHour: time.hour ?? 17, minute: time.minute ?? 0, second: 0, of: next) ?? next
+                if next < now, let bumped = Calendar.current.date(byAdding: .day, value: 7, to: next) { next = bumped }
+                return (session: session, date: next)
+            }
+            .min { $0.date < $1.date }
+    }
 
     private var weeklyVolume: [(week: Date, volume: Double)] {
         let calendar = Calendar.current
@@ -29,19 +50,36 @@ struct WorkoutDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Button { showGenerator = true } label: {
-                        Label("Generate", systemImage: "wand.and.stars")
+                        Label("Workout", systemImage: "wand.and.stars")
+                            .font(.subheadline.weight(.medium))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                     }
                     .buttonStyle(.borderedProminent)
-                    Button { createBlankWorkout() } label: {
-                        Label("Blank", systemImage: "plus")
+                    Button { showScheduleGenerator = true } label: {
+                        Label("Schedule", systemImage: "calendar.day.timeline.left")
+                            .font(.subheadline.weight(.medium))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                     }
                     .buttonStyle(.bordered)
+                    Button { createBlankWorkout() } label: {
+                        Label("Blank", systemImage: "plus")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if let upcoming = upcomingSession {
+                    upcomingSessionCard(upcoming.session, date: upcoming.date)
+                }
+
+                if !activeSchedules.isEmpty {
+                    activeSchedulesCard
                 }
 
                 DashboardCard(title: "Overall Strength", systemImage: "trophy") {
@@ -134,9 +172,64 @@ struct WorkoutDashboardView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Training")
         .sheet(isPresented: $showGenerator) { WorkoutGeneratorView() }
+        .sheet(isPresented: $showScheduleGenerator) { WorkoutScheduleGeneratorView() }
         .sheet(item: $activeWorkout) { workout in
             NavigationStack { WorkoutLogView(workout: workout) }
         }
+    }
+
+    private func upcomingSessionCard(_ session: WorkoutScheduleSession, date: Date) -> some View {
+        DashboardCard(title: "Next Scheduled Workout", systemImage: "calendar.badge.clock") {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(date.isToday ? "Today" : Weekday.label(session.weekday)) · \(date.formatted(date: .omitted, time: .shortened)) · ~\(session.estimatedDurationMinutes) min")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(date.isToday ? "Start" : "Preview") { startSession(session) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private var activeSchedulesCard: some View {
+        DashboardCard(title: "Active Schedules", systemImage: "calendar.day.timeline.left") {
+            VStack(spacing: 10) {
+                ForEach(activeSchedules, id: \.persistentModelID) { schedule in
+                    NavigationLink(destination: WorkoutScheduleDetailView(schedule: schedule)) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(schedule.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text(schedule.sessionList.map { Weekday.shortLabel($0.weekday) }.joined(separator: " · "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if schedule.syncToCalendar && !schedule.calendarEventIds.isEmpty {
+                                Image(systemName: "calendar.badge.checkmark")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.pressable)
+                }
+            }
+        }
+    }
+
+    private func startSession(_ session: WorkoutScheduleSession) {
+        activeWorkout = WorkoutScheduleGeneratorService.workout(
+            for: session, existingWorkouts: history, context: context)
     }
 
     private func createBlankWorkout() {
