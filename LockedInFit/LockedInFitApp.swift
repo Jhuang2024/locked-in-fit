@@ -97,22 +97,30 @@ struct TrendsHomeView: View {
     @Query private var suggestions: [AppearanceSuggestion]
 
     private var goal: Goal? { activeGoals.first }
+    /// Both "this week" figures below share this exact window (start of the
+    /// current calendar week through today) so they describe the same period.
     private var weekStart: Date {
         Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start ?? Date().daysAgo(7)
+    }
+    private var daysElapsedThisWeek: Int {
+        max(1, (Calendar.current.dateComponents([.day], from: weekStart, to: Date()).day ?? 0) + 1)
     }
     private var workoutsThisWeek: Int {
         completedWorkouts.filter { $0.date >= weekStart }.count
     }
-    /// Days in the last 7 with a protein target hit, out of days with any meal logged.
+    /// Days so far this calendar week with a protein target hit, out of days with any meal logged.
     private var proteinHitDaysThisWeek: Int {
         guard let target = goal?.proteinTarget, target > 0 else { return 0 }
         let calendar = Calendar.current
         var count = 0
-        for offset in 0..<7 {
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
+        var day = weekStart
+        while day <= Date() {
             let dayMeals = meals.filter { calendar.isDate($0.date, inSameDayAs: day) }
-            guard !dayMeals.isEmpty, dayMeals.reduce(0, { $0 + $1.protein }) >= target else { continue }
-            count += 1
+            if !dayMeals.isEmpty, dayMeals.reduce(0, { $0 + $1.protein }) >= target {
+                count += 1
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
         }
         return count
     }
@@ -123,7 +131,7 @@ struct TrendsHomeView: View {
         List {
             Section("This Week") {
                 summaryRow("Workouts", "\(workoutsThisWeek)", systemImage: "dumbbell")
-                summaryRow("Protein target hit", "\(proteinHitDaysThisWeek)/7 days", systemImage: "fish")
+                summaryRow("Protein target hit", "\(proteinHitDaysThisWeek)/\(daysElapsedThisWeek) days", systemImage: "fish")
                 summaryRow("Face check-in streak", faceStreak > 0 ? "\(faceStreak)d" : "—", systemImage: "face.smiling")
                 if pendingSuggestionCount > 0 {
                     NavigationLink(destination: AppearanceSuggestionReviewView()) {

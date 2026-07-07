@@ -225,9 +225,11 @@ struct DashboardView: View {
 
     /// Same dietary events as the push notifications, shown inline on
     /// Today's Checklist so limits are visible where the user is already
-    /// looking, not just in an alert that already fired.
+    /// looking, not just in an alert that already fired. Guarded the same
+    /// way as evaluateNotificationEvents (no settings row yet → neither
+    /// surface fires) so the two never disagree.
     private var dietaryWatchLines: [String] {
-        guard settings?.dietaryLimitAlertsEnabled ?? true else { return [] }
+        guard let settings, settings.dietaryLimitAlertsEnabled else { return [] }
         return NotificationRulesEngine.dietaryEvents(notificationInputs).map { "\($0.title): \($0.body)" }
     }
 

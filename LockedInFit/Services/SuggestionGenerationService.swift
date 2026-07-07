@@ -51,7 +51,10 @@ enum SuggestionGenerationService {
                 destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.grooming < 15 {
+        // grooming = 9 + ratio*11, so the neutral/no-data value is 14.5 — this
+        // threshold must stay below that or the suggestion fires by default
+        // for everyone, not just genuinely low compliance.
+        if result.grooming < 13 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Schedule a haircut every 4 weeks",

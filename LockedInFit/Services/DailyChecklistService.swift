@@ -83,11 +83,21 @@ enum DailyChecklistService {
         guard !categoryItems.isEmpty else { return nil }
         var dueCount = 0
         var doneCount = 0
-        for offset in 0..<days {
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: date) else { continue }
-            for item in categoryItems where isDue(item, on: day) {
+        for item in categoryItems {
+            if item.recurrence == .none {
+                // One-time items count once — `isDue` is true on every day
+                // from the due date onward, so looping days here would count
+                // a single overdue item against compliance up to `days` times.
+                guard item.dueDate.startOfDay <= date.startOfDay else { continue }
                 dueCount += 1
-                if isCompleted(item, on: day) { doneCount += 1 }
+                if item.isCompleted { doneCount += 1 }
+            } else {
+                for offset in 0..<days {
+                    guard let day = calendar.date(byAdding: .day, value: -offset, to: date),
+                          isDue(item, on: day) else { continue }
+                    dueCount += 1
+                    if isCompleted(item, on: day) { doneCount += 1 }
+                }
             }
         }
         guard dueCount > 0 else { return nil }
