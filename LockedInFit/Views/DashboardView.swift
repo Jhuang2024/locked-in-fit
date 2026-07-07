@@ -28,6 +28,7 @@ struct DashboardView: View {
     @State private var healthKit = HealthKitManager.shared
     @State private var activeWorkout: Workout?
     @State private var actionTick = 0
+    @State private var showCalorieDetails = false
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -80,7 +81,7 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 14) {
+            VStack(spacing: 10) {
                 header
                 quickActions
                 checklistCard
@@ -274,22 +275,37 @@ struct DashboardView: View {
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
                     StatChip(label: "Oil", value: "+\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                 }
-                Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
-                    .font(.caption)
+                Button {
+                    withAnimation(.snappy) { showCalorieDetails.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(showCalorieDetails ? "Hide details" : "Why this target?")
+                        Image(systemName: showCalorieDetails ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                if viewModel.calories.tefCalories > 0 {
-                    Label("TEF adds +\(Int(viewModel.calories.tefCalories)) kcal to today's target from digesting what you've already eaten.", systemImage: "flame.fill")
-                        .font(.caption)
-                        .foregroundStyle(.purple)
                 }
-                if viewModel.nutrition.hiddenOilHigh > 0 {
-                    Label("Hidden oil adds +\(Int(viewModel.calories.hiddenOilCalories)) kcal to eaten (range +\(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                .buttonStyle(.plain)
+                if showCalorieDetails {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if viewModel.calories.tefCalories > 0 {
+                            Label("TEF adds +\(Int(viewModel.calories.tefCalories)) kcal to today's target from digesting what you've already eaten.", systemImage: "flame.fill")
+                                .font(.caption)
+                                .foregroundStyle(.purple)
+                        }
+                        if viewModel.nutrition.hiddenOilHigh > 0 {
+                            Label("Hidden oil adds +\(Int(viewModel.calories.hiddenOilCalories)) kcal to eaten (range +\(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        Text("Estimated maintenance: \(Int(maintenance)) kcal")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                Text("Estimated maintenance: \(Int(maintenance)) kcal")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
