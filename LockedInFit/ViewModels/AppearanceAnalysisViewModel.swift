@@ -35,10 +35,17 @@ final class AppearanceAnalysisViewModel {
     var aiResult: AppearanceAIResult?
     var providerUsed = ""
     var notes = ""
-    /// Suggestions generated for the pending check-in; inserted on save.
+    /// Suggestions generated for the pending check-in; reconciled on save —
+    /// duplicates of a live suggestion get refreshed in place instead of inserted.
     var draftSuggestions: [AppearanceSuggestion] = []
     /// The unsaved check-in shown on the review screen.
     var draftCheckIn: AppearanceCheckIn?
+    /// How many of `draftSuggestions` were actually inserted as new pending
+    /// rows by the last `save(into:)` call (vs. deduped into a refresh of an
+    /// existing suggestion). Callers should gate "show suggestion review" on
+    /// this, not on `draftSuggestions.isEmpty` — an all-duplicate batch still
+    /// generates suggestions but has nothing new to review.
+    private(set) var insertedSuggestionCount = 0
 
     var bodyImages: [UIImage] { [frontImage, sideImage, backImage].compactMap { $0 } }
 
@@ -146,8 +153,22 @@ final class AppearanceAnalysisViewModel {
             draftCheckIn.backPhotoPath = backImage.flatMap { ImageStore.save($0, prefix: "body-back") }
         }
         modelContext.insert(draftCheckIn)
-        for suggestion in draftSuggestions {
+
+        // Only live suggestions can be duplicates — rejected ones are excluded
+        // so a dismissed rule can resurface, and there's no need to fetch them.
+        let rejectedRaw = AppearanceSuggestionStatus.rejected.rawValue
+        let descriptor = FetchDescriptor<AppearanceSuggestion>(predicate: #Predicate { $0.statusRaw != rejectedRaw })
+        let existing = (try? modelContext.fetch(descriptor)) ?? []
+        let (toInsert, toRefresh) = SuggestionGenerationService.reconcile(drafts: draftSuggestions, existing: existing)
+        insertedSuggestionCount = toInsert.count
+        for suggestion in toInsert {
             modelContext.insert(suggestion)
+        }
+        for (existingSuggestion, draft) in toRefresh {
+            // Same suggestion as before — refresh its reasoning instead of duplicating it.
+            existingSuggestion.explanation = draft.explanation
+            existingSuggestion.expectedImpact = draft.expectedImpact
+            existingSuggestion.relatedCheckInId = draft.relatedCheckInId
         }
         return draftCheckIn
     }

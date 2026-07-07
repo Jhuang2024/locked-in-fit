@@ -287,7 +287,7 @@ struct BodyCheckInView: View {
                 notes: "Body check-in · score \(Int(checkIn.totalScore))/100")
             context.insert(progressPhoto)
         }
-        if viewModel.draftSuggestions.isEmpty {
+        if viewModel.insertedSuggestionCount == 0 {
             dismiss()
         } else {
             showSuggestionReview = true

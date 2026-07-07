@@ -349,7 +349,7 @@ struct FaceCheckInView: View {
                     faceCheckedInToday: true)
             }
         }
-        if viewModel.draftSuggestions.isEmpty {
+        if viewModel.insertedSuggestionCount == 0 {
             dismiss()
         } else {
             showSuggestionReview = true

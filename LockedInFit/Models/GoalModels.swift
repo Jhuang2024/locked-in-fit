@@ -81,6 +81,19 @@ final class UserSettings {
     var workoutRemindersEnabled: Bool = true
     /// Minutes before a scheduled session to fire local/calendar reminders.
     var defaultWorkoutReminderMinutes: Int = 60
+    // Checklist-integrated notification categories. Permission is requested the
+    // first time any of these is switched on (see NotificationService).
+    var mealReminderEnabled: Bool = true
+    var sleepReminderEnabled: Bool = true
+    var sleepReminderHour: Int = 8
+    var sleepReminderMinute: Int = 0
+    var checklistReminderEnabled: Bool = true
+    var dietaryLimitAlertsEnabled: Bool = true
+    var goalAlertsEnabled: Bool = true
+    /// Rolling ledger of fired one-shot event keys ("yyyy-MM-dd:kind"), so
+    /// dietary-limit and goal-achievement alerts fire once per day, not on
+    /// every recalculation. Pruned to the last 2 days on write.
+    var notifiedEventKeys: [String] = []
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }

@@ -28,6 +28,9 @@ struct SettingsView: View {
             }
 
             Section("Integrations") {
+                NavigationLink(destination: NotificationSettingsView()) {
+                    Label("Notifications", systemImage: "bell.badge")
+                }
                 NavigationLink(destination: AISettingsView()) {
                     Label("AI Analysis", systemImage: "sparkles")
                 }

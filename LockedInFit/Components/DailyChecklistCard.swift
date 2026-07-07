@@ -15,6 +15,11 @@ struct DailyChecklistCard: View {
     /// Completed workouts (to mark scheduled sessions done).
     let completedWorkouts: [Workout]
     var onStartSession: (WorkoutScheduleSession) -> Void
+    /// Called after any item's completion state changes, so callers can
+    /// refresh reminders immediately (SwiftData's identity-based Equatable
+    /// means an in-place `isCompleted` flip doesn't change the query array
+    /// itself, so `onChange(of:)` on `items` alone won't catch it).
+    var onToggle: () -> Void = {}
 
     @State private var showAddItem = false
     @State private var completionTick = 0
@@ -115,6 +120,7 @@ struct DailyChecklistCard: View {
             DailyChecklistService.toggle(item)
         }
         completionTick += 1
+        onToggle()
     }
 
     private func systemRow(title: String, subtitle: String?, systemImage: String, done: Bool) -> some View {

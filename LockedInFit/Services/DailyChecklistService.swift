@@ -57,6 +57,19 @@ enum DailyChecklistService {
             }
     }
 
+    /// Due-and-incomplete items outside `.sleep`, which has its own reminder
+    /// category — shared by the Dashboard's reminder refresh and the
+    /// Notifications settings screen so both agree on what the checklist
+    /// digest covers.
+    static func openItemsExcludingSleep(_ items: [DailyChecklistItem], on date: Date = .now) -> [DailyChecklistItem] {
+        dueItems(items, on: date).filter { $0.category != .sleep && !isCompleted($0, on: date) }
+    }
+
+    /// Whether a due `.sleep` item is still open today.
+    static func sleepItemDueIncomplete(_ items: [DailyChecklistItem], on date: Date = .now) -> Bool {
+        dueItems(items, on: date).contains { $0.category == .sleep && !isCompleted($0, on: date) }
+    }
+
     /// Create (and insert) a checklist item from an approved suggestion.
     @discardableResult
     static func createItem(from suggestion: AppearanceSuggestion,

@@ -46,6 +46,30 @@ struct DashboardView: View {
     }
 
     private var todayMeals: [MealLog] { meals.filter { $0.date.isToday } }
+    private var loggedMealTypesToday: Set<MealType> { Set(todayMeals.map(\.mealType)) }
+
+    private var dueChecklistItemsToday: [DailyChecklistItem] { DailyChecklistService.dueItems(checklistItems) }
+    private var openChecklistItemsExcludingSleep: [DailyChecklistItem] {
+        DailyChecklistService.openItemsExcludingSleep(checklistItems)
+    }
+    private var sleepItemDueIncomplete: Bool {
+        DailyChecklistService.sleepItemDueIncomplete(checklistItems)
+    }
+    private var sleepChecklistItemsDueToday: [DailyChecklistItem] {
+        dueChecklistItemsToday.filter { $0.category == .sleep }
+    }
+    /// No dedicated sleep log exists yet, so "sleep goal hit" is proxied by
+    /// completing today's sleep-category checklist item(s).
+    private var sleepGoalHitToday: Bool {
+        !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
+    }
+    /// Only counts as "complete" when there's an actual looks/body/face
+    /// checklist item beyond the mandatory face photo — otherwise this would
+    /// fire every single day just for taking the daily face photo.
+    private var looksChecklistCompleteToday: Bool {
+        let looksItems = dueChecklistItemsToday.filter { [.looks, .body, .face].contains($0.category) }
+        return faceCheckedInToday && !looksItems.isEmpty && looksItems.allSatisfy { DailyChecklistService.isCompleted($0) }
+    }
 
     private var faceCheckedInToday: Bool {
         appearanceCheckIns.contains { $0.kind == .face && $0.date.isToday }
@@ -103,8 +127,16 @@ struct DashboardView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
-        .refreshable { await healthKit.sync(context: context) }
+        .refreshable {
+            await healthKit.sync(context: context)
+            await refreshReminderSchedules()
+        }
         .task { await refreshReminderSchedules() }
+        .onChange(of: meals) { _, _ in Task { await refreshReminderSchedules() } }
+        .onChange(of: completedWorkouts) { _, _ in Task { await refreshReminderSchedules() } }
+        .onChange(of: checklistItems) { _, _ in Task { await refreshReminderSchedules() } }
+        .onChange(of: steps) { _, _ in Task { await refreshReminderSchedules() } }
+        .onChange(of: appearanceCheckIns) { _, _ in Task { await refreshReminderSchedules() } }
         .navigationTitle("Today")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -127,8 +159,10 @@ struct DashboardView: View {
         .sensoryFeedback(.selection, trigger: actionTick)
     }
 
-    /// Keep the rolling 14-day local reminder windows topped up. Never prompts
-    /// for permission; NotificationService skips scheduling if not authorized.
+    /// Keep the rolling reminder windows topped up and re-check dietary/goal
+    /// events. Never prompts for permission; NotificationService skips
+    /// scheduling if not authorized. Runs on appear and whenever today's
+    /// logs change, so it survives normal navigation and data updates.
     private func refreshReminderSchedules() async {
         guard let settings else { return }
         await NotificationService.refreshFaceReminders(
@@ -142,6 +176,46 @@ struct DashboardView: View {
                 enabled: settings.workoutRemindersEnabled,
                 offsetMinutes: settings.defaultWorkoutReminderMinutes)
         }
+        await NotificationService.refreshMealReminders(
+            enabled: settings.mealReminderEnabled,
+            loggedMealTypesToday: loggedMealTypesToday)
+        await NotificationService.refreshSleepReminder(
+            enabled: settings.sleepReminderEnabled,
+            hour: settings.sleepReminderHour,
+            minute: settings.sleepReminderMinute,
+            dueAndIncomplete: sleepItemDueIncomplete)
+        await NotificationService.refreshChecklistDigest(
+            enabled: settings.checklistReminderEnabled,
+            hour: 18, minute: 0,
+            openCount: openChecklistItemsExcludingSleep.count)
+
+        await evaluateNotificationEvents(settings: settings)
+    }
+
+    /// Dietary-limit and goal-achievement alerts fire immediately when
+    /// crossed, but NotificationService.fireOnce ensures each one only
+    /// reaches the user once per day.
+    private func evaluateNotificationEvents(settings: UserSettings) async {
+        let today = viewModel
+        let input = NotificationRulesEngine.Inputs(
+            nutrition: today.nutrition,
+            calorieTarget: calorieTarget,
+            adjustedCalorieTarget: today.calories.adjustedTarget,
+            proteinTarget: proteinTarget,
+            sodiumLimit: sodiumLimit,
+            stepsToday: today.stepsToday,
+            stepTarget: today.stepTarget,
+            completedWorkoutsToday: today.completedWorkoutsToday,
+            now: .now)
+        var events: [NotificationService.NotificationEvent] = []
+        if settings.dietaryLimitAlertsEnabled {
+            events += NotificationRulesEngine.dietaryEvents(input)
+        }
+        if settings.goalAlertsEnabled {
+            events += NotificationRulesEngine.goalEvents(
+                input, sleepGoalHit: sleepGoalHitToday, looksChecklistComplete: looksChecklistCompleteToday)
+        }
+        await NotificationService.fireOnce(events, settings: settings)
     }
 
     private func saveWeight() {
@@ -207,7 +281,10 @@ struct DashboardView: View {
             quickActionButton("Workout", systemImage: "dumbbell.fill") { createBlankWorkout() }
             quickActionButton("Weight", systemImage: "scalemass.fill") { showLogWeight = true }
             quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing, badge: healthKit.autoSyncEnabled) {
-                Task { await healthKit.sync(context: context) }
+                Task {
+                    await healthKit.sync(context: context)
+                    await refreshReminderSchedules()
+                }
             }
         }
     }
@@ -386,7 +463,8 @@ struct DashboardView: View {
                 actionTick += 1
                 activeWorkout = WorkoutScheduleGeneratorService.workout(
                     for: session, existingWorkouts: allWorkouts, context: context)
-            })
+            },
+            onToggle: { Task { await refreshReminderSchedules() } })
     }
 
     private var looksCard: some View {

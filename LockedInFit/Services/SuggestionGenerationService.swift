@@ -201,4 +201,48 @@ enum SuggestionGenerationService {
         }
         return Array(result.sorted { $0.priority < $1.priority }.prefix(6))
     }
+
+    // MARK: - Dedup against already-saved suggestions
+
+    /// Collapses whitespace/punctuation/case so "Add sunscreen!" and
+    /// "add   sunscreen." key the same. Used to compare freshly generated
+    /// suggestions against ones already stored, regardless of scan history.
+    static func normalizedKey(title: String, category: AppearanceSuggestionCategory) -> String {
+        let folded = title
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return "\(category.rawValue)|\(folded)"
+    }
+
+    /// Splits freshly generated suggestions into ones to insert and ones that
+    /// duplicate a live (pending/approved/completed) suggestion — those get
+    /// their explanation/impact/related check-in refreshed on the existing
+    /// row instead of creating a second copy. Rejected suggestions don't
+    /// count as live, so a rule that was dismissed can resurface later.
+    static func reconcile(drafts: [AppearanceSuggestion],
+                          existing: [AppearanceSuggestion]) -> (toInsert: [AppearanceSuggestion], toRefresh: [(AppearanceSuggestion, AppearanceSuggestion)]) {
+        var existingByKey: [String: AppearanceSuggestion] = [:]
+        for suggestion in existing where suggestion.status != .rejected {
+            existingByKey[normalizedKey(title: suggestion.title, category: suggestion.category)] = suggestion
+        }
+
+        var toInsert: [AppearanceSuggestion] = []
+        var toRefresh: [(AppearanceSuggestion, AppearanceSuggestion)] = []
+        var seenThisBatch = Set<String>()
+
+        for draft in drafts {
+            let key = normalizedKey(title: draft.title, category: draft.category)
+            guard !seenThisBatch.contains(key) else { continue }
+            seenThisBatch.insert(key)
+
+            if let match = existingByKey[key] {
+                toRefresh.append((match, draft))
+            } else {
+                toInsert.append(draft)
+            }
+        }
+        return (toInsert, toRefresh)
+    }
 }
