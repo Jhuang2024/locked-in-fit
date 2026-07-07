@@ -2,7 +2,7 @@ import Foundation
 
 /// Local, deterministic appearance scoring. Scores measure photo quality,
 /// consistency, grooming/visibility proxies, body-composition data, and
-/// self-comparison against the user's own history — never objective
+/// self-comparison against the user's own history; never objective
 /// attractiveness, and never protected traits.
 enum AppearanceScoringService {
 
@@ -37,7 +37,7 @@ enum AppearanceScoringService {
         let anglePart = (1 - clamp(max(metrics.yawDegrees, metrics.rollDegrees) / 30)) * 3 // 0–3
         let quality = sharpnessPart + exposurePart + sizePart + anglePart
         if quality < 12 {
-            explanations.append("Photo quality is holding the score down — lighting, sharpness, or framing could be better.")
+            explanations.append("Photo quality is holding the score down; lighting, sharpness, or framing could be better.")
         } else {
             explanations.append("Photo quality is solid: sharp, well-lit, and framed for comparison.")
         }
@@ -45,15 +45,15 @@ enum AppearanceScoringService {
         // Skin/complexion proxy (20): evenness of face-region luminance.
         // High std dev = harsh shadows or uneven texture in this photo; a proxy, not dermatology.
         let evenness = 1 - clamp((metrics.faceLuminanceStdDev - 0.08) / 0.22)
-        let skin = 8 + evenness * 12 // floor of 8 — a single photo can't judge skin harshly
+        let skin = 8 + evenness * 12 // floor of 8: a single photo can't judge skin harshly
         explanations.append(evenness > 0.6
             ? "Skin-region lighting reads even in this shot."
-            : "Face lighting is uneven — could be shadows or the light source, so this component is a rough proxy.")
+            : "Face lighting is uneven; could be shadows or the light source, so this component is a rough proxy.")
 
         // Symmetry/landmark balance proxy (15): mostly a framing/pose signal.
         let symmetry = 6 + metrics.landmarkSymmetry * 9 // floored: pose noise dominates this proxy
         if metrics.landmarkSymmetry < 0.4 {
-            explanations.append("Landmark balance is off — usually a head-tilt or angle issue, not your face.")
+            explanations.append("Landmark balance is off; usually a head-tilt or angle issue, not your face.")
         }
 
         // Grooming/visibility proxy (15): how much of the face Vision could map.
@@ -77,14 +77,14 @@ enum AppearanceScoringService {
             puffiness = max(4, min(15, puffiness))
             puffinessComparable = true
             if delta > 0.03 {
-                explanations.append("Face reads slightly puffier than your recent baseline — salt, sleep, or photo timing can all cause this.")
+                explanations.append("Face reads slightly puffier than your recent baseline; salt, sleep, or photo timing can all cause this.")
             } else if delta < -0.02 {
                 explanations.append("Face reads leaner than your recent baseline.")
             } else {
                 explanations.append("Puffiness is in line with your recent baseline.")
             }
         } else {
-            explanations.append("Puffiness tracking needs a few check-ins to build your personal baseline — neutral for now.")
+            explanations.append("Puffiness tracking needs a few check-ins to build your personal baseline; neutral for now.")
         }
 
         // Consistency/streak/trend (15): check-in days in the last 14.
@@ -93,7 +93,7 @@ enum AppearanceScoringService {
             .map { $0.date.startOfDay }).count
         let trend = clamp(Double(daysWithCheckIns + 1) / 10) * 10 + clamp(Double(streak) / 7) * 5
         if streak >= 3 {
-            explanations.append("\(streak)-day check-in streak — consistency is what makes these scores meaningful.")
+            explanations.append("\(streak)-day check-in streak; consistency is what makes these scores meaningful.")
         } else {
             explanations.append("Check in on more days to raise the consistency component and sharpen comparisons.")
         }
@@ -160,7 +160,7 @@ enum AppearanceScoringService {
         var explanations: [String]
         /// True when body fat data is missing and composition scoring is degraded.
         var compositionLimited: Bool
-        /// True when leanness is already low — cutting must NOT be suggested.
+        /// True when leanness is already low; cutting must NOT be suggested.
         var leannessGuard: Bool
     }
 
@@ -178,13 +178,13 @@ enum AppearanceScoringService {
             let floorBF: Double = inputs.sex == .male ? 8 : 16
             if bf <= floorBF {
                 leannessGuard = true
-                explanations.append("Body fat is already very low. Further cutting is off the table — the lever now is muscle, sleep, and recovery.")
+                explanations.append("Body fat is already very low. Further cutting is off the table; the lever now is muscle, sleep, and recovery.")
             } else {
                 explanations.append("Composition scored from your logged body fat (\(Formatters.trimmed(bf))%).")
             }
         } else {
             compositionLimited = true
-            explanations.append("No body fat data — composition is scored at a neutral value (composition-limited). Log body fat for a real signal.")
+            explanations.append("No body fat data; composition is scored at a neutral value (composition-limited). Log body fat for a real signal.")
         }
 
         // Low weight-for-height guard (BMI < 18.5) also blocks cut advice.
@@ -196,7 +196,7 @@ enum AppearanceScoringService {
             }
         }
 
-        // Lean mass / FFMI proxy (15) — needs weight, body fat, and height.
+        // Lean mass / FFMI proxy (15): needs weight, body fat, and height.
         var leanMass = 8.0
         if let weight = inputs.latestWeightKg, let bf = inputs.latestBodyFatPercent,
            heightValid, let height = inputs.heightCm, bf > 2, bf < 60 {
@@ -207,7 +207,7 @@ enum AppearanceScoringService {
             let low: Double = inputs.sex == .male ? 16 : 13
             let high: Double = inputs.sex == .male ? 22 : 18
             leanMass = clamp((ffmi - low) / (high - low)) * 15
-            explanations.append("Lean-mass index (FFMI proxy) is \(Formatters.trimmed(ffmi)) — this rewards muscle, not just lightness.")
+            explanations.append("Lean-mass index (FFMI proxy) is \(Formatters.trimmed(ffmi)); this rewards muscle, not just lightness.")
         } else {
             explanations.append("Lean-mass component is neutral: it needs weight, body fat, and height together.")
         }
@@ -216,13 +216,13 @@ enum AppearanceScoringService {
         let recentWorkouts = inputs.workouts.filter { $0.completed && !$0.isTemplate && $0.date > date.daysAgo(28) }.count
         let training = clamp(Double(recentWorkouts) / 12) * 15
         explanations.append(recentWorkouts == 0
-            ? "No completed workouts in the last 4 weeks — training consistency is the fastest component to move."
+            ? "No completed workouts in the last 4 weeks; training consistency is the fastest component to move."
             : "\(recentWorkouts) workouts completed in the last 4 weeks.")
 
         // Body photo/posture/proportion proxy (15): photo coverage-based.
         let photoPosture = 5 + clamp(Double(inputs.photoCount) / 3) * 7 + inputs.photoQuality * 3
         if inputs.photoCount == 0 {
-            explanations.append("No body photos attached — the visual component is minimal. Front/side/back photos give the full picture.")
+            explanations.append("No body photos attached; the visual component is minimal. Front/side/back photos give the full picture.")
         } else if inputs.photoCount < 3 {
             explanations.append("Partial photo set (\(inputs.photoCount)/3). Adding the missing angles improves comparison.")
         }
@@ -245,7 +245,7 @@ enum AppearanceScoringService {
                 explanations.append("Weight trend is moving against your active goal.")
             }
         } else {
-            explanations.append("Trend component is neutral — it needs a weight trend and an active goal.")
+            explanations.append("Trend component is neutral; it needs a weight trend and an active goal.")
         }
 
         // Photo quality (5).
@@ -266,6 +266,29 @@ enum AppearanceScoringService {
                                compositionLimited: compositionLimited, leannessGuard: leannessGuard)
     }
 
+    /// A body score computed from composition data alone (weight, body fat,
+    /// height, training, trend) with no body photo required. Returns nil only
+    /// when there is no weight or body fat logged at all; otherwise a body
+    /// score always exists, just composition-limited/lower-confidence when
+    /// some inputs are missing.
+    static func liveBodyScore(weights: [BodyWeightEntry], bodyFats: [BodyFatEntry],
+                              workouts: [Workout], settings: UserSettings?, goal: Goal?,
+                              date: Date = .now) -> BodyScoreResult? {
+        guard weights.last != nil || bodyFats.last != nil else { return nil }
+        let heightLooksDefault = (settings?.heightCm ?? 0) <= 0 || settings?.heightCm == 175
+        let inputs = BodyScoreInputs(
+            latestWeightKg: weights.last?.weightKg,
+            latestBodyFatPercent: bodyFats.last?.bodyFatPercentage,
+            heightCm: heightLooksDefault ? nil : settings?.heightCm,
+            sex: settings?.sex ?? .male,
+            goal: goal,
+            workouts: workouts,
+            weights: weights,
+            photoCount: 0,
+            photoQuality: 0)
+        return scoreBody(inputs: inputs, date: date)
+    }
+
     /// Composition points out of 40. Peaks across a healthy-athletic band and
     /// deliberately does NOT reward pushing below essential/low body fat.
     private static func compositionPoints(bodyFat: Double, sex: BiologicalSex) -> Double {
@@ -273,7 +296,7 @@ enum AppearanceScoringService {
         let idealHigh: Double = sex == .male ? 16 : 25
         let floor: Double = sex == .male ? 8 : 16
         if bodyFat < floor {
-            // Below the healthy floor: hold at the plateau, never higher —
+            // Below the healthy floor: hold at the plateau, never higher;
             // extra leanness is not rewarded.
             return 36
         }

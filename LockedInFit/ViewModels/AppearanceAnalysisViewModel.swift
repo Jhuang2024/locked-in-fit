@@ -83,7 +83,7 @@ final class AppearanceAnalysisViewModel {
                 let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "face", checkInId: checkIn.uuid) }
                 suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
             } catch {
-                // AI is enrichment only — local scoring stands on its own.
+                // AI is enrichment only; local scoring stands on its own.
                 providerUsed += " (unavailable: \(error.localizedDescription))"
             }
         }

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// A one-off scan of a packaged food/product's label — a lookup, not a meal log.
+/// A one-off scan of a packaged food/product's label; a lookup, not a meal log.
 /// Saving one never contributes to daily calorie/macro totals.
 @Model
 final class HealthScan {
@@ -34,7 +34,7 @@ final class HealthScan {
         set { concerningIngredientsRaw = newValue }
     }
 
-    /// Grams of protein per 100 kcal — a quick read on how "worth it" the calories are.
+    /// Grams of protein per 100 kcal; a quick read on how "worth it" the calories are.
     var proteinPer100kcal: Double {
         guard calories > 0 else { return 0 }
         return (protein / calories) * 100
