@@ -99,6 +99,18 @@ final class GoogleCalendarService: NSObject {
         let verifier = Self.randomURLSafeString(length: 64)
         let challenge = Self.codeChallenge(for: verifier)
         let scheme = Self.reversedClientScheme(clientID: clientID)
+        // ASWebAuthenticationSession crashes the whole process (uncaught
+        // NSInvalidArgumentException) if callbackURLScheme isn't a valid URI
+        // scheme — which happens whenever the pasted Client ID doesn't match
+        // Google's "NNN-xxx.apps.googleusercontent.com" shape. Validate first
+        // so a malformed paste surfaces as a friendly error instead of a crash.
+        guard Self.isValidURLScheme(scheme) else {
+            throw GoogleCalendarError.api("""
+            That doesn't look like a valid iOS OAuth Client ID. It should look like \
+            "123456789-abc123.apps.googleusercontent.com" — copy it from Google Cloud \
+            Console → APIs & Services → Credentials.
+            """)
+        }
         let redirectURI = "\(scheme):/oauth2redirect"
 
         var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
@@ -315,6 +327,15 @@ final class GoogleCalendarService: NSObject {
         let suffix = ".apps.googleusercontent.com"
         let base = clientID.hasSuffix(suffix) ? String(clientID.dropLast(suffix.count)) : clientID
         return "com.googleusercontent.apps.\(base)"
+    }
+
+    /// URI scheme syntax per RFC 3986: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ).
+    /// ASWebAuthenticationSession throws an uncaught exception (crashing the
+    /// app) if handed a callbackURLScheme outside this shape, so anything the
+    /// user pastes into the Client ID field must be checked before use.
+    static func isValidURLScheme(_ scheme: String) -> Bool {
+        guard let first = scheme.first, first.isLetter, first.isASCII else { return false }
+        return scheme.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "+" || $0 == "-" || $0 == ".") }
     }
 
     private static func randomURLSafeString(length: Int) -> String {
