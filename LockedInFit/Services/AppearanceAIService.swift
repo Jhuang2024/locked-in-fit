@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Optional AI enrichment for appearance check-ins. The AI adds observations,
-/// suggestions, and a small bounded score nudge — it never owns the numeric
+/// suggestions, and a small bounded score nudge; it never owns the numeric
 /// score, which always comes from the local AppearanceScoringService.
 protocol AppearanceAIService {
     var providerName: String { get }

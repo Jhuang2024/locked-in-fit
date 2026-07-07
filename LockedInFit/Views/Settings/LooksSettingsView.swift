@@ -71,7 +71,7 @@ struct LooksSettingsView: View {
                 Text("""
                 Face and body photos are stored on this device only, in the app's private storage. \
                 Scores are computed locally from photo quality, consistency, grooming/visibility proxies, \
-                your body composition data, and comparison against your own history — they are not a \
+                your body composition data, and comparison against your own history; they are not a \
                 measure of attractiveness. If OpenRouter analysis is enabled in AI settings, check-in \
                 photos are sent to your chosen model only when you run an analysis, and nothing is saved \
                 until you review it.
@@ -152,7 +152,7 @@ struct LooksSettingsView: View {
         } header: {
             Text("Body Check-In")
         } footer: {
-            Text("Off by default. Body photos are worth taking every week or two at most — never daily.")
+            Text("Off by default. Body photos are worth taking every week or two at most; never daily.")
         }
     }
 
@@ -181,7 +181,7 @@ struct LooksSettingsView: View {
         } header: {
             Text("Workouts")
         } footer: {
-            Text("Applies to sessions from generated workout schedules. Works fully offline — Google Calendar is never required.")
+            Text("Applies to sessions from generated workout schedules. Works fully offline; Google Calendar is never required.")
         }
     }
 

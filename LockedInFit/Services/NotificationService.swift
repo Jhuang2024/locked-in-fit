@@ -80,7 +80,7 @@ enum NotificationService {
             components.minute = minute
             let content = UNMutableNotificationContent()
             content.title = "Body check-in"
-            content.body = "Optional body photo check-in — same spot, same lighting."
+            content.body = "Optional body photo check-in: same spot, same lighting."
             content.sound = .default
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let request = UNNotificationRequest(
@@ -93,7 +93,7 @@ enum NotificationService {
     // MARK: - Workout reminders
 
     /// Weekly repeating reminders for a schedule's sessions, offset by the
-    /// user's default reminder minutes. Works fully offline — no Calendar needed.
+    /// user's default reminder minutes. Works fully offline; no Calendar needed.
     static func refreshWorkoutReminders(schedule: WorkoutSchedule, enabled: Bool, offsetMinutes: Int) async {
         let center = UNUserNotificationCenter.current()
         await removePending(prefix: workoutPrefix + schedule.uuid)

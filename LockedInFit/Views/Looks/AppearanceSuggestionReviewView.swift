@@ -351,7 +351,7 @@ private struct SuggestionCalendarSheet: View {
     }
 
     /// isConnected comes from the Keychain, so this also reads the observable
-    /// isAuthenticating flag — its transition re-evaluates body right after the
+    /// isAuthenticating flag; its transition re-evaluates body right after the
     /// child connect flow finishes, flipping straight to the scheduling form.
     private var showSchedulingForm: Bool {
         _ = service.isAuthenticating

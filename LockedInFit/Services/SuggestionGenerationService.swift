@@ -52,7 +52,7 @@ enum SuggestionGenerationService {
                 sourceKind: "face",
                 title: "Take tomorrow's photo before caffeine or a salty breakfast",
                 explanation: sodiumHigh
-                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit — morning timing plus lower sodium gives a cleaner read."
+                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit; morning timing plus lower sodium gives a cleaner read."
                     : "Face reads puffier than your baseline. Morning photos before food and caffeine remove the biggest confounders.",
                 expectedImpact: "Cleaner puffiness tracking.",
                 category: sodiumHigh ? .nutrition : .photoQuality, priority: 2,
@@ -89,12 +89,12 @@ enum SuggestionGenerationService {
                 destination: .saveOnly, relatedCheckInId: id))
         }
 
-        // Sleep angle only when puffiness AND consistency both flag — a real pattern, not filler.
+        // Sleep angle only when puffiness AND consistency both flag; a real pattern, not filler.
         if result.puffiness < 9 && result.trend >= 8 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Hold a consistent sleep window this week",
-                explanation: "Puffiness is up against your baseline while photo timing is consistent — short or irregular sleep is the usual remaining driver.",
+                explanation: "Puffiness is up against your baseline while photo timing is consistent; short or irregular sleep is the usual remaining driver.",
                 expectedImpact: "Less morning puffiness; better recovery.",
                 category: .sleep, priority: 3, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))
@@ -116,7 +116,7 @@ enum SuggestionGenerationService {
             if result.leannessGuard {
                 out.append(AppearanceSuggestion(
                     sourceKind: "body",
-                    title: "Do not cut further — bias toward lean mass and strength",
+                    title: "Do not cut further: bias toward lean mass and strength",
                     explanation: "Your composition data says leanness is not the limiter. Pushing lower costs muscle, sleep quality, and recovery for no visual return.",
                     expectedImpact: "Better long-term physique and health than more cutting.",
                     category: .body, priority: 1, durationType: .longTerm,
@@ -145,7 +145,7 @@ enum SuggestionGenerationService {
             out.append(AppearanceSuggestion(
                 sourceKind: "body",
                 title: "Log a body fat estimate",
-                explanation: "Body scoring is running composition-limited. A smart-scale or caliper estimate — even a rough one — unlocks the composition and lean-mass components.",
+                explanation: "Body scoring is running composition-limited. A smart-scale or caliper estimate, even a rough one, unlocks the composition and lean-mass components.",
                 expectedImpact: "Higher-confidence body score.",
                 category: .body, priority: 2, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))
@@ -165,7 +165,7 @@ enum SuggestionGenerationService {
             out.append(AppearanceSuggestion(
                 sourceKind: "body",
                 title: "Add a 5-minute posture reset on training days",
-                explanation: "You're training consistently — a short wall-slide/chin-tuck reset after sessions is a cheap add-on that shows up in photos.",
+                explanation: "You're training consistently; a short wall-slide/chin-tuck reset after sessions is a cheap add-on that shows up in photos.",
                 expectedImpact: "Standing posture in photos and day to day.",
                 category: .posture, priority: 3, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))

@@ -104,7 +104,7 @@ struct FaceCheckInView: View {
     private var privacyCard: some View {
         DashboardCard(title: "Private by Default", systemImage: "lock") {
             Text(usesOpenRouter
-                 ? "This photo is stored on your device. Because OpenRouter analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations — nothing is saved until you review the result."
+                 ? "This photo is stored on your device. Because OpenRouter analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations; nothing is saved until you review the result."
                  : "This photo is stored on your device only and analyzed locally. Nothing is saved until you review the result.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -168,7 +168,7 @@ struct FaceCheckInView: View {
         DashboardCard(title: "Photo Check", systemImage: validation.isUsable ? "checkmark.seal" : "exclamationmark.triangle") {
             VStack(alignment: .leading, spacing: 6) {
                 if validation.issues.isEmpty {
-                    Label("Looks good — one face, sharp, well exposed.", systemImage: "checkmark.circle.fill")
+                    Label("Looks good: one face, sharp, well exposed.", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
                 }
@@ -238,7 +238,7 @@ struct FaceCheckInView: View {
                                 .foregroundStyle(.secondary)
                         }
                         if result.confidence < 0.5 {
-                            Text("Low confidence — mostly photo quality. Retaking in better light helps.")
+                            Text("Low confidence; mostly photo quality. Retaking in better light helps.")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
@@ -284,13 +284,13 @@ struct FaceCheckInView: View {
             }
 
             DashboardCard(title: "Notes", systemImage: "note.text") {
-                TextField("Optional — sleep, sodium, context…", text: $viewModel.notes, axis: .vertical)
+                TextField("Optional: sleep, sodium, context…", text: $viewModel.notes, axis: .vertical)
                     .font(.subheadline)
             }
 
             if !viewModel.draftSuggestions.isEmpty {
                 DashboardCard(title: "Suggestions Ready", systemImage: "lightbulb") {
-                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Review and approve them after saving — nothing becomes a task without your OK.")
+                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Review and approve them after saving; nothing becomes a task without your OK.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -339,7 +339,7 @@ struct FaceCheckInView: View {
 
     private func saveCheckIn() {
         guard viewModel.save(into: context) != nil else { return }
-        // Today's photo is done — pull today's pending face reminder.
+        // Today's photo is done; pull today's pending face reminder.
         if let settings {
             Task {
                 await NotificationService.refreshFaceReminders(

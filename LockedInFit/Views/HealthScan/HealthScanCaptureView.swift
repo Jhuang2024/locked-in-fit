@@ -4,7 +4,7 @@ import PhotosUI
 import UIKit
 
 /// Photo → AI/mock product analysis → editable review → save.
-/// A scan is a lookup, not a meal log — saving one never touches daily calorie totals.
+/// A scan is a lookup, not a meal log; saving one never touches daily calorie totals.
 struct HealthScanCaptureView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss

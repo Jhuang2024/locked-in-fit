@@ -4,7 +4,7 @@ import Foundation
 enum NutritionCalculator {
 
     /// Thermic effect of food from macro grams.
-    /// protein 20–30%, carbs 5–10%, fat 0–3% — midpoints used.
+    /// protein 20–30%, carbs 5–10%, fat 0–3%; midpoints used.
     static func tef(protein: Double, carbs: Double, fat: Double) -> Double {
         let proteinKcal = protein * 4 * 0.25
         let carbKcal = carbs * 4 * 0.075

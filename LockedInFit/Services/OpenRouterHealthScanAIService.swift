@@ -10,19 +10,19 @@ struct OpenRouterHealthScanAIService: HealthScanAIService {
     private static let systemPrompt = """
     You are a food-label and nutrition-facts analyst helping someone evaluate a packaged food or \
     product from a photo of its packaging, ingredients list, and/or nutrition facts panel. This is \
-    a lookup, not a meal log — the user is deciding whether to buy or eat this product, not confirming \
-    they already ate it. Return strict JSON only — no markdown, no code fences, no commentary. \
+    a lookup, not a meal log; the user is deciding whether to buy or eat this product, not confirming \
+    they already ate it. Return strict JSON only; no markdown, no code fences, no commentary. \
     Read the ingredients and nutrition facts if visible. If information isn't visible, use your \
     knowledge of the product/brand if recognizable; otherwise make a conservative estimate and lower \
     confidence. \
     healthScore is 0-100 (100 = healthiest) based on nutrient density, processing level, added sugar, \
     sodium, and any concerning additives. \
-    satietyScore is 0-100 (100 = extremely filling for its calorie cost — high protein/fiber/water/volume \
+    satietyScore is 0-100 (100 = extremely filling for its calorie cost: high protein/fiber/water/volume \
     relative to calories; 0 = calorie-dense with little fullness, like candy or oil). \
     processedLevel must be one of unprocessed/minimally_processed/processed/ultra_processed. \
     concerningIngredients should list specific additives or chemicals worth flagging (e.g. artificial \
     dyes, trans fats/partially hydrogenated oil, high-fructose corn syrup, sodium nitrite, artificial \
-    sweeteners, excess sodium) — an empty array if nothing notable. \
+    sweeteners, excess sodium); an empty array if nothing notable. \
     Respond with exactly this JSON shape: \
     {"productName":"Example Granola Bar","servingSize":"1 bar (35g)","healthScore":42,"satietyScore":30,\
     "processedLevel":"ultra_processed","calories":150,"protein":2,"carbs":22,"fat":6,"fiber":1,"sugar":12,\

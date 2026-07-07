@@ -59,7 +59,7 @@ enum Analytics {
     }
 
     /// "Locked In" daily score 0–100, entirely earned from today's logged behavior.
-    /// A day with nothing logged yet must read as 0 — no free credit.
+    /// A day with nothing logged yet must read as 0; no free credit.
     static func lockedInScore(todayCalories: Double, calorieTarget: Double,
                               todayProtein: Double, proteinTarget: Double,
                               todaySteps: Int, stepTarget: Int,

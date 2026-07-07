@@ -134,18 +134,18 @@ struct AppearanceTrendsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             if weightPairs.count >= 5 {
                 correlationCard(title: "Body score vs weight", pairs: weightPairs,
-                                positiveText: "Body score has risen with weight — consistent with muscle gain.",
-                                negativeText: "Body score has risen as weight dropped — consistent with a productive cut.")
+                                positiveText: "Body score has risen with weight; consistent with muscle gain.",
+                                negativeText: "Body score has risen as weight dropped; consistent with a productive cut.")
             }
             if fatPairs.count >= 5 {
                 correlationCard(title: "Body score vs body fat", pairs: fatPairs,
-                                positiveText: "Score and body fat are moving together — worth a look at training volume.",
+                                positiveText: "Score and body fat are moving together; worth a look at training volume.",
                                 negativeText: "Score improves as body fat falls, as expected.")
             }
             if workoutPairs.count >= 5 {
                 correlationCard(title: "Body score vs workout consistency", pairs: workoutPairs,
                                 positiveText: "More training weeks line up with better body scores.",
-                                negativeText: "Training volume and body score are moving oppositely — recovery might be the limiter.")
+                                negativeText: "Training volume and body score are moving oppositely; recovery might be the limiter.")
             }
         } else if !bodyAll.isEmpty {
             DashboardCard(title: "Correlations", systemImage: "point.3.connected.trianglepath.dotted") {
