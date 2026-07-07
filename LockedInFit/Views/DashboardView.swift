@@ -58,10 +58,16 @@ struct DashboardView: View {
     private var sleepChecklistItemsDueToday: [DailyChecklistItem] {
         dueChecklistItemsToday.filter { $0.category == .sleep }
     }
-    /// No dedicated sleep log exists yet, so "sleep goal hit" is proxied by
-    /// completing today's sleep-category checklist item(s).
+    /// Once real sleep tracking is in use, "sleep goal hit" means today's
+    /// night was actually logged — that's the real signal now available.
+    /// Falls back to the sleep-category checklist proxy for anyone who
+    /// hasn't logged a night yet, so the achievement still means something
+    /// either way instead of going silent.
     private var sleepGoalHitToday: Bool {
-        !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
+        if !sleepLogs.isEmpty {
+            return sleepLogs.contains { $0.date.isToday }
+        }
+        return !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
     }
     /// Only counts as "complete" when there's an actual looks/body/face
     /// checklist item beyond the mandatory face photo — otherwise this would

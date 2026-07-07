@@ -15,6 +15,7 @@ struct FaceCheckInView: View {
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
     @Query private var checklistItems: [DailyChecklistItem]
+    @Query(sort: \SleepLog.date, order: .reverse) private var sleepLogs: [SleepLog]
 
     @State private var viewModel = AppearanceAnalysisViewModel()
     @State private var pickerItem: PhotosPickerItem?
@@ -36,13 +37,21 @@ struct FaceCheckInView: View {
             recentWorkoutCount: completedWorkouts.filter { $0.date > Date().daysAgo(28) }.count)
     }
 
-    /// Connects the score to actually-logged grooming/sleep checklist
-    /// behavior instead of photo statistics.
+    /// Connects the score to actually-logged grooming/sleep behavior instead
+    /// of photo statistics.
     private var looksComplianceRatio: Double? {
         DailyChecklistService.recentComplianceRatio(checklistItems, category: .looks)
     }
+    /// Prefers real logged sleep quality (SleepLog score) once the user is
+    /// using sleep tracking; falls back to the sleep-category checklist proxy
+    /// for anyone who isn't, so the connection is never silently ignored.
     private var sleepComplianceRatio: Double? {
-        DailyChecklistService.recentComplianceRatio(checklistItems, category: .sleep)
+        let recentLogs = sleepLogs.filter { $0.date > Date().daysAgo(14) }
+        if !recentLogs.isEmpty {
+            let goodNights = recentLogs.filter { $0.totalScore >= 70 }.count
+            return Double(goodNights) / Double(recentLogs.count)
+        }
+        return DailyChecklistService.recentComplianceRatio(checklistItems, category: .sleep)
     }
 
     var body: some View {
@@ -306,7 +315,7 @@ struct FaceCheckInView: View {
 
             if !viewModel.draftSuggestions.isEmpty {
                 DashboardCard(title: "Suggestions Ready", systemImage: "lightbulb") {
-                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Review and approve them after saving; nothing becomes a task without your OK.")
+                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Any that are genuinely new are ready to review after saving — duplicates of ones you already have are merged automatically, and nothing becomes a task without your OK.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
