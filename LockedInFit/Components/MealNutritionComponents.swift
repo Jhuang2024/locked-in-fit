@@ -59,12 +59,18 @@ struct MealFactsConcernsView: View {
                     .foregroundStyle(.secondary)
             }
             ForEach(concerns, id: \.self) { concern in
-                let isReassurance = concern.hasPrefix("No major concerns")
-                Label(concern, systemImage: isReassurance ? "checkmark.seal" : "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(isReassurance ? .secondary : .orange)
+                concernRow(concern)
             }
         }
+    }
+
+    private func concernRow(_ concern: String) -> some View {
+        let isReassurance = concern.hasPrefix("No major concerns")
+        let icon = isReassurance ? "checkmark.seal" : "exclamationmark.triangle"
+        let color: Color = isReassurance ? .secondary : .orange
+        return Label(concern, systemImage: icon)
+            .font(.caption)
+            .foregroundStyle(color)
     }
 }
 
