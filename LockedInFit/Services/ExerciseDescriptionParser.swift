@@ -34,6 +34,37 @@ struct ExerciseDraft {
         }
         return text
     }
+
+    /// From an AI (or mock) ExerciseEstimate: maps its raw enum strings back
+    /// with safe fallbacks, and re-checks the library so a name the model
+    /// phrased slightly differently still resolves to the canonical entry.
+    static func from(estimate: ExerciseEstimate) -> ExerciseDraft {
+        let pattern = MovementPattern(rawValue: estimate.movementPattern) ?? .horizontalPush
+        let equipment = Equipment(rawValue: estimate.equipment) ?? .dumbbell
+        let muscles = estimate.muscleGroups.compactMap { MuscleGroup(rawValue: $0) }
+        let sets = min(20, max(1, estimate.sets))
+        let reps = min(100, max(1, estimate.reps))
+        let weight = min(500, max(0, estimate.weightKg))
+
+        if let library = ExerciseDescriptionParser.bestLibraryMatch(for: estimate.name) {
+            return ExerciseDraft(name: library.name,
+                                 muscleGroups: library.muscles,
+                                 movementPattern: library.pattern,
+                                 equipment: library.equipment,
+                                 setCount: sets,
+                                 reps: reps,
+                                 weightKg: weight,
+                                 matchedLibrary: true)
+        }
+        return ExerciseDraft(name: estimate.name.isEmpty ? "Custom Exercise" : estimate.name,
+                             muscleGroups: muscles.isEmpty ? ExerciseDescriptionParser.inferMuscles(from: estimate.name.lowercased(), pattern: pattern) : muscles,
+                             movementPattern: pattern,
+                             equipment: equipment,
+                             setCount: sets,
+                             reps: reps,
+                             weightKg: weight,
+                             matchedLibrary: false)
+    }
 }
 
 /// Turns a natural-language description like "incline dumbbell press, 3 sets,

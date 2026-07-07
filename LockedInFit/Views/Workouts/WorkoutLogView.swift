@@ -17,7 +17,7 @@ struct WorkoutLogView: View {
     @State private var prMessages: [String] = []
     @State private var showPRCelebration = false
     @State private var showAddExercise = false
-    @State private var workoutDescription = ""
+    @State private var showDescribeExercise = false
     @State private var estimating = false
     @State private var estimateError: String?
     @State private var lastEstimate: WorkoutEstimate?
@@ -46,12 +46,17 @@ struct WorkoutLogView: View {
             }
 
             ForEach(workout.exerciseList, id: \.persistentModelID) { exercise in
-                ExerciseSectionView(exercise: exercise)
+                ExerciseSectionView(exercise: exercise) {
+                    deleteExercise(exercise)
+                }
             }
 
             Section {
                 Button { showAddExercise = true } label: {
                     Label("Add Exercise", systemImage: "plus.circle")
+                }
+                Button { showDescribeExercise = true } label: {
+                    Label("Describe Exercise (AI)", systemImage: "sparkles")
                 }
             }
 
@@ -62,7 +67,7 @@ struct WorkoutLogView: View {
                 TextField("Notes", text: $workout.notes, axis: .vertical)
                 if mode == .log {
                     Button {
-                        finishWorkout()
+                        Task { await finishWorkout() }
                     } label: {
                         Label(workout.completed ? "Completed ✓" : "Finish Workout", systemImage: "flag.checkered")
                             .frame(maxWidth: .infinity)
@@ -82,18 +87,16 @@ struct WorkoutLogView: View {
                         .frame(width: 70)
                     Text("kcal").font(.caption).foregroundStyle(.secondary)
                 }
-                TextField("Describe the workout for a calorie estimate", text: $workoutDescription, axis: .vertical)
-                    .font(.subheadline)
                 Button {
-                    estimateCalories()
+                    Task { await estimateCaloriesFromWorkout() }
                 } label: {
                     if estimating {
                         HStack { ProgressView(); Text("Estimating…") }
                     } else {
-                        Label("Estimate from Description", systemImage: "sparkles")
+                        Label("Estimate with AI", systemImage: "sparkles")
                     }
                 }
-                .disabled(estimating || workoutDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(estimating)
                 if let lastEstimate {
                     Text("\(Int(lastEstimate.confidence * 100))% confidence, \(lastEstimate.intensity) intensity. \(lastEstimate.notes)")
                         .font(.caption2)
@@ -107,7 +110,7 @@ struct WorkoutLogView: View {
             } header: {
                 Text("Calories Burned")
             } footer: {
-                Text("Left at 0, a finished workout gets a default estimate from its duration and type.")
+                Text("Calculated automatically from your logged exercises (via AI) when you finish the workout. Tap Estimate with AI to recalculate anytime.")
             }
         }
         .navigationTitle(workout.title)
@@ -115,6 +118,11 @@ struct WorkoutLogView: View {
         .keyboardDoneToolbar()
         .sheet(isPresented: $showAddExercise) {
             ExercisePickerView { draft in
+                addExercise(from: draft)
+            }
+        }
+        .sheet(isPresented: $showDescribeExercise) {
+            DescribeExerciseView { draft in
                 addExercise(from: draft)
             }
         }
@@ -139,10 +147,17 @@ struct WorkoutLogView: View {
         workout.exercises?.append(exercise)
     }
 
-    private func finishWorkout() {
+    /// Removes the exercise (and, via its cascade delete rule, its sets) from
+    /// this workout entirely.
+    private func deleteExercise(_ exercise: Exercise) {
+        workout.exercises?.removeAll { $0.persistentModelID == exercise.persistentModelID }
+        context.delete(exercise)
+    }
+
+    private func finishWorkout() async {
         workout.completed = true
         if workout.caloriesBurned <= 0 {
-            workout.caloriesBurned = ActivityAdjustmentCalculator.estimatedWorkoutCalories(workout)
+            await estimateCaloriesFromWorkout()
         }
         detectPRs()
         let bodyweight = weights.last?.weightKg ?? 75
@@ -172,22 +187,24 @@ struct WorkoutLogView: View {
         if !prMessages.isEmpty { showPRCelebration = true }
     }
 
-    private func estimateCalories() {
-        let text = workoutDescription.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+    /// Calculates calories burned from what was actually logged (exercises,
+    /// sets, reps, weight, duration) via AI, instead of a user-typed
+    /// description. Falls back to the duration/type/RPE heuristic if the AI
+    /// call fails (e.g. offline with no mock, or a network error).
+    private func estimateCaloriesFromWorkout() async {
         estimating = true
         estimateError = nil
-        Task {
-            defer { estimating = false }
-            do {
-                let service = AIServiceFactory.makeWorkout(settings: settings)
-                let analysisContext = WorkoutAnalysisContext(workoutType: workout.type, durationMinutes: workout.duration)
-                let estimate = try await service.analyzeWorkout(description: text, context: analysisContext)
-                workout.caloriesBurned = estimate.estimatedCalories
-                lastEstimate = estimate
-            } catch {
-                estimateError = error.localizedDescription
-            }
+        defer { estimating = false }
+        do {
+            let service = AIServiceFactory.makeWorkout(settings: settings)
+            let description = WorkoutSummaryBuilder.describe(workout)
+            let analysisContext = WorkoutAnalysisContext(workoutType: workout.type, durationMinutes: workout.duration)
+            let estimate = try await service.analyzeWorkout(description: description, context: analysisContext)
+            workout.caloriesBurned = estimate.estimatedCalories
+            lastEstimate = estimate
+        } catch {
+            estimateError = error.localizedDescription
+            workout.caloriesBurned = ActivityAdjustmentCalculator.estimatedWorkoutCalories(workout)
         }
     }
 }
@@ -196,6 +213,7 @@ struct WorkoutLogView: View {
 /// taken between them (rest only makes sense once there's more than one set).
 private struct ExerciseSectionView: View {
     @Bindable var exercise: Exercise
+    var onDelete: () -> Void
 
     private var setsBinding: Binding<Int> {
         Binding(
@@ -269,6 +287,10 @@ private struct ExerciseSectionView: View {
                     }
                 }
                 Spacer()
+                Button(role: .destructive) { onDelete() } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
             }
         } footer: {
             if !exercise.notes.isEmpty { Text(exercise.notes) }
@@ -276,89 +298,144 @@ private struct ExerciseSectionView: View {
     }
 }
 
-/// Unified exercise entry: one field that both searches the built-in library
-/// and accepts a natural-language description ("incline dumbbell press,
-/// 3 sets, 10 reps, 45 lb each hand"). Described entries save as custom
-/// exercises for this workout without any predefined exercise existing first.
+/// Pick from the built-in exercise library. Describing a custom exercise
+/// instead is a separate flow: see DescribeExerciseView.
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
-    @Query private var settingsList: [UserSettings]
     @State private var search = ""
     let onAdd: (ExerciseDraft) -> Void
 
-    private var parsedDraft: ExerciseDraft? {
-        ExerciseDescriptionParser.parse(search, units: settingsList.first?.units ?? .metric)
-    }
     private var filtered: [LibraryExercise] {
-        guard !search.isEmpty else { return WorkoutGeneratorService.library }
-        let nameOnly = parsedDraft?.name ?? search
-        return WorkoutGeneratorService.library.filter {
-            $0.name.localizedCaseInsensitiveContains(search) || $0.name.localizedCaseInsensitiveContains(nameOnly)
-        }
+        search.isEmpty
+            ? WorkoutGeneratorService.library
+            : WorkoutGeneratorService.library.filter { $0.name.localizedCaseInsensitiveContains(search) }
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                if let draft = parsedDraft {
-                    Section {
-                        Button {
-                            onAdd(draft)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Label(draft.name, systemImage: "plus.circle.fill")
-                                    .font(.subheadline.weight(.medium))
-                                Text("\(draft.prescriptionSummary) · \(draft.movementPattern.label) · \(draft.equipment.label)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(draft.matchedLibrary
-                                     ? "Matched to the exercise library"
-                                     : "Will be saved as a custom exercise")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    } header: {
-                        Text("From your description")
-                    }
-                }
-
-                Section {
-                    if filtered.isEmpty {
-                        Text("No library match. Add it from your description above.")
+            List(filtered) { exercise in
+                Button {
+                    onAdd(.from(library: exercise))
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(exercise.name)
+                            .font(.subheadline.weight(.medium))
+                        Text("\(exercise.pattern.label) · \(exercise.equipment.label)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    ForEach(filtered) { exercise in
-                        Button {
-                            onAdd(.from(library: exercise))
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(exercise.name)
-                                    .font(.subheadline.weight(.medium))
-                                Text("\(exercise.pattern.label) · \(exercise.equipment.label)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } header: {
-                    Text(search.isEmpty ? "Library" : "Library matches")
-                } footer: {
-                    if search.isEmpty {
-                        Text("Search the library, or describe an exercise with sets, reps, and weight, e.g. \"incline dumbbell press, 3 sets, 10 reps, 45 lb each hand\".")
-                    }
                 }
+                .buttonStyle(.plain)
             }
-            .searchable(text: $search, prompt: "Search or describe an exercise")
+            .searchable(text: $search, prompt: "Search exercises")
             .navigationTitle("Add Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            }
+        }
+    }
+}
+
+/// Describes a custom exercise in natural language and uses AI (OpenRouter,
+/// or the offline mock parser when no key is configured) to turn it into a
+/// structured ExerciseDraft, previewed here before it's added to the workout.
+/// A separate feature from the library picker above, not folded into its
+/// search field.
+struct DescribeExerciseView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Query private var settingsList: [UserSettings]
+    @State private var description = ""
+    @State private var analyzing = false
+    @State private var analyzeError: String?
+    @State private var draft: ExerciseDraft?
+    let onAdd: (ExerciseDraft) -> Void
+
+    private var settings: UserSettings? { settingsList.first }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("e.g. incline dumbbell press, 3 sets, 10 reps, 45 lb each hand",
+                             text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                    Button {
+                        analyze()
+                    } label: {
+                        if analyzing {
+                            HStack { ProgressView(); Text("Analyzing…") }
+                        } else {
+                            Label("Analyze", systemImage: "sparkles")
+                        }
+                    }
+                    .disabled(analyzing || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } header: {
+                    Text("Describe the Exercise")
+                } footer: {
+                    Text("Include the name, sets, reps, and weight for the best result. AI parses this into a full entry, matching the library when it can.")
+                }
+
+                if let analyzeError {
+                    Section {
+                        Text(analyzeError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                if let draft {
+                    Section {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(draft.name)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(draft.prescriptionSummary) · \(draft.movementPattern.label) · \(draft.equipment.label)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(draft.matchedLibrary
+                                 ? "Matched to the exercise library"
+                                 : "Will be saved as a custom exercise")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Button {
+                            onAdd(draft)
+                            dismiss()
+                        } label: {
+                            Label("Add to Workout", systemImage: "plus.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } header: {
+                        Text("Result")
+                    }
+                }
+            }
+            .navigationTitle("Describe Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            }
+        }
+    }
+
+    private func analyze() {
+        let text = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        analyzing = true
+        analyzeError = nil
+        draft = nil
+        Task {
+            defer { analyzing = false }
+            do {
+                let service = AIServiceFactory.makeExerciseAnalyzer(settings: settings)
+                let analysisContext = ExerciseAnalysisContext(units: settings?.units ?? .metric)
+                let estimate = try await service.analyzeExercise(description: text, context: analysisContext)
+                draft = .from(estimate: estimate)
+            } catch {
+                analyzeError = error.localizedDescription
             }
         }
     }
