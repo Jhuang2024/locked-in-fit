@@ -182,7 +182,7 @@ struct DashboardView: View {
                 .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
+                    scoreRow("Calories", done: viewModel.calories.eaten > 0 && abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
                     scoreRow("Sodium \(Int(viewModel.nutrition.sodium))/\(Int(sodiumLimit))mg", done: viewModel.nutrition.sodium <= sodiumLimit)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
@@ -262,16 +262,17 @@ struct DashboardView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
-                ProgressView(value: min(viewModel.nutrition.calories, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
-                    .tint(viewModel.nutrition.calories > viewModel.calories.adjustedTarget ? .red : .accentColor)
+                ProgressView(value: min(viewModel.calories.eaten, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
+                    .tint(viewModel.calories.eaten > viewModel.calories.adjustedTarget ? .red : .accentColor)
                 HStack {
-                    StatChip(label: "Eaten", value: "\(Int(viewModel.nutrition.calories))")
+                    StatChip(label: "Eaten", value: "\(Int(viewModel.calories.eaten))")
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
                 HStack {
                     StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
+                    StatChip(label: "Oil", value: "+\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                 }
                 Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
                     .font(.caption)
@@ -282,7 +283,7 @@ struct DashboardView: View {
                         .foregroundStyle(.purple)
                 }
                 if viewModel.nutrition.hiddenOilHigh > 0 {
-                    Label("Hidden oil could add +\(Int(viewModel.nutrition.hiddenOilLow))-\(Int(viewModel.nutrition.hiddenOilHigh)) kcal today", systemImage: "drop.fill")
+                    Label("Hidden oil adds +\(Int(viewModel.calories.hiddenOilCalories)) kcal to eaten (range +\(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -423,8 +424,8 @@ struct DashboardView: View {
     }
 
     private var adherenceLabel: String {
-        guard viewModel.nutrition.calories > 0 else { return "No logs" }
-        let deviation = abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
+        guard viewModel.calories.eaten > 0 else { return "No logs" }
+        let deviation = abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
         return deviation <= 0.1 ? "On track" : deviation <= 0.2 ? "Close" : "Review"
     }
 

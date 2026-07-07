@@ -1,12 +1,18 @@
 import SwiftUI
 import SwiftData
 
-/// Day-by-day food log with running totals.
+/// Day-by-day food log with running totals. The calorie summary comes from
+/// the same DashboardViewModel math as the Today dashboard (hidden oil, TEF,
+/// exercise adjustment), so the two screens can never disagree.
 struct DailyLogView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \MealLog.date) private var allMeals: [MealLog]
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
     @Query private var settingsList: [UserSettings]
+    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
+    @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
+    @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
 
     @State private var selectedDate = Date().startOfDay
     @State private var showAddMeal = false
@@ -16,11 +22,16 @@ struct DailyLogView: View {
         allMeals.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
     }
     private var sodiumLimit: Double { max(1, settingsList.first?.sodiumLimitMg ?? 2300) }
-    private var totals: (kcal: Double, p: Double, c: Double, f: Double, fiber: Double, sodium: Double, oilLow: Double, oilHigh: Double) {
-        dayMeals.reduce((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) {
-            ($0.0 + $1.calories, $0.1 + $1.protein, $0.2 + $1.carbs, $0.3 + $1.fat,
-             $0.4 + $1.fiber, $0.5 + $1.sodium, $0.6 + $1.hiddenOilLow, $0.7 + $1.hiddenOilHigh)
-        }
+    /// Shared source of truth with the dashboard, evaluated for the selected day.
+    private var dayModel: DashboardViewModel {
+        DashboardViewModel(settings: settingsList.first,
+                           goal: goals.first,
+                           meals: allMeals,
+                           weights: weights,
+                           steps: steps,
+                           activeEnergy: activeEnergy,
+                           workouts: completedWorkouts,
+                           date: selectedDate)
     }
 
     var body: some View {
@@ -31,21 +42,25 @@ struct DailyLogView: View {
             }
 
             Section("Totals") {
-                let t = totals
+                let model = dayModel
+                let nutrition = model.nutrition
+                let calories = model.calories
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        StatChip(label: "kcal", value: "\(Int(t.kcal))")
-                        StatChip(label: "protein", value: "\(Int(t.p))g", color: .red)
-                        StatChip(label: "carbs", value: "\(Int(t.c))g", color: .blue)
-                        StatChip(label: "fat", value: "\(Int(t.f))g", color: .yellow)
+                        StatChip(label: "kcal", value: "\(Int(nutrition.calories))")
+                        StatChip(label: "protein", value: "\(Int(nutrition.protein))g", color: .red)
+                        StatChip(label: "carbs", value: "\(Int(nutrition.carbs))g", color: .blue)
+                        StatChip(label: "fat", value: "\(Int(nutrition.fat))g", color: .yellow)
                     }
                     HStack {
-                        StatChip(label: "fiber", value: "\(Int(t.fiber))g", color: .green)
-                        StatChip(label: "sodium", value: "\(Int(t.sodium))mg", color: sodiumColor(for: t.sodium))
-                        if let goal = goals.first {
-                            StatChip(label: "vs target", value: "\(Int(t.kcal - goal.calorieTarget))",
-                                     color: t.kcal > goal.calorieTarget ? .red : .green)
-                        }
+                        StatChip(label: "fiber", value: "\(Int(nutrition.fiber))g", color: .green)
+                        StatChip(label: "sodium", value: "\(Int(nutrition.sodium))mg", color: sodiumColor(for: nutrition.sodium))
+                    }
+                    HStack {
+                        StatChip(label: "Eaten", value: "\(Int(calories.eaten))")
+                        StatChip(label: "Target", value: "\(Int(calories.adjustedTarget))")
+                        StatChip(label: "Remaining", value: "\(Int(calories.remaining))",
+                                 color: calories.remaining < 0 ? .red : .green)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -53,21 +68,25 @@ struct DailyLogView: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text("\(Int(t.sodium)) / \(Int(sodiumLimit)) mg")
+                            Text("\(Int(nutrition.sodium)) / \(Int(sodiumLimit)) mg")
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(sodiumColor(for: t.sodium))
+                                .foregroundStyle(sodiumColor(for: nutrition.sodium))
                         }
-                        ProgressView(value: min(t.sodium, sodiumLimit), total: sodiumLimit)
-                            .tint(sodiumColor(for: t.sodium))
+                        ProgressView(value: min(nutrition.sodium, sodiumLimit), total: sodiumLimit)
+                            .tint(sodiumColor(for: nutrition.sodium))
                     }
-                    if t.oilHigh > 0 {
-                        Label("Hidden oil uncertainty: +\(Int(t.oilLow)) to +\(Int(t.oilHigh)) kcal", systemImage: "drop.fill")
+                    if nutrition.hiddenOilHigh > 0 {
+                        Label("Hidden oil adds +\(Int(calories.hiddenOilCalories)) kcal to eaten (range +\(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
-                    let tef = NutritionCalculator.tef(protein: t.p, carbs: t.c, fat: t.f)
-                    if tef > 10 {
-                        Text("TEF ≈ \(Int(tef)) kcal burned digesting (net intake ~\(Int(t.kcal - tef)))")
+                    if calories.tefCalories > 0 {
+                        Text("TEF adds +\(Int(calories.tefCalories)) kcal to the day's target (burned digesting).")
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                    }
+                    if calories.exerciseAdjustment > 0 {
+                        Text("Exercise adds +\(Int(calories.exerciseAdjustment)) kcal to the day's target.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

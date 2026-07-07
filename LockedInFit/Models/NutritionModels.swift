@@ -27,6 +27,11 @@ final class MealLog {
 
     var items: [FoodItem] { foodItems ?? [] }
 
+    /// Midpoint of the hidden-oil range; the single value calorie math applies.
+    var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
+    /// Calories this meal counts for: logged calories plus hidden oil.
+    var consumedCalories: Double { calories + hiddenOilCalories }
+
     /// "Estimated 620 kcal, likely range 520–820, oil uncertainty +80 to +260."
     var honestSummary: String {
         var text = "Estimated \(Int(calories)) kcal"

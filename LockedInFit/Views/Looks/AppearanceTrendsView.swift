@@ -10,6 +10,8 @@ struct AppearanceTrendsView: View {
     @Query(sort: \BodyFatEntry.date) private var bodyFats: [BodyFatEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date)
     private var completedWorkouts: [Workout]
+    @Query private var settingsList: [UserSettings]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
 
     @State private var windowDays = 30
 
@@ -24,8 +26,29 @@ struct AppearanceTrendsView: View {
     private var bodyCheckIns: [AppearanceCheckIn] {
         checkIns.filter { $0.kind == .body && $0.date >= cutoff }
     }
+    private var latestFaceCheckIn: AppearanceCheckIn? { checkIns.last { $0.kind == .face } }
+    private var latestBodyCheckIn: AppearanceCheckIn? { checkIns.last { $0.kind == .body } }
+    /// Same composition-only fallback the Looks page and dashboard use, so the
+    /// current score plotted here is byte-for-byte the score shown there.
+    private var liveBodyScore: AppearanceScoringService.BodyScoreResult? {
+        AppearanceScoringService.liveBodyScore(
+            weights: weights, bodyFats: bodyFats, workouts: completedWorkouts,
+            settings: settingsList.first, goal: activeGoals.first)
+    }
+    /// Body series: saved check-ins plus a "today" point from the shared
+    /// effective-score helper whenever there is no check-in today, so the
+    /// latest value here always equals the Looks page's Body score.
+    private var bodyPoints: [(date: Date, score: Double)] {
+        var points = bodyCheckIns.map { (date: $0.date, score: $0.totalScore) }
+        if latestBodyCheckIn?.date.isToday != true,
+           let current = AppearanceScoringService.effectiveBodyScore(checkIn: latestBodyCheckIn, live: liveBodyScore) {
+            points.append((date: Date(), score: current))
+        }
+        return points
+    }
     /// Combined series: for each check-in day, the recency-weighted blend of the
-    /// latest face and body scores as of that date.
+    /// latest face and body scores as of that date, plus a "today" point from
+    /// the same liveBody-aware formula the Looks page and dashboard use.
     private var combinedPoints: [(date: Date, score: Double)] {
         let all = checkIns.filter { $0.date >= cutoff }
         var points: [(date: Date, score: Double)] = []
@@ -35,6 +58,11 @@ struct AppearanceTrendsView: View {
             if let combined = AppearanceScoringService.combinedScore(face: latestFace, body: latestBody, date: checkIn.date) {
                 points.append((date: checkIn.date, score: combined))
             }
+        }
+        if points.last?.date.isToday != true,
+           let current = AppearanceScoringService.combinedScore(
+               face: latestFaceCheckIn, body: latestBodyCheckIn, liveBody: liveBodyScore) {
+            points.append((date: Date(), score: current))
         }
         return points
     }
@@ -53,12 +81,12 @@ struct AppearanceTrendsView: View {
                 scoreChart(title: "Face Score", points: faceCheckIns.map { (date: $0.date, score: $0.totalScore) },
                            color: .accentColor,
                            emptyMessage: "Face scores appear once you complete face check-ins.")
-                scoreChart(title: "Body Score", points: bodyCheckIns.map { (date: $0.date, score: $0.totalScore) },
+                scoreChart(title: "Body Score", points: bodyPoints,
                            color: .indigo,
-                           emptyMessage: "Body scores appear once you complete body check-ins.")
+                           emptyMessage: "Body scores appear once you complete body check-ins or log weight/body fat.")
                 scoreChart(title: "Combined Appearance Score", points: combinedPoints,
                            color: .teal,
-                           emptyMessage: "The combined score appears once you have any check-ins.")
+                           emptyMessage: "The combined score appears once you have any check-ins or body data.")
 
                 if faceCheckIns.count >= 3 {
                     faceBreakdownChart

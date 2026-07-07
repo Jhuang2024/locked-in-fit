@@ -3,10 +3,12 @@ import Foundation
 /// Shared aggregation helpers used by dashboard, trends, and goal screens.
 enum Analytics {
 
-    /// Total calories per day from meal logs.
+    /// Consumed calories per day from meal logs: logged calories plus the
+    /// hidden-oil midpoint, matching the dashboard/food-log "eaten" number so
+    /// trends and maintenance estimation use the same intake figure.
     static func dailyCalories(_ meals: [MealLog]) -> [Date: Double] {
         Dictionary(grouping: meals) { $0.date.startOfDay }
-            .mapValues { $0.reduce(0) { $0 + $1.calories } }
+            .mapValues { $0.reduce(0) { $0 + $1.consumedCalories } }
     }
 
     static func dailyProtein(_ meals: [MealLog]) -> [Date: Double] {
