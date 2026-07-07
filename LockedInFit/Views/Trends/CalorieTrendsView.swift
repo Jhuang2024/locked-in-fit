@@ -35,10 +35,16 @@ struct CalorieTrendsView: View {
         return start...max(chartEnd, start.addingTimeInterval(86400))
     }
 
+    /// Net calories: what's eaten minus what digesting it burns (TEF) and
+    /// minus that day's walking/step calorie burn — the figure that actually
+    /// counts against the flat target, not raw logged intake.
     private var caloriePoints: [DayPoint] {
-        Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
-            .map { DayPoint(date: $0.key, value: $0.value) }
-            .sorted { $0.date < $1.date }
+        let eaten = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
+        let tef = tefByDay
+        let stepCals = stepCaloriesByDay
+        return eaten.map { day, calories in
+            DayPoint(date: day, value: calories - (tef[day] ?? 0) - (stepCals[day] ?? 0))
+        }.sorted { $0.date < $1.date }
     }
     private var proteinPoints: [DayPoint] {
         Analytics.dailyProtein(meals.filter { $0.date >= cutoff })
@@ -58,33 +64,24 @@ struct CalorieTrendsView: View {
         caloriePoints.map { DayPoint(date: $0.date, value: $0.value - maintenance) }
     }
 
-    /// Whether the target should add back TEF, matching the dashboard's toggle.
+    /// Whether TEF should be subtracted from intake, matching the dashboard's toggle.
     private var applyTEF: Bool { settingsList.first?.applyTEF ?? true }
 
     private var tefByDay: [Date: Double] {
         applyTEF ? Analytics.dailyTEF(meals.filter { $0.date >= cutoff }) : [:]
     }
 
-    /// Average TEF over the visible window, for the "net target" subtitle.
-    private var avgTEF: Double {
-        guard !tefByDay.isEmpty else { return 0 }
-        return tefByDay.values.reduce(0, +) / Double(tefByDay.count)
+    /// Current bodyweight, used to scale step-calorie burn the same way
+    /// NutritionCalculator.stepCalories does elsewhere in the app.
+    private var currentWeightKg: Double {
+        WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 75
     }
 
-    /// The calorie target line, adjusted day-by-day for TEF the same way the
-    /// dashboard's "Target" figure is (baseTarget + that day's TEF), not the
-    /// flat base target. Anchored across the full visible domain so the line
-    /// still spans days with no logged meals (TEF = 0 those days).
-    private func netTargetPoints(base: Double) -> [DayPoint] {
-        var points = tefByDay.map { DayPoint(date: $0.key, value: base + $0.value) }
-            .sorted { $0.date < $1.date }
-        if points.first?.date != chartDomain.lowerBound {
-            points.insert(DayPoint(date: chartDomain.lowerBound, value: base), at: 0)
-        }
-        if points.last?.date != chartDomain.upperBound {
-            points.append(DayPoint(date: chartDomain.upperBound, value: base))
-        }
-        return points
+    private var stepCaloriesByDay: [Date: Double] {
+        Dictionary(grouping: steps.filter { $0.date >= cutoff }, by: { $0.date.startOfDay })
+            .mapValues { entries in
+                NutritionCalculator.stepCalories(steps: entries.reduce(0) { $0 + $1.steps }, weightKg: currentWeightKg)
+            }
     }
 
     var body: some View {
@@ -99,27 +96,21 @@ struct CalorieTrendsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                ChartCard(title: "Calories", subtitle: goals.first.map {
-                    "Net target ~\(Int($0.calorieTarget + (applyTEF ? avgTEF : 0))) kcal\(applyTEF ? " (incl. TEF)" : "")"
-                }) {
-                    Chart {
-                        ForEach(caloriePoints) { point in
-                            BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
-                                .foregroundStyle(Color.accentColor.gradient)
-                        }
+                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · net of TEF & steps" }) {
+                    Chart(caloriePoints) { point in
+                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
+                            .foregroundStyle(Color.accentColor.gradient)
                         if let goal = goals.first {
-                            ForEach(netTargetPoints(base: goal.calorieTarget)) { point in
-                                LineMark(x: .value("Day", point.date), y: .value("Net target", point.value))
-                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4]))
-                                    .foregroundStyle(.secondary)
-                            }
+                            RuleMark(y: .value("Target", goal.calorieTarget))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .id("calories-\(windowDays)")
                     .chartXScale(domain: chartDomain)
                 }
 
-                ChartCard(title: "Deficit / Surplus", subtitle: "vs estimated maintenance (\(Int(maintenance)) kcal)") {
+                ChartCard(title: "Deficit / Surplus", subtitle: "net of TEF & steps, vs estimated maintenance (\(Int(maintenance)) kcal)") {
                     Chart(deficitPoints) { point in
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)
