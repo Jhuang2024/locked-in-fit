@@ -1,0 +1,138 @@
+import SwiftUI
+import SwiftData
+import Charts
+
+/// Sleep score and duration over time, matching AppearanceTrendsView's chart
+/// style and windowed-picker pattern. Backed entirely by persisted SleepLog
+/// data, so it updates the moment a new sleep log is saved.
+struct SleepTrendsView: View {
+    @Query(sort: \SleepLog.date) private var logs: [SleepLog]
+
+    @State private var windowDays = 30
+
+    static let allTimeWindow = Int.max
+
+    private var cutoff: Date {
+        windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
+    }
+    private var windowedLogs: [SleepLog] { logs.filter { $0.date >= cutoff } }
+    private var scorePoints: [(date: Date, score: Double)] {
+        windowedLogs.map { (date: $0.date, score: $0.totalScore) }
+    }
+    private var durationPoints: [(date: Date, hours: Double)] {
+        windowedLogs.map { (date: $0.date, hours: $0.durationHours) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                Picker("Window", selection: $windowDays) {
+                    Text("7D").tag(7)
+                    Text("30D").tag(30)
+                    Text("90D").tag(90)
+                    Text("All").tag(Self.allTimeWindow)
+                }
+                .pickerStyle(.segmented)
+
+                scoreChart
+                durationChart
+                if windowedLogs.count >= 3 {
+                    breakdownChart
+                }
+                statsSection
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 24)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Sleep Trends")
+    }
+
+    // MARK: - Charts
+
+    @ViewBuilder
+    private var scoreChart: some View {
+        if scorePoints.isEmpty {
+            DashboardCard(title: "Sleep Score", systemImage: "chart.xyaxis.line") {
+                EmptyStateView(systemImage: "chart.xyaxis.line", title: "No data in this window",
+                               message: "Sleep scores appear once you log a night's sleep.")
+            }
+        } else {
+            ChartCard(title: "Sleep Score", subtitle: "0–100 · duration, consistency, interruptions, timing") {
+                Chart {
+                    ForEach(Array(scorePoints.enumerated()), id: \.offset) { _, point in
+                        LineMark(x: .value("Date", point.date), y: .value("Score", point.score))
+                            .foregroundStyle(.indigo)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
+                            .interpolationMethod(.monotone)
+                        PointMark(x: .value("Date", point.date), y: .value("Score", point.score))
+                            .foregroundStyle(Color.indigo.opacity(0.5))
+                            .symbolSize(24)
+                    }
+                }
+                .id("score-\(windowDays)")
+                .chartYScale(domain: 0.0...100.0)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var durationChart: some View {
+        if !durationPoints.isEmpty {
+            ChartCard(title: "Sleep Duration", subtitle: "Hours asleep per night · 7–9h is the target range") {
+                Chart {
+                    ForEach(Array(durationPoints.enumerated()), id: \.offset) { _, point in
+                        LineMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
+                            .foregroundStyle(.teal)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
+                            .interpolationMethod(.monotone)
+                        PointMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
+                            .foregroundStyle(Color.teal.opacity(0.5))
+                            .symbolSize(24)
+                    }
+                }
+                .id("duration-\(windowDays)")
+                .chartYScale(domain: 0.0...12.0)
+            }
+        }
+    }
+
+    private var breakdownChart: some View {
+        ChartCard(title: "Sleep Score Breakdown", subtitle: "Component points over time") {
+            Chart {
+                ForEach(Array(windowedLogs.enumerated()), id: \.offset) { _, log in
+                    LineMark(x: .value("Date", log.date), y: .value("Points", log.durationScore),
+                             series: .value("Component", "Duration"))
+                        .foregroundStyle(by: .value("Component", "Duration"))
+                    LineMark(x: .value("Date", log.date), y: .value("Points", log.consistencyScore),
+                             series: .value("Component", "Consistency"))
+                        .foregroundStyle(by: .value("Component", "Consistency"))
+                    LineMark(x: .value("Date", log.date), y: .value("Points", log.interruptionScore),
+                             series: .value("Component", "Interruptions"))
+                        .foregroundStyle(by: .value("Component", "Interruptions"))
+                    LineMark(x: .value("Date", log.date), y: .value("Points", log.timingScore),
+                             series: .value("Component", "Timing"))
+                        .foregroundStyle(by: .value("Component", "Timing"))
+                }
+            }
+            .id("breakdown-\(windowDays)")
+            .chartYScale(domain: 0.0...40.0)
+        }
+    }
+
+    @ViewBuilder
+    private var statsSection: some View {
+        if !windowedLogs.isEmpty {
+            let avgScore = windowedLogs.reduce(0.0) { $0 + $1.totalScore } / Double(windowedLogs.count)
+            let avgDuration = windowedLogs.reduce(0.0) { $0 + $1.durationHours } / Double(windowedLogs.count)
+            let avgWakeUps = Double(windowedLogs.reduce(0) { $0 + $1.wakeUps }) / Double(windowedLogs.count)
+            DashboardCard(title: "Window Averages", systemImage: "chart.bar") {
+                HStack {
+                    StatChip(label: "Avg score", value: "\(Int(avgScore.rounded()))")
+                    StatChip(label: "Avg duration", value: "\(Formatters.trimmed(avgDuration))h")
+                    StatChip(label: "Avg wake-ups", value: String(format: "%.1f", avgWakeUps))
+                }
+            }
+        }
+    }
+}

@@ -14,7 +14,8 @@ struct LockedInFitApp: App {
                 Workout.self, Exercise.self, WorkoutSet.self,
                 StrengthScore.self, UserSettings.self, HealthScan.self,
                 AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
-                WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self)
+                WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
+                SleepLog.self)
         } catch {
             fatalError("Failed to create model container: \(error)")
         }
@@ -110,6 +111,11 @@ struct TrendsHomeView: View {
             Section("Appearance") {
                 NavigationLink(destination: AppearanceTrendsView()) {
                     Label("Appearance Trends", systemImage: "sparkles")
+                }
+            }
+            Section("Sleep") {
+                NavigationLink(destination: SleepTrendsView()) {
+                    Label("Sleep Trends", systemImage: "bed.double.fill")
                 }
             }
             Section("Strength") {

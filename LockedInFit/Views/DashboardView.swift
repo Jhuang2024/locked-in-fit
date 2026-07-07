@@ -20,6 +20,7 @@ struct DashboardView: View {
     @Query private var appearanceSuggestions: [AppearanceSuggestion]
     @Query private var checklistItems: [DailyChecklistItem]
     @Query private var workoutSchedules: [WorkoutSchedule]
+    @Query(sort: \SleepLog.date, order: .reverse) private var sleepLogs: [SleepLog]
 
     @State private var showAddMeal = false
     @State private var showPhotoAnalysis = false
@@ -69,6 +70,8 @@ struct DashboardView: View {
     private var sessionsDueToday: [WorkoutScheduleSession] {
         WorkoutScheduleGeneratorService.sessionsDue(schedules: workoutSchedules)
     }
+    private var latestSleepLog: SleepLog? { sleepLogs.first }
+    private var sleepStreak: Int { SleepScoringService.streak(history: sleepLogs) }
 
     private var maintenance: Double {
         guard let settings else { return 2400 }
@@ -89,6 +92,7 @@ struct DashboardView: View {
                 macroCard
                 activityCard
                 looksCard
+                sleepCard
                 trendCard
                 if let goal {
                     goalSnippet(goal)
@@ -419,6 +423,27 @@ struct DashboardView: View {
 
     private var appearanceStreak: Int {
         AppearanceScoringService.faceStreak(history: appearanceCheckIns)
+    }
+
+    private var sleepCard: some View {
+        NavigationLink(destination: SleepDashboardView()) {
+            DashboardCard(title: "Sleep", systemImage: "bed.double.fill") {
+                HStack {
+                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore))" } ?? "N/A")
+                    StatChip(label: "Duration", value: latestSleepLog.map { "\(Formatters.trimmed($0.durationHours))h" } ?? "N/A")
+                    StatChip(label: "Wake-ups", value: latestSleepLog.map { "\($0.wakeUps)" } ?? "N/A")
+                }
+                HStack {
+                    StatChip(label: "Streak", value: sleepStreak > 0 ? "\(sleepStreak)d" : "N/A")
+                }
+                if sleepLogs.isEmpty {
+                    Text("Log your bedtime and wake time to start tracking your sleep score.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .buttonStyle(.pressable)
     }
 
     private var trendCard: some View {
