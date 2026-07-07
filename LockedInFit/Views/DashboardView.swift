@@ -197,6 +197,7 @@ struct DashboardView: View {
     private var notificationInputs: NotificationRulesEngine.Inputs {
         NotificationRulesEngine.Inputs(
             nutrition: viewModel.nutrition,
+            eaten: viewModel.calories.eaten,
             calorieTarget: calorieTarget,
             adjustedCalorieTarget: viewModel.calories.adjustedTarget,
             proteinTarget: proteinTarget,

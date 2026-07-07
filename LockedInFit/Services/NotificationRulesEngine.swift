@@ -15,11 +15,16 @@ enum NotificationRulesEngine {
 
     struct Inputs {
         let nutrition: DailyNutritionSummary
+        /// Calories counted against the target: logged food plus the
+        /// hidden-oil midpoint — same figure the Dashboard's "Eaten" stat
+        /// shows (`CalorieRemainingSummary.eaten`), so these alerts and the
+        /// on-screen number never disagree.
+        let eaten: Double
         /// Today's base calorie target (unadjusted) — same number the
         /// Dashboard's macro rings are derived from.
         let calorieTarget: Double
-        /// Today's calorie target, adjusted for exercise — same number the
-        /// Dashboard's "Calories Remaining" card shows.
+        /// Today's calorie target, adjusted for exercise and TEF — same
+        /// number the Dashboard's "Calories Remaining" card shows.
         let adjustedCalorieTarget: Double
         let proteinTarget: Double
         let sodiumLimit: Double
@@ -35,17 +40,20 @@ enum NotificationRulesEngine {
         var events: [NotificationService.NotificationEvent] = []
 
         if input.adjustedCalorieTarget > 0 {
-            let ratio = input.nutrition.calories / input.adjustedCalorieTarget
+            let ratio = input.eaten / input.adjustedCalorieTarget
             if ratio >= exceededRatio {
                 events.append(.init(key: "calories-exceeded", title: "Calories",
-                                     body: "\(Int(input.nutrition.calories - input.adjustedCalorieTarget)) kcal over today's target."))
+                                     body: "\(Int(input.eaten - input.adjustedCalorieTarget)) kcal over today's target."))
             } else if ratio >= approachingRatio {
                 events.append(.init(key: "calories-approaching", title: "Calories",
-                                     body: "\(Int(input.adjustedCalorieTarget - input.nutrition.calories)) kcal left before today's target."))
+                                     body: "\(Int(input.adjustedCalorieTarget - input.eaten)) kcal left before today's target."))
             }
 
-            let projected = input.nutrition.calories + input.nutrition.hiddenOilHigh
-            if ratio < exceededRatio, input.nutrition.hiddenOilHigh > 0, projected > input.adjustedCalorieTarget {
+            // `eaten` already bakes in the hidden-oil midpoint; the remaining
+            // risk is only the upside above that midpoint, not the whole range.
+            let oilUpside = max(0, input.nutrition.hiddenOilHigh - input.nutrition.hiddenOilCalories)
+            let projected = input.eaten + oilUpside
+            if ratio < exceededRatio, oilUpside > 0, projected > input.adjustedCalorieTarget {
                 events.append(.init(key: "oil-risk", title: "Hidden oil",
                                      body: "Cooking oil could push you ~\(Int(projected - input.adjustedCalorieTarget)) kcal over today."))
             }
@@ -115,8 +123,8 @@ enum NotificationRulesEngine {
         // End-of-day summary: only once it's actually evening, and only local
         // data can say so — there's no separate "end of day" concept in the app.
         if Calendar.current.component(.hour, from: input.now) >= 20,
-           input.adjustedCalorieTarget > 0, input.nutrition.calories > 0 {
-            let deviation = abs(input.nutrition.calories - input.adjustedCalorieTarget) / input.adjustedCalorieTarget
+           input.adjustedCalorieTarget > 0, input.eaten > 0 {
+            let deviation = abs(input.eaten - input.adjustedCalorieTarget) / input.adjustedCalorieTarget
             if deviation <= 0.1 {
                 events.append(.init(key: "calories-on-target", title: "Nutrition", body: "Calories stayed on target today."))
             }
