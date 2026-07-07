@@ -55,7 +55,13 @@ struct DashboardView: View {
     private var liveBodyScore: AppearanceScoringService.BodyScoreResult? {
         AppearanceScoringService.liveBodyScore(weights: weights, bodyFats: bodyFats, workouts: completedWorkouts, settings: settings, goal: goal)
     }
-    private var displayedBodyScore: Double? { latestBodyCheckIn?.totalScore ?? liveBodyScore?.total }
+    private var displayedBodyScore: Double? {
+        AppearanceScoringService.effectiveBodyScore(checkIn: latestBodyCheckIn, live: liveBodyScore)
+    }
+    /// Same formula the Looks page uses for its "Combined" ring, so the two never disagree.
+    private var overallLooksScore: Double? {
+        AppearanceScoringService.combinedScore(face: latestFaceCheckIn, body: latestBodyCheckIn, liveBody: liveBodyScore)
+    }
     private var pendingSuggestionCount: Int {
         appearanceSuggestions.filter { $0.status == .pending }.count
     }
@@ -95,6 +101,13 @@ struct DashboardView: View {
         .refreshable { await healthKit.sync(context: context) }
         .task { await refreshReminderSchedules() }
         .navigationTitle("Today")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(destination: SettingsView()) {
+                    Image(systemName: "gearshape")
+                }
+            }
+        }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
         .sheet(item: $activeWorkout) { workout in
@@ -351,10 +364,14 @@ struct DashboardView: View {
         NavigationLink(destination: LooksDashboardView()) {
             DashboardCard(title: "Looks", systemImage: "sparkles") {
                 HStack {
+                    StatChip(label: "Overall",
+                             value: overallLooksScore.map { "\(Int($0))" } ?? "N/A")
                     StatChip(label: "Face",
                              value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "N/A")
                     StatChip(label: "Body",
                              value: displayedBodyScore.map { "\(Int($0))" } ?? "N/A")
+                }
+                HStack {
                     StatChip(label: "Streak",
                              value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "N/A")
                     StatChip(label: "Suggestions",

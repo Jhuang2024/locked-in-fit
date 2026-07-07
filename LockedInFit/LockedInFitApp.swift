@@ -32,7 +32,7 @@ struct LockedInFitApp: App {
 }
 
 struct RootTabView: View {
-    private enum Tab: Hashable { case today, log, train, looks, trends, settings }
+    private enum Tab: Hashable { case today, log, train, looks, trends }
 
     @State private var selection: Tab = .today
     // Each tab owns its own navigation stack so tabs never share nested state.
@@ -41,7 +41,6 @@ struct RootTabView: View {
     @State private var trainPath = NavigationPath()
     @State private var looksPath = NavigationPath()
     @State private var trendsPath = NavigationPath()
-    @State private var settingsPath = NavigationPath()
 
     /// Tapping any bottom tab (whether re-tapping the current one or switching
     /// to another) resets that tab to its root screen.
@@ -61,7 +60,6 @@ struct RootTabView: View {
         case .train: trainPath = NavigationPath()
         case .looks: looksPath = NavigationPath()
         case .trends: trendsPath = NavigationPath()
-        case .settings: settingsPath = NavigationPath()
         }
     }
 
@@ -82,9 +80,6 @@ struct RootTabView: View {
             NavigationStack(path: $trendsPath) { TrendsHomeView() }
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
                 .tag(Tab.trends)
-            NavigationStack(path: $settingsPath) { SettingsView() }
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(Tab.settings)
         }
     }
 }

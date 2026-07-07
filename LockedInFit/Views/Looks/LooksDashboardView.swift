@@ -27,19 +27,12 @@ struct LooksDashboardView: View {
             weights: weights, bodyFats: bodyFats, workouts: completedWorkouts,
             settings: settingsList.first, goal: activeGoals.first)
     }
-    private var effectiveBodyScore: Double? { latestBody?.totalScore ?? liveBodyScore?.total }
+    private var effectiveBodyScore: Double? {
+        AppearanceScoringService.effectiveBodyScore(checkIn: latestBody, live: liveBodyScore)
+    }
+    /// Same formula the Dashboard widget uses, so the two never disagree.
     private var combined: Double? {
-        if latestBody != nil {
-            return AppearanceScoringService.combinedScore(face: latestFace, body: latestBody)
-        }
-        guard let bodyScore = liveBodyScore?.total else {
-            return AppearanceScoringService.combinedScore(face: latestFace, body: nil)
-        }
-        guard let face = latestFace else { return bodyScore }
-        let age = Date.now.timeIntervalSince(face.date) / 86400
-        let faceWeight = max(0, 1 - age / 60)
-        guard faceWeight > 0 else { return bodyScore }
-        return (face.totalScore * faceWeight + bodyScore) / (faceWeight + 1)
+        AppearanceScoringService.combinedScore(face: latestFace, body: latestBody, liveBody: liveBodyScore)
     }
     private var streak: Int { AppearanceScoringService.faceStreak(history: checkIns) }
     private var pendingCount: Int { suggestions.filter { $0.status == .pending }.count }
@@ -70,11 +63,9 @@ struct LooksDashboardView: View {
     private var scoresCard: some View {
         DashboardCard(title: "Appearance Scores", systemImage: "sparkles") {
             HStack {
-                ScoreRingView(label: "Face", score: latestFace?.totalScore ?? 0, maxScore: 100,
-                              color: latestFace == nil ? .gray : .accentColor)
+                faceRing
                 Spacer()
-                ScoreRingView(label: "Body", score: effectiveBodyScore ?? 0, maxScore: 100,
-                              color: effectiveBodyScore == nil ? .gray : .indigo)
+                bodyRing
                 Spacer()
                 ScoreRingView(label: "Combined", score: combined ?? 0, maxScore: 100,
                               color: combined == nil ? .gray : .teal)
@@ -83,6 +74,38 @@ struct LooksDashboardView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
+            if latestFace != nil || effectiveBodyScore != nil {
+                Text("Tap a score for its breakdown.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var faceRing: some View {
+        let ring = ScoreRingView(label: "Face", score: latestFace?.totalScore ?? 0, maxScore: 100,
+                                  color: latestFace == nil ? .gray : .accentColor)
+        if let latestFace {
+            NavigationLink(destination: AppearanceCheckInDetailView(checkIn: latestFace)) { ring }
+                .buttonStyle(.pressable)
+        } else {
+            ring
+        }
+    }
+
+    @ViewBuilder
+    private var bodyRing: some View {
+        let ring = ScoreRingView(label: "Body", score: effectiveBodyScore ?? 0, maxScore: 100,
+                                  color: effectiveBodyScore == nil ? .gray : .indigo)
+        if let latestBody {
+            NavigationLink(destination: AppearanceCheckInDetailView(checkIn: latestBody)) { ring }
+                .buttonStyle(.pressable)
+        } else if let liveBodyScore {
+            NavigationLink(destination: LiveBodyScoreDetailView(result: liveBodyScore)) { ring }
+                .buttonStyle(.pressable)
+        } else {
+            ring
         }
     }
 
@@ -338,6 +361,100 @@ struct AppearanceCheckInDetailView: View {
                 }
             }
         }
+    }
+
+    private func breakdownRow(_ label: String, _ value: Double, _ max: Double) -> some View {
+        VStack(spacing: 3) {
+            HStack {
+                Text(label)
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text("\(Int(value.rounded())) / \(Int(max))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: min(value, max), total: max)
+                .tint(value / max >= 0.7 ? .green : value / max >= 0.4 ? .orange : .red)
+        }
+    }
+}
+
+// MARK: - Live (composition-only) body score detail
+
+/// Breakdown for a body score computed from composition data alone, with no
+/// saved check-in yet. Formatted like AppearanceCheckInDetailView so the two
+/// read the same way regardless of which one produced the score.
+struct LiveBodyScoreDetailView: View {
+    let result: AppearanceScoringService.BodyScoreResult
+
+    @State private var showBodyCheckIn = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                DashboardCard(title: "Body Score", systemImage: "figure.stand") {
+                    HStack(spacing: 16) {
+                        ScoreRingView(label: "Estimated", score: result.total, maxScore: 100, color: .indigo)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Confidence \(Formatters.percent(result.confidence))", systemImage: "gauge.medium")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if result.compositionLimited {
+                                Label("Composition-limited", systemImage: "exclamationmark.circle")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                            if result.leannessGuard {
+                                Label("Leanness is not the limiter; no cut advice given", systemImage: "shield.checkered")
+                                    .font(.caption2)
+                                    .foregroundStyle(.teal)
+                            }
+                        }
+                        Spacer()
+                    }
+                    Text("No body photo check-in yet. This score is estimated from your logged weight and body fat.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+
+                DashboardCard(title: "Score Breakdown", systemImage: "list.bullet.rectangle") {
+                    VStack(spacing: 8) {
+                        breakdownRow("Composition", result.composition, 40)
+                        breakdownRow("Lean mass proxy", result.leanMass, 15)
+                        breakdownRow("Training consistency", result.training, 15)
+                        breakdownRow("Photo/posture", result.photoPosture, 15)
+                        breakdownRow("Trend vs goal", result.trendDirection, 10)
+                        breakdownRow("Photo quality", result.quality, 5)
+                    }
+                }
+
+                DashboardCard(title: "Why This Score?", systemImage: "questionmark.circle") {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(result.explanations, id: \.self) { line in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•").font(.caption).foregroundStyle(.tertiary)
+                                Text(line).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Button { showBodyCheckIn = true } label: {
+                    Label("Add Body Photos", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 24)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Body Score")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showBodyCheckIn) { BodyCheckInView() }
     }
 
     private func breakdownRow(_ label: String, _ value: Double, _ max: Double) -> some View {

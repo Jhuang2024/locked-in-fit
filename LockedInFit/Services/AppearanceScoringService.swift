@@ -324,6 +324,29 @@ enum AppearanceScoringService {
         return sum / (faceWeight + bodyWeight)
     }
 
+    /// The body score to display: the latest saved body check-in if there is
+    /// one, otherwise the live composition-only score. Shared by every screen
+    /// that shows a body score so they never disagree with each other.
+    static func effectiveBodyScore(checkIn: AppearanceCheckIn?, live: BodyScoreResult?) -> Double? {
+        checkIn?.totalScore ?? live?.total
+    }
+
+    /// Combined score for display when there may be no saved body check-in
+    /// yet. Falls back to `combinedScore` when a real body check-in exists;
+    /// otherwise blends the face score (recency-weighted, as above) with the
+    /// live composition score (always full weight, since it reflects today's
+    /// data). Shared so the Dashboard widget and the Looks page always agree.
+    static func combinedScore(face: AppearanceCheckIn?, body: AppearanceCheckIn?,
+                              liveBody: BodyScoreResult?, date: Date = .now) -> Double? {
+        if body != nil { return combinedScore(face: face, body: body, date: date) }
+        guard let bodyScore = liveBody?.total else { return combinedScore(face: face, body: nil, date: date) }
+        guard let face else { return bodyScore }
+        let age = date.timeIntervalSince(face.date) / 86400
+        let faceWeight = max(0, 1 - age / 60)
+        guard faceWeight > 0 else { return bodyScore }
+        return (face.totalScore * faceWeight + bodyScore) / (faceWeight + 1)
+    }
+
     // MARK: - Small math helpers
 
     static func clamp(_ value: Double) -> Double { max(0, min(1, value)) }
