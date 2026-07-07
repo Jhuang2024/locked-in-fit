@@ -95,7 +95,7 @@ struct AppearanceTrendsView: View {
                     }
                 }
                 .id("\(title)-\(windowDays)")
-                .chartYScale(domain: 0...100)
+                .chartYScale(domain: 0.0...100.0)
             }
         }
     }
@@ -116,7 +116,7 @@ struct AppearanceTrendsView: View {
                 }
             }
             .id("breakdown-\(windowDays)")
-            .chartYScale(domain: 0...20)
+            .chartYScale(domain: 0.0...20.0)
         }
     }
 

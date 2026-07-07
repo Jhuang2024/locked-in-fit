@@ -163,13 +163,13 @@ enum WorkoutScheduleGeneratorService {
             usedThisWeek[pick.name, default: 0] += 1
 
             let isCompound = pick.priority >= 7 && slot < 2
-            let scheme = scheme(goal: request.goal, experience: request.experience, isCompound: isCompound)
+            let s = Self.scheme(goal: request.goal, experience: request.experience, isCompound: isCompound)
             plan.append(PlannedExercise(
                 name: pick.name,
-                sets: scheme.sets,
-                reps: scheme.reps,
-                restSeconds: scheme.rest,
-                targetRPE: scheme.rpe,
+                sets: s.sets,
+                reps: s.reps,
+                restSeconds: s.rest,
+                targetRPE: s.rpe,
                 equipmentRaw: pick.equipment.rawValue,
                 patternRaw: pick.pattern.rawValue,
                 musclesRaw: pick.muscles.map(\.rawValue),

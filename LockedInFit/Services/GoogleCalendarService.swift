@@ -63,6 +63,9 @@ final class GoogleCalendarService: NSObject {
     private static let emailAccount = "google_account_email"
 
     private(set) var isAuthenticating = false
+    /// Strong reference for the duration of the browser flow — the session is
+    /// dismissed immediately if it deallocates while presented.
+    @ObservationIgnored private var activeAuthSession: ASWebAuthenticationSession?
 
     // MARK: - Configuration
 
@@ -109,6 +112,7 @@ final class GoogleCalendarService: NSObject {
         ]
         guard let authURL = components.url else { throw GoogleCalendarError.notConfigured }
 
+        defer { activeAuthSession = nil }
         let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: scheme) { url, error in
                 if let url {
@@ -121,6 +125,7 @@ final class GoogleCalendarService: NSObject {
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
+            activeAuthSession = session
             if !session.start() {
                 continuation.resume(throwing: GoogleCalendarError.network("Couldn't start the sign-in session."))
             }
