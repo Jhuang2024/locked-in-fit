@@ -72,7 +72,7 @@ struct WorkoutLogView: View {
                 }
             }
 
-            Section("Calories Burned") {
+            Section {
                 HStack {
                     Text("Calories")
                     Spacer()
@@ -104,6 +104,8 @@ struct WorkoutLogView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
+            } header: {
+                Text("Calories Burned")
             } footer: {
                 Text("Left at 0, a finished workout gets a default estimate from its duration and type.")
             }
