@@ -114,12 +114,8 @@ struct WorkoutLogView: View {
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDoneToolbar()
         .sheet(isPresented: $showAddExercise) {
-            ExercisePickerView { library in
-                let exercise = Exercise(name: library.name, muscleGroups: library.muscles,
-                                        movementPattern: library.pattern, equipment: library.equipment,
-                                        order: workout.exerciseList.count)
-                exercise.sets?.append(WorkoutSet(order: 0, reps: 8))
-                workout.exercises?.append(exercise)
+            ExercisePickerView { draft in
+                addExercise(from: draft)
             }
         }
         .alert("Personal Record!", isPresented: $showPRCelebration) {
@@ -127,6 +123,20 @@ struct WorkoutLogView: View {
         } message: {
             Text(prMessages.joined(separator: "\n"))
         }
+    }
+
+    /// One entry point for both library picks and described custom exercises.
+    private func addExercise(from draft: ExerciseDraft) {
+        let exercise = Exercise(name: draft.name,
+                                muscleGroups: draft.muscleGroups,
+                                movementPattern: draft.movementPattern,
+                                equipment: draft.equipment,
+                                order: workout.exerciseList.count,
+                                notes: draft.notes)
+        for index in 0..<max(1, draft.setCount) {
+            exercise.sets?.append(WorkoutSet(order: index, reps: draft.reps, weight: draft.weightKg))
+        }
+        workout.exercises?.append(exercise)
     }
 
     private func finishWorkout() {
@@ -266,36 +276,85 @@ private struct ExerciseSectionView: View {
     }
 }
 
-/// Pick from the built-in exercise library.
+/// Unified exercise entry: one field that both searches the built-in library
+/// and accepts a natural-language description ("incline dumbbell press,
+/// 3 sets, 10 reps, 45 lb each hand"). Described entries save as custom
+/// exercises for this workout without any predefined exercise existing first.
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Query private var settingsList: [UserSettings]
     @State private var search = ""
-    let onPick: (LibraryExercise) -> Void
+    let onAdd: (ExerciseDraft) -> Void
 
+    private var parsedDraft: ExerciseDraft? {
+        ExerciseDescriptionParser.parse(search, units: settingsList.first?.units ?? .metric)
+    }
     private var filtered: [LibraryExercise] {
-        search.isEmpty
-            ? WorkoutGeneratorService.library
-            : WorkoutGeneratorService.library.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        guard !search.isEmpty else { return WorkoutGeneratorService.library }
+        let nameOnly = parsedDraft?.name ?? search
+        return WorkoutGeneratorService.library.filter {
+            $0.name.localizedCaseInsensitiveContains(search) || $0.name.localizedCaseInsensitiveContains(nameOnly)
+        }
     }
 
     var body: some View {
         NavigationStack {
-            List(filtered) { exercise in
-                Button {
-                    onPick(exercise)
-                    dismiss()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(exercise.name)
-                            .font(.subheadline.weight(.medium))
-                        Text("\(exercise.pattern.label) · \(exercise.equipment.label)")
+            List {
+                if let draft = parsedDraft {
+                    Section {
+                        Button {
+                            onAdd(draft)
+                            dismiss()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(draft.name, systemImage: "plus.circle.fill")
+                                    .font(.subheadline.weight(.medium))
+                                Text("\(draft.prescriptionSummary) · \(draft.movementPattern.label) · \(draft.equipment.label)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(draft.matchedLibrary
+                                     ? "Matched to the exercise library"
+                                     : "Will be saved as a custom exercise")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    } header: {
+                        Text("From your description")
+                    }
+                }
+
+                Section {
+                    if filtered.isEmpty {
+                        Text("No library match. Add it from your description above.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    ForEach(filtered) { exercise in
+                        Button {
+                            onAdd(.from(library: exercise))
+                            dismiss()
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(exercise.name)
+                                    .font(.subheadline.weight(.medium))
+                                Text("\(exercise.pattern.label) · \(exercise.equipment.label)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text(search.isEmpty ? "Library" : "Library matches")
+                } footer: {
+                    if search.isEmpty {
+                        Text("Search the library, or describe an exercise with sets, reps, and weight, e.g. \"incline dumbbell press, 3 sets, 10 reps, 45 lb each hand\".")
+                    }
                 }
-                .buttonStyle(.plain)
             }
-            .searchable(text: $search)
+            .searchable(text: $search, prompt: "Search or describe an exercise")
             .navigationTitle("Add Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

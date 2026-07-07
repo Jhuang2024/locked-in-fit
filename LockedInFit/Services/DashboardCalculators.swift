@@ -9,6 +9,12 @@ struct DailyNutritionSummary {
     let sodium: Double
     let hiddenOilLow: Double
     let hiddenOilHigh: Double
+
+    /// Midpoint of the hidden-oil range: the single value applied to calorie
+    /// math everywhere (dashboard, food log, trends). Zero when no oil risk.
+    var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
+    /// What "consumed" means app-wide: logged calories plus hidden oil.
+    var consumedCalories: Double { calories + hiddenOilCalories }
 }
 
 enum DailyNutritionCalculator {
@@ -103,7 +109,13 @@ enum ActivityAdjustmentCalculator {
 struct CalorieRemainingSummary {
     let baseTarget: Double
     let adjustedTarget: Double
+    /// Consumed calories counted against the target: logged food plus the
+    /// hidden-oil midpoint.
     let eaten: Double
+    /// Logged food calories only, before hidden oil.
+    let foodCalories: Double
+    /// Hidden-oil midpoint applied on top of logged food.
+    let hiddenOilCalories: Double
     let exerciseAdjustment: Double
     /// Thermic effect of food from what's been eaten today: calories burned
     /// digesting, added back to what's left to eat. Zero when the user has
@@ -112,19 +124,24 @@ struct CalorieRemainingSummary {
     let remaining: Double
 }
 
+/// The one source of truth for "calories remaining". Every screen that shows
+/// remaining/eaten calories must go through this so dashboard, food log, and
+/// summaries never disagree: remaining = (target + exercise + TEF) − (food + hidden oil).
 enum CalorieRemainingCalculator {
     static func summary(baseTarget: Double,
-                        caloriesEaten: Double,
+                        nutrition: DailyNutritionSummary,
                         activityAdjustment: ActivityAdjustmentSummary,
                         tefCalories: Double = 0) -> CalorieRemainingSummary {
         let adjustedTarget = baseTarget + activityAdjustment.adjustmentCalories + tefCalories
         return CalorieRemainingSummary(
             baseTarget: baseTarget,
             adjustedTarget: adjustedTarget,
-            eaten: caloriesEaten,
+            eaten: nutrition.consumedCalories,
+            foodCalories: nutrition.calories,
+            hiddenOilCalories: nutrition.hiddenOilCalories,
             exerciseAdjustment: activityAdjustment.adjustmentCalories,
             tefCalories: tefCalories,
-            remaining: adjustedTarget - caloriesEaten
+            remaining: adjustedTarget - nutrition.consumedCalories
         )
     }
 }
@@ -168,7 +185,7 @@ struct DashboardViewModel {
             : 0
         let calories = CalorieRemainingCalculator.summary(
             baseTarget: baseTarget,
-            caloriesEaten: nutrition.calories,
+            nutrition: nutrition,
             activityAdjustment: activity,
             tefCalories: tefCalories
         )
@@ -188,7 +205,7 @@ struct DashboardViewModel {
         self.completedWorkoutsToday = todayWorkouts
         self.weeklyCalorieAverage = Self.weeklyCalorieAverage(meals: meals, date: date)
         self.lockedInScore = Analytics.lockedInScore(
-            todayCalories: nutrition.calories,
+            todayCalories: nutrition.consumedCalories,
             calorieTarget: calories.adjustedTarget,
             todayProtein: nutrition.protein,
             proteinTarget: proteinTarget,
