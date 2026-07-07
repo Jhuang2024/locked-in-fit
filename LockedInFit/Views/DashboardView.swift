@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @Query(sort: \BodyFatEntry.date) private var bodyFats: [BodyFatEntry]
     @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
     @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
@@ -49,6 +50,12 @@ struct DashboardView: View {
     }
     private var latestFaceCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .face } }
     private var latestBodyCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .body } }
+    /// Falls back to a composition-only score (weight/body fat) when the user
+    /// hasn't run a body check-in yet, so a body score exists without a photo.
+    private var liveBodyScore: AppearanceScoringService.BodyScoreResult? {
+        AppearanceScoringService.liveBodyScore(weights: weights, bodyFats: bodyFats, workouts: completedWorkouts, settings: settings, goal: goal)
+    }
+    private var displayedBodyScore: Double? { latestBodyCheckIn?.totalScore ?? liveBodyScore?.total }
     private var pendingSuggestionCount: Int {
         appearanceSuggestions.filter { $0.status == .pending }.count
     }
@@ -103,7 +110,7 @@ struct DashboardView: View {
     }
 
     /// Keep the rolling 14-day local reminder windows topped up. Never prompts
-    /// for permission — NotificationService skips scheduling if not authorized.
+    /// for permission; NotificationService skips scheduling if not authorized.
     private func refreshReminderSchedules() async {
         guard let settings else { return }
         await NotificationService.refreshFaceReminders(
@@ -345,16 +352,20 @@ struct DashboardView: View {
             DashboardCard(title: "Looks", systemImage: "sparkles") {
                 HStack {
                     StatChip(label: "Face",
-                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "N/A")
                     StatChip(label: "Body",
-                             value: latestBodyCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                             value: displayedBodyScore.map { "\(Int($0))" } ?? "N/A")
                     StatChip(label: "Streak",
-                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "—")
+                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "N/A")
                     StatChip(label: "Suggestions",
                              value: "\(pendingSuggestionCount)",
                              color: pendingSuggestionCount > 0 ? .orange : .primary)
                 }
-                if appearanceCheckIns.isEmpty {
+                if latestBodyCheckIn == nil, liveBodyScore != nil {
+                    Text("Body score estimated from your logged weight and body fat. Add a body photo check-in for the full picture.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if appearanceCheckIns.isEmpty {
                     Text("Track face and body scores from daily photos and your existing body data.")
                         .font(.caption)
                         .foregroundStyle(.secondary)

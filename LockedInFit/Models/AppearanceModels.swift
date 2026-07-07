@@ -76,7 +76,7 @@ final class AppearanceSuggestion {
     /// Stable string ID so checklist items can reference their source suggestion.
     var uuid: String = UUID().uuidString
     var createdAt: Date = Date()
-    /// face/body/workout/manual — where the suggestion came from.
+    /// face/body/workout/manual: where the suggestion came from.
     var sourceKindRaw: String = "face"
     var title: String = ""
     var explanation: String = ""

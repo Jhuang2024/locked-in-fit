@@ -8,6 +8,11 @@ struct LooksDashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var checkIns: [AppearanceCheckIn]
     @Query private var suggestions: [AppearanceSuggestion]
+    @Query private var settingsList: [UserSettings]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
+    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @Query(sort: \BodyFatEntry.date) private var bodyFats: [BodyFatEntry]
+    @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
 
     @State private var showFaceCheckIn = false
     @State private var showBodyCheckIn = false
@@ -16,8 +21,25 @@ struct LooksDashboardView: View {
     private var bodyCheckIns: [AppearanceCheckIn] { checkIns.filter { $0.kind == .body } }
     private var latestFace: AppearanceCheckIn? { faceCheckIns.first }
     private var latestBody: AppearanceCheckIn? { bodyCheckIns.first }
+    /// Composition-only fallback so a body score exists even with no body photo check-in.
+    private var liveBodyScore: AppearanceScoringService.BodyScoreResult? {
+        AppearanceScoringService.liveBodyScore(
+            weights: weights, bodyFats: bodyFats, workouts: completedWorkouts,
+            settings: settingsList.first, goal: activeGoals.first)
+    }
+    private var effectiveBodyScore: Double? { latestBody?.totalScore ?? liveBodyScore?.total }
     private var combined: Double? {
-        AppearanceScoringService.combinedScore(face: latestFace, body: latestBody)
+        if latestBody != nil {
+            return AppearanceScoringService.combinedScore(face: latestFace, body: latestBody)
+        }
+        guard let bodyScore = liveBodyScore?.total else {
+            return AppearanceScoringService.combinedScore(face: latestFace, body: nil)
+        }
+        guard let face = latestFace else { return bodyScore }
+        let age = Date.now.timeIntervalSince(face.date) / 86400
+        let faceWeight = max(0, 1 - age / 60)
+        guard faceWeight > 0 else { return bodyScore }
+        return (face.totalScore * faceWeight + bodyScore) / (faceWeight + 1)
     }
     private var streak: Int { AppearanceScoringService.faceStreak(history: checkIns) }
     private var pendingCount: Int { suggestions.filter { $0.status == .pending }.count }
@@ -51,13 +73,13 @@ struct LooksDashboardView: View {
                 ScoreRingView(label: "Face", score: latestFace?.totalScore ?? 0, maxScore: 100,
                               color: latestFace == nil ? .gray : .accentColor)
                 Spacer()
-                ScoreRingView(label: "Body", score: latestBody?.totalScore ?? 0, maxScore: 100,
-                              color: latestBody == nil ? .gray : .indigo)
+                ScoreRingView(label: "Body", score: effectiveBodyScore ?? 0, maxScore: 100,
+                              color: effectiveBodyScore == nil ? .gray : .indigo)
                 Spacer()
                 ScoreRingView(label: "Combined", score: combined ?? 0, maxScore: 100,
                               color: combined == nil ? .gray : .teal)
             }
-            Text("Scores track photo quality, consistency, grooming, composition data, and comparison against your own history — not attractiveness or anyone else's standard.")
+            Text("Scores track photo quality, consistency, grooming, composition data, and comparison against your own history, not attractiveness or anyone else's standard.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -67,9 +89,9 @@ struct LooksDashboardView: View {
     private var statsCard: some View {
         DashboardCard(title: "Status", systemImage: "chart.bar") {
             HStack {
-                StatChip(label: "Face streak", value: streak > 0 ? "\(streak)d" : "—")
+                StatChip(label: "Face streak", value: streak > 0 ? "\(streak)d" : "N/A")
                 StatChip(label: "Last face", value: latestFace.map { Formatters.shortDate($0.date) } ?? "None")
-                StatChip(label: "Last body", value: latestBody.map { Formatters.shortDate($0.date) } ?? "None")
+                StatChip(label: "Last body", value: latestBody.map { Formatters.shortDate($0.date) } ?? (liveBodyScore != nil ? "Estimated" : "None"))
             }
             HStack {
                 StatChip(label: "Pending suggestions", value: "\(pendingCount)", color: pendingCount > 0 ? .orange : .primary)
@@ -120,7 +142,7 @@ struct LooksDashboardView: View {
         DashboardCard(title: "How it works", systemImage: "info.circle") {
             VStack(alignment: .leading, spacing: 8) {
                 explainerRow(icon: "camera", text: "Daily face photos build a personal baseline. Same lighting, same angle, no filters.")
-                explainerRow(icon: "figure.stand", text: "Body check-ins are optional and user-initiated — they combine photos with your weight, body fat, and training data.")
+                explainerRow(icon: "figure.stand", text: "Body check-ins are optional and user-initiated; a body score exists from your weight and body fat alone, and photos add the visual component.")
                 explainerRow(icon: "lightbulb", text: "Each check-in generates a few specific suggestions. Nothing becomes a task until you approve it.")
                 explainerRow(icon: "lock", text: "Photos stay on this device. AI analysis only runs if you've enabled it in AI settings, and you review results before saving.")
             }
@@ -235,7 +257,7 @@ struct AppearanceCheckInDetailView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             if checkIn.confidence < 0.5 {
-                                Text("Low confidence — better photo quality or more data sharpens this.")
+                                Text("Low confidence; better photo quality or more data sharpens this.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }

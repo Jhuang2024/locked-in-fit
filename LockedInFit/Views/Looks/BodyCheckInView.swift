@@ -71,7 +71,7 @@ struct BodyCheckInView: View {
         VStack(spacing: 14) {
             DashboardCard(title: "Private by Default", systemImage: "lock") {
                 Text(usesOpenRouter
-                     ? "Photos stay on your device and also save to your Progress Photos timeline. With OpenRouter enabled, they're additionally sent to your chosen model for optional observations — nothing is saved until you review."
+                     ? "Photos stay on your device and also save to your Progress Photos timeline. With OpenRouter enabled, they're additionally sent to your chosen model for optional observations; nothing is saved until you review."
                      : "Photos stay on your device and also save to your Progress Photos timeline. Analysis runs locally; nothing is saved until you review.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -120,10 +120,10 @@ struct BodyCheckInView: View {
                         missingHint: "Log a weigh-in for composition scoring.")
                 dataRow(label: "Body fat",
                         value: bodyFats.last.map { "\(Formatters.trimmed($0.bodyFatPercentage))%" },
-                        missingHint: "Missing — score will be composition-limited with lower confidence.")
+                        missingHint: "Missing; score will be composition-limited with lower confidence.")
                 dataRow(label: "Height",
                         value: heightLooksDefault ? nil : settings.map { "\(Formatters.trimmed($0.heightCm)) cm" },
-                        missingHint: "Looks unset — update it in Settings → Profile for the lean-mass component.")
+                        missingHint: "Looks unset; update it in Settings → Profile for the lean-mass component.")
                 dataRow(label: "Workouts (28d)",
                         value: "\(completedWorkouts.filter { $0.date > Date().daysAgo(28) }.count)",
                         missingHint: "")
@@ -167,7 +167,7 @@ struct BodyCheckInView: View {
                                 .foregroundStyle(.orange)
                         }
                         if result.leannessGuard {
-                            Label("Leanness is not the limiter — no cut advice given", systemImage: "shield.checkered")
+                            Label("Leanness is not the limiter; no cut advice given", systemImage: "shield.checkered")
                                 .font(.caption2)
                                 .foregroundStyle(.teal)
                         }
@@ -213,7 +213,7 @@ struct BodyCheckInView: View {
             }
 
             DashboardCard(title: "Notes", systemImage: "note.text") {
-                TextField("Optional — pump status, time of day…", text: $viewModel.notes, axis: .vertical)
+                TextField("Optional: pump status, time of day…", text: $viewModel.notes, axis: .vertical)
                     .font(.subheadline)
             }
 
