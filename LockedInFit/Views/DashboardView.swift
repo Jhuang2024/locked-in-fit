@@ -113,6 +113,44 @@ struct DashboardView: View {
     private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
+        dashboardScrollView
+            .background(Color(.systemGroupedBackground))
+            .refreshable {
+                await healthKit.sync(context: context)
+                await refreshReminderSchedules()
+            }
+            .task { await refreshReminderSchedules() }
+            .onChange(of: meals) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: completedWorkouts) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: checklistItems) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: steps) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: appearanceCheckIns) { _, _ in Task { await refreshReminderSchedules() } }
+            .navigationTitle("Today")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddMeal) { AddMealView() }
+            .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+            .sheet(item: $activeWorkout) { workout in
+                NavigationStack { WorkoutLogView(workout: workout) }
+            }
+            .alert("Log Weigh-In", isPresented: $showLogWeight) {
+                TextField("Weight (kg)", text: $newWeight)
+                    .keyboardType(.decimalPad)
+                Button("Save") { saveWeight() }
+                Button("Cancel", role: .cancel) {}
+            }
+            .sensoryFeedback(.selection, trigger: actionTick)
+    }
+
+    /// Split out of `body` so the view tree and the long modifier chain above
+    /// aren't type-checked as one combined expression — that combination is
+    /// what was blowing past the compiler's time limit.
+    private var dashboardScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
                 header
@@ -124,45 +162,19 @@ struct DashboardView: View {
                 looksCard
                 sleepCard
                 trendCard
-                if let goal {
-                    goalSnippet(goal)
-                }
+                goalSnippetIfPresent
                 mealsCard
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
-        .refreshable {
-            await healthKit.sync(context: context)
-            await refreshReminderSchedules()
+    }
+
+    @ViewBuilder
+    private var goalSnippetIfPresent: some View {
+        if let goal {
+            goalSnippet(goal)
         }
-        .task { await refreshReminderSchedules() }
-        .onChange(of: meals) { _, _ in Task { await refreshReminderSchedules() } }
-        .onChange(of: completedWorkouts) { _, _ in Task { await refreshReminderSchedules() } }
-        .onChange(of: checklistItems) { _, _ in Task { await refreshReminderSchedules() } }
-        .onChange(of: steps) { _, _ in Task { await refreshReminderSchedules() } }
-        .onChange(of: appearanceCheckIns) { _, _ in Task { await refreshReminderSchedules() } }
-        .navigationTitle("Today")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(destination: SettingsView()) {
-                    Image(systemName: "gearshape")
-                }
-            }
-        }
-        .sheet(isPresented: $showAddMeal) { AddMealView() }
-        .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
-        .sheet(item: $activeWorkout) { workout in
-            NavigationStack { WorkoutLogView(workout: workout) }
-        }
-        .alert("Log Weigh-In", isPresented: $showLogWeight) {
-            TextField("Weight (kg)", text: $newWeight)
-                .keyboardType(.decimalPad)
-            Button("Save") { saveWeight() }
-            Button("Cancel", role: .cancel) {}
-        }
-        .sensoryFeedback(.selection, trigger: actionTick)
     }
 
     /// Keep the rolling reminder windows topped up and re-check dietary/goal
