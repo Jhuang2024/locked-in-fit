@@ -16,6 +16,18 @@ enum Analytics {
             .mapValues { $0.reduce(0) { $0 + $1.protein } }
     }
 
+    /// TEF (thermic effect of food) per day, from that day's total macros —
+    /// the same figure the dashboard adds back into the day's calorie target.
+    static func dailyTEF(_ meals: [MealLog]) -> [Date: Double] {
+        Dictionary(grouping: meals) { $0.date.startOfDay }
+            .mapValues { dayMeals in
+                NutritionCalculator.tef(
+                    protein: dayMeals.reduce(0) { $0 + $1.protein },
+                    carbs: dayMeals.reduce(0) { $0 + $1.carbs },
+                    fat: dayMeals.reduce(0) { $0 + $1.fat })
+            }
+    }
+
     static func avgDailySteps(_ steps: [StepEntry], days: Int = 14) -> Int {
         let cutoff = Date().daysAgo(days).startOfDay
         let recent = steps.filter { $0.date >= cutoff }
