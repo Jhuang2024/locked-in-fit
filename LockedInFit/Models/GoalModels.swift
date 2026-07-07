@@ -72,6 +72,15 @@ final class UserSettings {
     var hasStoredAPIKey: Bool = false
     var seededSampleData: Bool = false
     var clearedEmptyWorkoutsV1: Bool = false
+    // Looks & reminder settings.
+    var faceReminderEnabled: Bool = false
+    var faceReminderHour: Int = 9
+    var faceReminderMinute: Int = 0
+    var bodyReminderEnabled: Bool = false
+    var bodyReminderFrequencyRaw: String = BodyReminderFrequency.off.rawValue
+    var workoutRemindersEnabled: Bool = true
+    /// Minutes before a scheduled session to fire local/calendar reminders.
+    var defaultWorkoutReminderMinutes: Int = 60
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }
@@ -88,6 +97,10 @@ final class UserSettings {
     var exerciseCalorieAdjustment: ExerciseCalorieAdjustment {
         get { ExerciseCalorieAdjustment(rawValue: exerciseCalorieAdjustmentRaw) ?? .conservative }
         set { exerciseCalorieAdjustmentRaw = newValue.rawValue }
+    }
+    var bodyReminderFrequency: BodyReminderFrequency {
+        get { BodyReminderFrequency(rawValue: bodyReminderFrequencyRaw) ?? .off }
+        set { bodyReminderFrequencyRaw = newValue.rawValue }
     }
 
     init() {}

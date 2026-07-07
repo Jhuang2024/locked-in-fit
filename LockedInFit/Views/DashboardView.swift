@@ -12,7 +12,13 @@ struct DashboardView: View {
     @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
     private var completedWorkouts: [Workout]
+    @Query(filter: #Predicate<Workout> { !$0.isTemplate }, sort: \Workout.date, order: .reverse)
+    private var allWorkouts: [Workout]
     @Query private var strengthScores: [StrengthScore]
+    @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query private var appearanceSuggestions: [AppearanceSuggestion]
+    @Query private var checklistItems: [DailyChecklistItem]
+    @Query private var workoutSchedules: [WorkoutSchedule]
 
     @State private var showAddMeal = false
     @State private var showPhotoAnalysis = false
@@ -38,6 +44,18 @@ struct DashboardView: View {
 
     private var todayMeals: [MealLog] { meals.filter { $0.date.isToday } }
 
+    private var faceCheckedInToday: Bool {
+        appearanceCheckIns.contains { $0.kind == .face && $0.date.isToday }
+    }
+    private var latestFaceCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .face } }
+    private var latestBodyCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .body } }
+    private var pendingSuggestionCount: Int {
+        appearanceSuggestions.filter { $0.status == .pending }.count
+    }
+    private var sessionsDueToday: [WorkoutScheduleSession] {
+        WorkoutScheduleGeneratorService.sessionsDue(schedules: workoutSchedules)
+    }
+
     private var maintenance: Double {
         guard let settings else { return 2400 }
         return Analytics.estimateMaintenance(settings: settings, weights: weights, meals: meals, steps: steps)
@@ -52,9 +70,11 @@ struct DashboardView: View {
             VStack(spacing: 14) {
                 header
                 quickActions
+                checklistCard
                 calorieCard
                 macroCard
                 activityCard
+                looksCard
                 trendCard
                 if let goal {
                     goalSnippet(goal)
@@ -66,6 +86,7 @@ struct DashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .refreshable { await healthKit.sync(context: context) }
+        .task { await refreshReminderSchedules() }
         .navigationTitle("Today")
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
@@ -79,6 +100,23 @@ struct DashboardView: View {
             Button("Cancel", role: .cancel) {}
         }
         .sensoryFeedback(.selection, trigger: actionTick)
+    }
+
+    /// Keep the rolling 14-day local reminder windows topped up. Never prompts
+    /// for permission — NotificationService skips scheduling if not authorized.
+    private func refreshReminderSchedules() async {
+        guard let settings else { return }
+        await NotificationService.refreshFaceReminders(
+            enabled: settings.faceReminderEnabled,
+            hour: settings.faceReminderHour,
+            minute: settings.faceReminderMinute,
+            faceCheckedInToday: faceCheckedInToday)
+        for schedule in workoutSchedules where schedule.isActive {
+            await NotificationService.refreshWorkoutReminders(
+                schedule: schedule,
+                enabled: settings.workoutRemindersEnabled,
+                offsetMinutes: settings.defaultWorkoutReminderMinutes)
+        }
     }
 
     private func saveWeight() {
@@ -287,6 +325,47 @@ struct DashboardView: View {
                 StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)")
             }
         }
+    }
+
+    private var checklistCard: some View {
+        DailyChecklistCard(
+            items: checklistItems,
+            faceCheckedInToday: faceCheckedInToday,
+            sessionsDueToday: sessionsDueToday,
+            completedWorkouts: completedWorkouts,
+            onStartSession: { session in
+                actionTick += 1
+                activeWorkout = WorkoutScheduleGeneratorService.workout(
+                    for: session, existingWorkouts: allWorkouts, context: context)
+            })
+    }
+
+    private var looksCard: some View {
+        NavigationLink(destination: LooksDashboardView()) {
+            DashboardCard(title: "Looks", systemImage: "sparkles") {
+                HStack {
+                    StatChip(label: "Face",
+                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                    StatChip(label: "Body",
+                             value: latestBodyCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                    StatChip(label: "Streak",
+                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "—")
+                    StatChip(label: "Suggestions",
+                             value: "\(pendingSuggestionCount)",
+                             color: pendingSuggestionCount > 0 ? .orange : .primary)
+                }
+                if appearanceCheckIns.isEmpty {
+                    Text("Track face and body scores from daily photos and your existing body data.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .buttonStyle(.pressable)
+    }
+
+    private var appearanceStreak: Int {
+        AppearanceScoringService.faceStreak(history: appearanceCheckIns)
     }
 
     private var trendCard: some View {

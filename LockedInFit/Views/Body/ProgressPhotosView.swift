@@ -7,10 +7,19 @@ struct ProgressPhotosView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \ProgressPhoto.date, order: .reverse) private var photos: [ProgressPhoto]
     @State private var showNew = false
+    @State private var showBodyCheckIn = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
+                Button { showBodyCheckIn = true } label: {
+                    Label("Body Check-In (with score)", systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.bordered)
+
                 if photos.isEmpty {
                     EmptyStateView(systemImage: "photo.on.rectangle", title: "No progress photos yet",
                                    message: "Take front, side, and back photos every few weeks. The scale lies; photos don't.")
@@ -38,6 +47,7 @@ struct ProgressPhotosView: View {
             Button { showNew = true } label: { Image(systemName: "plus") }
         }
         .sheet(isPresented: $showNew) { NewProgressPhotoView() }
+        .sheet(isPresented: $showBodyCheckIn) { BodyCheckInView() }
     }
 }
 
