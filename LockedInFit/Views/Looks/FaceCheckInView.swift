@@ -66,7 +66,7 @@ struct FaceCheckInView: View {
         .onChange(of: pickerItem) {
             Task {
                 if let data = try? await pickerItem?.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
+                   let image = UIImage.downsampled(from: data, maxDimension: 1600) {
                     viewModel.faceImage = image
                     await viewModel.validateFacePhoto()
                 }

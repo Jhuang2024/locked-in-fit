@@ -127,7 +127,7 @@ struct PhotoSlotPicker: View {
         .onChange(of: pickerItem) {
             Task {
                 if let data = try? await pickerItem?.loadTransferable(type: Data.self) {
-                    image = UIImage(data: data)
+                    image = UIImage.downsampled(from: data, maxDimension: 1600)
                 }
             }
         }

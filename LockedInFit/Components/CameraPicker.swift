@@ -24,7 +24,10 @@ struct CameraPicker: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController,
                                    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage {
-                parent.onImage(image)
+                // Camera photos decode at full sensor resolution (12MP+, tens
+                // of MB); shrink immediately so holding several at once
+                // (e.g. front/side/back body photos) doesn't risk an OOM crash.
+                parent.onImage(image.resized(maxDimension: 1600))
             }
             parent.dismiss()
         }

@@ -32,13 +32,14 @@ struct LockedInFitApp: App {
 }
 
 struct RootTabView: View {
-    private enum Tab: Hashable { case today, log, train, trends, settings }
+    private enum Tab: Hashable { case today, log, train, looks, trends, settings }
 
     @State private var selection: Tab = .today
     // Each tab owns its own navigation stack so tabs never share nested state.
     @State private var todayPath = NavigationPath()
     @State private var logPath = NavigationPath()
     @State private var trainPath = NavigationPath()
+    @State private var looksPath = NavigationPath()
     @State private var trendsPath = NavigationPath()
     @State private var settingsPath = NavigationPath()
 
@@ -58,6 +59,7 @@ struct RootTabView: View {
         case .today: todayPath = NavigationPath()
         case .log: logPath = NavigationPath()
         case .train: trainPath = NavigationPath()
+        case .looks: looksPath = NavigationPath()
         case .trends: trendsPath = NavigationPath()
         case .settings: settingsPath = NavigationPath()
         }
@@ -74,6 +76,9 @@ struct RootTabView: View {
             NavigationStack(path: $trainPath) { WorkoutDashboardView() }
                 .tabItem { Label("Train", systemImage: "dumbbell") }
                 .tag(Tab.train)
+            NavigationStack(path: $looksPath) { LooksDashboardView() }
+                .tabItem { Label("Looks", systemImage: "sparkles") }
+                .tag(Tab.looks)
             NavigationStack(path: $trendsPath) { TrendsHomeView() }
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
                 .tag(Tab.trends)

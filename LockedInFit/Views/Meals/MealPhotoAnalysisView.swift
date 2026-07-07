@@ -129,7 +129,7 @@ struct MealPhotoAnalysisView: View {
         .onChange(of: photoItem) {
             Task {
                 if let data = try? await photoItem?.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
+                   let image = UIImage.downsampled(from: data, maxDimension: 1600) {
                     model.image = image
                     model.phase = .ready
                 }
