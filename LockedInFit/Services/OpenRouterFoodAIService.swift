@@ -59,7 +59,7 @@ struct OpenRouterFoodAIService: FoodAIService {
 
     private static let systemPromptText = """
     You are estimating calories and macros from a plain-text description of a meal for a private \
-    nutrition tracker. Return strict JSON only — no markdown, no code fences, no commentary. \
+    nutrition tracker. Return strict JSON only; no markdown, no code fences, no commentary. \
     Infer typical portion sizes when the description doesn't state them. Estimate conservatively and \
     honestly. Account for hidden cooking oil, especially in home-cooked or restaurant foods (stir-fried \
     vegetables like eggplant absorb large amounts of oil; noodles and sauced rice dishes carry sauce oil; \

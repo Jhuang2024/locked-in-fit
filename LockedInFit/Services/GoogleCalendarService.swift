@@ -45,7 +45,7 @@ struct CalendarEventPayload {
 ///
 /// Auth: OAuth 2.0 with PKCE through ASWebAuthenticationSession (the
 /// system-browser flow Google requires for native apps). No client secret is
-/// used or stored — iOS OAuth clients don't have one. Tokens live only in the
+/// used or stored; iOS OAuth clients don't have one. Tokens live only in the
 /// Keychain; SwiftData stores connection metadata (CalendarConnectionState).
 /// Scope is the narrowest useful one: calendar.events (+ email for display).
 @Observable
@@ -63,7 +63,7 @@ final class GoogleCalendarService: NSObject {
     private static let emailAccount = "google_account_email"
 
     private(set) var isAuthenticating = false
-    /// Strong reference for the duration of the browser flow — the session is
+    /// Strong reference for the duration of the browser flow; the session is
     /// dismissed immediately if it deallocates while presented.
     @ObservationIgnored private var activeAuthSession: ASWebAuthenticationSession?
 
@@ -101,13 +101,13 @@ final class GoogleCalendarService: NSObject {
         let scheme = Self.reversedClientScheme(clientID: clientID)
         // ASWebAuthenticationSession crashes the whole process (uncaught
         // NSInvalidArgumentException) if callbackURLScheme isn't a valid URI
-        // scheme — which happens whenever the pasted Client ID doesn't match
+        // scheme, which happens whenever the pasted Client ID doesn't match
         // Google's "NNN-xxx.apps.googleusercontent.com" shape. Validate first
         // so a malformed paste surfaces as a friendly error instead of a crash.
         guard Self.isValidURLScheme(scheme) else {
             throw GoogleCalendarError.api("""
             That doesn't look like a valid iOS OAuth Client ID. It should look like \
-            "123456789-abc123.apps.googleusercontent.com" — copy it from Google Cloud \
+            "123456789-abc123.apps.googleusercontent.com"; copy it from Google Cloud \
             Console → APIs & Services → Credentials.
             """)
         }
