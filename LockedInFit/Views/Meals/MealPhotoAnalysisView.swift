@@ -22,6 +22,7 @@ struct MealPhotoAnalysisView: View {
                 if let draft {
                     MealDraftEditor(meal: draft, providerUsed: model.providerUsed) {
                         context.insert(draft)
+                        MealNutritionAnalysisRunner.analyzeInBackground(meal: draft, settings: settings, context: context)
                         dismiss()
                     }
                 } else {

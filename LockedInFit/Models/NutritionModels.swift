@@ -20,12 +20,37 @@ final class MealLog {
     var notes: String = ""
     @Relationship(deleteRule: .cascade) var foodItems: [FoodItem]? = []
 
+    /// 0–100, 100 = healthiest. Only meaningful when analysisState is .completed.
+    var healthScore: Double = 0
+    /// 0–100, 100 = most filling for its calorie cost.
+    var satietyScore: Double = 0
+    var factsRaw: [String] = []
+    var concernsRaw: [String] = []
+    var analysisSummary: String = ""
+    /// Missing on entries logged before this feature existed; defaults to
+    /// .notAnalyzed so old rows just show "Not analyzed" instead of crashing.
+    var analysisStateRaw: String = MealAnalysisState.notAnalyzed.rawValue
+
     var mealType: MealType {
         get { MealType(rawValue: mealTypeRaw) ?? .snack }
         set { mealTypeRaw = newValue.rawValue }
     }
 
     var items: [FoodItem] { foodItems ?? [] }
+
+    var facts: [String] {
+        get { factsRaw }
+        set { factsRaw = newValue }
+    }
+    var concerns: [String] {
+        get { concernsRaw }
+        set { concernsRaw = newValue }
+    }
+    var analysisState: MealAnalysisState {
+        get { MealAnalysisState(rawValue: analysisStateRaw) ?? .notAnalyzed }
+        set { analysisStateRaw = newValue.rawValue }
+    }
+    var isAnalyzed: Bool { analysisState == .completed }
 
     /// Midpoint of the hidden-oil range; the single value calorie math applies.
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
@@ -59,7 +84,13 @@ final class MealLog {
          hiddenOilLow: Double = 0,
          hiddenOilHigh: Double = 0,
          notes: String = "",
-         foodItems: [FoodItem] = []) {
+         foodItems: [FoodItem] = [],
+         healthScore: Double = 0,
+         satietyScore: Double = 0,
+         facts: [String] = [],
+         concerns: [String] = [],
+         analysisSummary: String = "",
+         analysisState: MealAnalysisState = .notAnalyzed) {
         self.date = date
         self.mealTypeRaw = mealType.rawValue
         self.photoPath = photoPath
@@ -76,6 +107,12 @@ final class MealLog {
         self.hiddenOilHigh = hiddenOilHigh
         self.notes = notes
         self.foodItems = foodItems
+        self.healthScore = healthScore
+        self.satietyScore = satietyScore
+        self.factsRaw = facts
+        self.concernsRaw = concerns
+        self.analysisSummary = analysisSummary
+        self.analysisStateRaw = analysisState.rawValue
     }
 }
 

@@ -193,6 +193,7 @@ struct AddMealView: View {
                            hiddenOilLow: oil.low, hiddenOilHigh: oil.high,
                            notes: notes, foodItems: addedItems)
         context.insert(meal)
+        MealNutritionAnalysisRunner.analyzeInBackground(meal: meal, settings: settings, context: context)
         dismiss()
     }
 }

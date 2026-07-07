@@ -102,8 +102,11 @@ struct DailyLogView: View {
                     ForEach(MealType.allCases) { type in
                         let mealsOfType = dayMeals.filter { $0.mealType == type }
                         ForEach(mealsOfType) { meal in
-                            NavigationLink(destination: MealDetailView(meal: meal)) {
-                                MealRowView(meal: meal)
+                            VStack(alignment: .leading, spacing: 8) {
+                                NavigationLink(destination: MealDetailView(meal: meal)) {
+                                    MealRowView(meal: meal)
+                                }
+                                MealNutritionAnalysisView(meal: meal, settings: settingsList.first)
                             }
                         }
                         .onDelete { offsets in
