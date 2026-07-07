@@ -7,6 +7,7 @@ struct WorkoutLogView: View {
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query private var strengthScores: [StrengthScore]
     @Query(filter: #Predicate<Workout> { !$0.isTemplate }) private var allWorkouts: [Workout]
+    @Query private var settingsList: [UserSettings]
 
     @Bindable var workout: Workout
     /// `.log` drives a live logging session (with a Finish button); `.edit`
@@ -16,6 +17,12 @@ struct WorkoutLogView: View {
     @State private var prMessages: [String] = []
     @State private var showPRCelebration = false
     @State private var showAddExercise = false
+    @State private var workoutDescription = ""
+    @State private var estimating = false
+    @State private var estimateError: String?
+    @State private var lastEstimate: WorkoutEstimate?
+
+    private var settings: UserSettings? { settingsList.first }
 
     enum Mode { case log, edit }
 
@@ -64,6 +71,42 @@ struct WorkoutLogView: View {
                     .disabled(workout.completed)
                 }
             }
+
+            Section("Calories Burned") {
+                HStack {
+                    Text("Calories")
+                    Spacer()
+                    TextField("kcal", value: $workout.caloriesBurned, format: .number)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("kcal").font(.caption).foregroundStyle(.secondary)
+                }
+                TextField("Describe the workout for a calorie estimate", text: $workoutDescription, axis: .vertical)
+                    .font(.subheadline)
+                Button {
+                    estimateCalories()
+                } label: {
+                    if estimating {
+                        HStack { ProgressView(); Text("Estimating…") }
+                    } else {
+                        Label("Estimate from Description", systemImage: "sparkles")
+                    }
+                }
+                .disabled(estimating || workoutDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if let lastEstimate {
+                    Text("\(Int(lastEstimate.confidence * 100))% confidence, \(lastEstimate.intensity) intensity. \(lastEstimate.notes)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if let estimateError {
+                    Text(estimateError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            } footer: {
+                Text("Left at 0, a finished workout gets a default estimate from its duration and type.")
+            }
         }
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -86,6 +129,9 @@ struct WorkoutLogView: View {
 
     private func finishWorkout() {
         workout.completed = true
+        if workout.caloriesBurned <= 0 {
+            workout.caloriesBurned = ActivityAdjustmentCalculator.estimatedWorkoutCalories(workout)
+        }
         detectPRs()
         let bodyweight = weights.last?.weightKg ?? 75
         StrengthScoreCalculator.recompute(workouts: allWorkouts, bodyWeightKg: bodyweight,
@@ -112,6 +158,25 @@ struct WorkoutLogView: View {
             }
         }
         if !prMessages.isEmpty { showPRCelebration = true }
+    }
+
+    private func estimateCalories() {
+        let text = workoutDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        estimating = true
+        estimateError = nil
+        Task {
+            defer { estimating = false }
+            do {
+                let service = AIServiceFactory.makeWorkout(settings: settings)
+                let analysisContext = WorkoutAnalysisContext(workoutType: workout.type, durationMinutes: workout.duration)
+                let estimate = try await service.analyzeWorkout(description: text, context: analysisContext)
+                workout.caloriesBurned = estimate.estimatedCalories
+                lastEstimate = estimate
+            } catch {
+                estimateError = error.localizedDescription
+            }
+        }
     }
 }
 

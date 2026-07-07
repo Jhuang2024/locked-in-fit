@@ -57,7 +57,7 @@ enum ActivityAdjustmentCalculator {
         let stepCalories = Double(stepCount) * 0.04
         let workoutCalories = workouts
             .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
-            .reduce(0) { $0 + estimatedWorkoutCalories($1) }
+            .reduce(0) { $0 + Self.workoutCalories($1) }
         let total = stepCalories + workoutCalories
 
         return ActivityAdjustmentSummary(
@@ -67,6 +67,13 @@ enum ActivityAdjustmentCalculator {
             sourceLabel: "Estimated from steps and workouts",
             isEstimated: total > 0
         )
+    }
+
+    /// The calories a specific logged workout burned: its own stored value
+    /// (manually entered, or from an AI description estimate) when set,
+    /// otherwise the duration/type/RPE heuristic as a default.
+    static func workoutCalories(_ workout: Workout) -> Double {
+        workout.caloriesBurned > 0 ? workout.caloriesBurned : estimatedWorkoutCalories(workout)
     }
 
     static func estimatedWorkoutCalories(_ workout: Workout) -> Double {
@@ -98,19 +105,25 @@ struct CalorieRemainingSummary {
     let adjustedTarget: Double
     let eaten: Double
     let exerciseAdjustment: Double
+    /// Thermic effect of food from what's been eaten today: calories burned
+    /// digesting, added back to what's left to eat. Zero when the user has
+    /// turned off "Account for TEF" in Settings.
+    let tefCalories: Double
     let remaining: Double
 }
 
 enum CalorieRemainingCalculator {
     static func summary(baseTarget: Double,
                         caloriesEaten: Double,
-                        activityAdjustment: ActivityAdjustmentSummary) -> CalorieRemainingSummary {
-        let adjustedTarget = baseTarget + activityAdjustment.adjustmentCalories
+                        activityAdjustment: ActivityAdjustmentSummary,
+                        tefCalories: Double = 0) -> CalorieRemainingSummary {
+        let adjustedTarget = baseTarget + activityAdjustment.adjustmentCalories + tefCalories
         return CalorieRemainingSummary(
             baseTarget: baseTarget,
             adjustedTarget: adjustedTarget,
             eaten: caloriesEaten,
             exerciseAdjustment: activityAdjustment.adjustmentCalories,
+            tefCalories: tefCalories,
             remaining: adjustedTarget - caloriesEaten
         )
     }
@@ -150,10 +163,14 @@ struct DashboardViewModel {
             workouts: workouts,
             adjustment: adjustmentMode
         )
+        let tefCalories = (settings?.applyTEF ?? true)
+            ? NutritionCalculator.tef(protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat)
+            : 0
         let calories = CalorieRemainingCalculator.summary(
             baseTarget: baseTarget,
             caloriesEaten: nutrition.calories,
-            activityAdjustment: activity
+            activityAdjustment: activity,
+            tefCalories: tefCalories
         )
         let todaySteps = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
         let todayWorkouts = workouts.filter {

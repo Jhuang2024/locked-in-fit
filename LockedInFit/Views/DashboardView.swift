@@ -267,12 +267,20 @@ struct DashboardView: View {
                 HStack {
                     StatChip(label: "Eaten", value: "\(Int(viewModel.nutrition.calories))")
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
-                    StatChip(label: "Adjustment", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
+                }
+                HStack {
+                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
                 }
                 Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if viewModel.calories.tefCalories > 0 {
+                    Label("TEF adds +\(Int(viewModel.calories.tefCalories)) kcal to today's target from digesting what you've already eaten.", systemImage: "flame.fill")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                }
                 if viewModel.nutrition.hiddenOilHigh > 0 {
                     Label("Hidden oil could add +\(Int(viewModel.nutrition.hiddenOilLow))-\(Int(viewModel.nutrition.hiddenOilHigh)) kcal today", systemImage: "drop.fill")
                         .font(.caption)
