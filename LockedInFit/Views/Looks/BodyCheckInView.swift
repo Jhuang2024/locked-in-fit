@@ -71,7 +71,7 @@ struct BodyCheckInView: View {
         VStack(spacing: 14) {
             DashboardCard(title: "Private by Default", systemImage: "lock") {
                 Text(usesOpenRouter
-                     ? "Photos stay on your device and also save to your Progress Photos timeline. With OpenRouter enabled, they're additionally sent to your chosen model for optional observations — nothing is saved until you review."
+                     ? "Photos stay on your device and also save to your Progress Photos timeline. With OpenRouter enabled, they're additionally sent to your chosen model for optional observations; nothing is saved until you review."
                      : "Photos stay on your device and also save to your Progress Photos timeline. Analysis runs locally; nothing is saved until you review.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -120,10 +120,10 @@ struct BodyCheckInView: View {
                         missingHint: "Log a weigh-in for composition scoring.")
                 dataRow(label: "Body fat",
                         value: bodyFats.last.map { "\(Formatters.trimmed($0.bodyFatPercentage))%" },
-                        missingHint: "Missing — score will be composition-limited with lower confidence.")
+                        missingHint: "Missing; score will be composition-limited with lower confidence.")
                 dataRow(label: "Height",
                         value: heightLooksDefault ? nil : settings.map { "\(Formatters.trimmed($0.heightCm)) cm" },
-                        missingHint: "Looks unset — update it in Settings → Profile for the lean-mass component.")
+                        missingHint: "Looks unset; update it in Settings → Profile for the lean-mass component.")
                 dataRow(label: "Workouts (28d)",
                         value: "\(completedWorkouts.filter { $0.date > Date().daysAgo(28) }.count)",
                         missingHint: "")
@@ -167,7 +167,7 @@ struct BodyCheckInView: View {
                                 .foregroundStyle(.orange)
                         }
                         if result.leannessGuard {
-                            Label("Leanness is not the limiter — no cut advice given", systemImage: "shield.checkered")
+                            Label("Leanness is not the limiter; no cut advice given", systemImage: "shield.checkered")
                                 .font(.caption2)
                                 .foregroundStyle(.teal)
                         }
@@ -181,9 +181,8 @@ struct BodyCheckInView: View {
                     breakdownRow("Composition", result.composition, 40)
                     breakdownRow("Lean mass proxy", result.leanMass, 15)
                     breakdownRow("Training consistency", result.training, 15)
-                    breakdownRow("Photo/posture", result.photoPosture, 15)
-                    breakdownRow("Trend vs goal", result.trendDirection, 10)
-                    breakdownRow("Photo quality", result.quality, 5)
+                    breakdownRow("Photo coverage", result.photoPosture, 15)
+                    breakdownRow("Trend vs goal", result.trendDirection, 15)
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(result.explanations, id: \.self) { line in
@@ -197,8 +196,13 @@ struct BodyCheckInView: View {
             }
 
             if let ai = viewModel.aiResult, !ai.observations.isEmpty {
-                DashboardCard(title: "AI Observations", systemImage: "sparkles") {
+                DashboardCard(title: ai.isUnableToAssess ? "AI Couldn't Assess This Photo" : "AI Observations", systemImage: "sparkles") {
                     VStack(alignment: .leading, spacing: 5) {
+                        if ai.isUnableToAssess {
+                            Text("Your local score above stands on its own — nothing here was penalized for it.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                         ForEach(ai.observations, id: \.self) { line in
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)
@@ -213,7 +217,7 @@ struct BodyCheckInView: View {
             }
 
             DashboardCard(title: "Notes", systemImage: "note.text") {
-                TextField("Optional — pump status, time of day…", text: $viewModel.notes, axis: .vertical)
+                TextField("Optional: pump status, time of day…", text: $viewModel.notes, axis: .vertical)
                     .font(.subheadline)
             }
 
@@ -251,7 +255,8 @@ struct BodyCheckInView: View {
     // MARK: - Inputs / save
 
     private var scoreInputs: AppearanceScoringService.BodyScoreInputs {
-        AppearanceScoringService.BodyScoreInputs(
+        let (hitDays, trackedDays) = recentProteinAdherence
+        return AppearanceScoringService.BodyScoreInputs(
             latestWeightKg: weights.last?.weightKg,
             latestBodyFatPercent: bodyFats.last?.bodyFatPercentage,
             heightCm: heightLooksDefault ? nil : settings?.heightCm,
@@ -260,7 +265,27 @@ struct BodyCheckInView: View {
             workouts: completedWorkouts,
             weights: weights,
             photoCount: viewModel.bodyImages.count,
-            photoQuality: viewModel.bodyImages.isEmpty ? 0 : 0.7)
+            recentProteinHitDays: hitDays,
+            recentProteinTrackedDays: trackedDays)
+    }
+
+    /// Days in the last 14 with a protein target hit, out of days with any
+    /// meal logged — connects nutrition consistency into the body-score
+    /// narrative. `nil`/`nil` when there's too little logged data to mean anything.
+    private var recentProteinAdherence: (hit: Int?, tracked: Int?) {
+        guard let target = activeGoals.first?.proteinTarget, target > 0 else { return (nil, nil) }
+        let calendar = Calendar.current
+        var hitDays = 0
+        var trackedDays = 0
+        for offset in 0..<14 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
+            let dayMeals = meals.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            guard !dayMeals.isEmpty else { continue }
+            trackedDays += 1
+            if dayMeals.reduce(0, { $0 + $1.protein }) >= target { hitDays += 1 }
+        }
+        guard trackedDays >= 3 else { return (nil, nil) }
+        return (hitDays, trackedDays)
     }
 
     private var suggestionContext: SuggestionGenerationService.Context {
@@ -287,7 +312,7 @@ struct BodyCheckInView: View {
                 notes: "Body check-in · score \(Int(checkIn.totalScore))/100")
             context.insert(progressPhoto)
         }
-        if viewModel.draftSuggestions.isEmpty {
+        if viewModel.insertedSuggestionCount == 0 {
             dismiss()
         } else {
             showSuggestionReview = true

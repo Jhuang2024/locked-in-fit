@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @Query(sort: \BodyFatEntry.date) private var bodyFats: [BodyFatEntry]
     @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
     @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
@@ -19,6 +20,7 @@ struct DashboardView: View {
     @Query private var appearanceSuggestions: [AppearanceSuggestion]
     @Query private var checklistItems: [DailyChecklistItem]
     @Query private var workoutSchedules: [WorkoutSchedule]
+    @Query(sort: \SleepLog.date, order: .reverse) private var sleepLogs: [SleepLog]
 
     @State private var showAddMeal = false
     @State private var showPhotoAnalysis = false
@@ -27,6 +29,7 @@ struct DashboardView: View {
     @State private var healthKit = HealthKitManager.shared
     @State private var activeWorkout: Workout?
     @State private var actionTick = 0
+    @State private var showCalorieDetails = false
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -43,18 +46,62 @@ struct DashboardView: View {
     }
 
     private var todayMeals: [MealLog] { meals.filter { $0.date.isToday } }
+    private var loggedMealTypesToday: Set<MealType> { Set(todayMeals.map(\.mealType)) }
+
+    private var dueChecklistItemsToday: [DailyChecklistItem] { DailyChecklistService.dueItems(checklistItems) }
+    private var openChecklistItemsExcludingSleep: [DailyChecklistItem] {
+        DailyChecklistService.openItemsExcludingSleep(checklistItems)
+    }
+    private var sleepItemDueIncomplete: Bool {
+        DailyChecklistService.sleepItemDueIncomplete(checklistItems)
+    }
+    private var sleepChecklistItemsDueToday: [DailyChecklistItem] {
+        dueChecklistItemsToday.filter { $0.category == .sleep }
+    }
+    /// Once real sleep tracking is in use, "sleep goal hit" means today's
+    /// night was actually logged — that's the real signal now available.
+    /// Falls back to the sleep-category checklist proxy for anyone who
+    /// hasn't logged a night yet, so the achievement still means something
+    /// either way instead of going silent.
+    private var sleepGoalHitToday: Bool {
+        if !sleepLogs.isEmpty {
+            return sleepLogs.contains { $0.date.isToday }
+        }
+        return !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
+    }
+    /// Only counts as "complete" when there's an actual looks/body/face
+    /// checklist item beyond the mandatory face photo — otherwise this would
+    /// fire every single day just for taking the daily face photo.
+    private var looksChecklistCompleteToday: Bool {
+        let looksItems = dueChecklistItemsToday.filter { [.looks, .body, .face].contains($0.category) }
+        return faceCheckedInToday && !looksItems.isEmpty && looksItems.allSatisfy { DailyChecklistService.isCompleted($0) }
+    }
 
     private var faceCheckedInToday: Bool {
         appearanceCheckIns.contains { $0.kind == .face && $0.date.isToday }
     }
     private var latestFaceCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .face } }
     private var latestBodyCheckIn: AppearanceCheckIn? { appearanceCheckIns.first { $0.kind == .body } }
+    /// Falls back to a composition-only score (weight/body fat) when the user
+    /// hasn't run a body check-in yet, so a body score exists without a photo.
+    private var liveBodyScore: AppearanceScoringService.BodyScoreResult? {
+        AppearanceScoringService.liveBodyScore(weights: weights, bodyFats: bodyFats, workouts: completedWorkouts, settings: settings, goal: goal)
+    }
+    private var displayedBodyScore: Double? {
+        AppearanceScoringService.effectiveBodyScore(checkIn: latestBodyCheckIn, live: liveBodyScore)
+    }
+    /// Same formula the Looks page uses for its "Combined" ring, so the two never disagree.
+    private var overallLooksScore: Double? {
+        AppearanceScoringService.combinedScore(face: latestFaceCheckIn, body: latestBodyCheckIn, liveBody: liveBodyScore)
+    }
     private var pendingSuggestionCount: Int {
         appearanceSuggestions.filter { $0.status == .pending }.count
     }
     private var sessionsDueToday: [WorkoutScheduleSession] {
         WorkoutScheduleGeneratorService.sessionsDue(schedules: workoutSchedules)
     }
+    private var latestSleepLog: SleepLog? { sleepLogs.first }
+    private var sleepStreak: Int { SleepScoringService.streak(history: sleepLogs) }
 
     private var maintenance: Double {
         guard let settings else { return 2400 }
@@ -66,8 +113,46 @@ struct DashboardView: View {
     private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
+        dashboardScrollView
+            .background(Color(.systemGroupedBackground))
+            .refreshable {
+                await healthKit.sync(context: context)
+                await refreshReminderSchedules()
+            }
+            .task { await refreshReminderSchedules() }
+            .onChange(of: meals) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: completedWorkouts) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: checklistItems) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: steps) { _, _ in Task { await refreshReminderSchedules() } }
+            .onChange(of: appearanceCheckIns) { _, _ in Task { await refreshReminderSchedules() } }
+            .navigationTitle("Today")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddMeal) { AddMealView() }
+            .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+            .sheet(item: $activeWorkout) { workout in
+                NavigationStack { WorkoutLogView(workout: workout) }
+            }
+            .alert("Log Weigh-In", isPresented: $showLogWeight) {
+                TextField("Weight (kg)", text: $newWeight)
+                    .keyboardType(.decimalPad)
+                Button("Save") { saveWeight() }
+                Button("Cancel", role: .cancel) {}
+            }
+            .sensoryFeedback(.selection, trigger: actionTick)
+    }
+
+    /// Split out of `body` so the view tree and the long modifier chain above
+    /// aren't type-checked as one combined expression — that combination is
+    /// what was blowing past the compiler's time limit.
+    private var dashboardScrollView: some View {
         ScrollView {
-            VStack(spacing: 14) {
+            VStack(spacing: 10) {
                 header
                 quickActions
                 checklistCard
@@ -75,35 +160,27 @@ struct DashboardView: View {
                 macroCard
                 activityCard
                 looksCard
+                sleepCard
                 trendCard
-                if let goal {
-                    goalSnippet(goal)
-                }
+                goalSnippetIfPresent
                 mealsCard
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
-        .refreshable { await healthKit.sync(context: context) }
-        .task { await refreshReminderSchedules() }
-        .navigationTitle("Today")
-        .sheet(isPresented: $showAddMeal) { AddMealView() }
-        .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
-        .sheet(item: $activeWorkout) { workout in
-            NavigationStack { WorkoutLogView(workout: workout) }
-        }
-        .alert("Log Weigh-In", isPresented: $showLogWeight) {
-            TextField("Weight (kg)", text: $newWeight)
-                .keyboardType(.decimalPad)
-            Button("Save") { saveWeight() }
-            Button("Cancel", role: .cancel) {}
-        }
-        .sensoryFeedback(.selection, trigger: actionTick)
     }
 
-    /// Keep the rolling 14-day local reminder windows topped up. Never prompts
-    /// for permission — NotificationService skips scheduling if not authorized.
+    @ViewBuilder
+    private var goalSnippetIfPresent: some View {
+        if let goal {
+            goalSnippet(goal)
+        }
+    }
+
+    /// Keep the rolling reminder windows topped up and re-check dietary/goal
+    /// events. Never prompts for permission; NotificationService skips
+    /// scheduling if not authorized. Runs on appear and whenever today's
+    /// logs change, so it survives normal navigation and data updates.
     private func refreshReminderSchedules() async {
         guard let settings else { return }
         await NotificationService.refreshFaceReminders(
@@ -117,6 +194,62 @@ struct DashboardView: View {
                 enabled: settings.workoutRemindersEnabled,
                 offsetMinutes: settings.defaultWorkoutReminderMinutes)
         }
+        await NotificationService.refreshMealReminders(
+            enabled: settings.mealReminderEnabled,
+            loggedMealTypesToday: loggedMealTypesToday)
+        await NotificationService.refreshSleepReminder(
+            enabled: settings.sleepReminderEnabled,
+            hour: settings.sleepReminderHour,
+            minute: settings.sleepReminderMinute,
+            dueAndIncomplete: sleepItemDueIncomplete)
+        await NotificationService.refreshChecklistDigest(
+            enabled: settings.checklistReminderEnabled,
+            hour: 18, minute: 0,
+            openCount: openChecklistItemsExcludingSleep.count)
+
+        await evaluateNotificationEvents(settings: settings)
+    }
+
+    /// Shared with the checklist's dietary-watch banner below, so the push
+    /// alert and the on-screen warning are always computed from the same numbers.
+    private var notificationInputs: NotificationRulesEngine.Inputs {
+        NotificationRulesEngine.Inputs(
+            nutrition: viewModel.nutrition,
+            eaten: viewModel.calories.eaten,
+            calorieTarget: calorieTarget,
+            adjustedCalorieTarget: viewModel.calories.adjustedTarget,
+            proteinTarget: proteinTarget,
+            sodiumLimit: sodiumLimit,
+            stepsToday: viewModel.stepsToday,
+            stepTarget: viewModel.stepTarget,
+            completedWorkoutsToday: viewModel.completedWorkoutsToday,
+            now: .now)
+    }
+
+    /// Dietary-limit and goal-achievement alerts fire immediately when
+    /// crossed, but NotificationService.fireOnce ensures each one only
+    /// reaches the user once per day.
+    private func evaluateNotificationEvents(settings: UserSettings) async {
+        let input = notificationInputs
+        var events: [NotificationService.NotificationEvent] = []
+        if settings.dietaryLimitAlertsEnabled {
+            events += NotificationRulesEngine.dietaryEvents(input)
+        }
+        if settings.goalAlertsEnabled {
+            events += NotificationRulesEngine.goalEvents(
+                input, sleepGoalHit: sleepGoalHitToday, looksChecklistComplete: looksChecklistCompleteToday)
+        }
+        await NotificationService.fireOnce(events, settings: settings)
+    }
+
+    /// Same dietary events as the push notifications, shown inline on
+    /// Today's Checklist so limits are visible where the user is already
+    /// looking, not just in an alert that already fired. Guarded the same
+    /// way as evaluateNotificationEvents (no settings row yet → neither
+    /// surface fires) so the two never disagree.
+    private var dietaryWatchLines: [String] {
+        guard let settings, settings.dietaryLimitAlertsEnabled else { return [] }
+        return NotificationRulesEngine.dietaryEvents(notificationInputs).map { "\($0.title): \($0.body)" }
     }
 
     private func saveWeight() {
@@ -162,7 +295,7 @@ struct DashboardView: View {
                 .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    scoreRow("Calories", done: viewModel.nutrition.calories > 0 && abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
+                    scoreRow("Calories", done: viewModel.calories.eaten > 0 && abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
                     scoreRow("Sodium \(Int(viewModel.nutrition.sodium))/\(Int(sodiumLimit))mg", done: viewModel.nutrition.sodium <= sodiumLimit)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
@@ -182,7 +315,10 @@ struct DashboardView: View {
             quickActionButton("Workout", systemImage: "dumbbell.fill") { createBlankWorkout() }
             quickActionButton("Weight", systemImage: "scalemass.fill") { showLogWeight = true }
             quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing, badge: healthKit.autoSyncEnabled) {
-                Task { await healthKit.sync(context: context) }
+                Task {
+                    await healthKit.sync(context: context)
+                    await refreshReminderSchedules()
+                }
             }
         }
     }
@@ -242,25 +378,49 @@ struct DashboardView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
-                ProgressView(value: min(viewModel.nutrition.calories, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
-                    .tint(viewModel.nutrition.calories > viewModel.calories.adjustedTarget ? .red : .accentColor)
+                ProgressView(value: min(viewModel.calories.eaten, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
+                    .tint(viewModel.calories.eaten > viewModel.calories.adjustedTarget ? .red : .accentColor)
                 HStack {
-                    StatChip(label: "Eaten", value: "\(Int(viewModel.nutrition.calories))")
+                    StatChip(label: "Eaten", value: "\(Int(viewModel.calories.eaten))")
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
-                    StatChip(label: "Adjustment", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
-                Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if viewModel.nutrition.hiddenOilHigh > 0 {
-                    Label("Hidden oil could add +\(Int(viewModel.nutrition.hiddenOilLow))-\(Int(viewModel.nutrition.hiddenOilHigh)) kcal today", systemImage: "drop.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                HStack {
+                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
+                    StatChip(label: "Oil", value: "+\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                 }
-                Text("Estimated maintenance: \(Int(maintenance)) kcal")
-                    .font(.caption)
+                Button {
+                    withAnimation(.snappy) { showCalorieDetails.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(showCalorieDetails ? "Hide details" : "Why this target?")
+                        Image(systemName: showCalorieDetails ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                if showCalorieDetails {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(adjustmentLabel, systemImage: viewModel.activity.isEstimated ? "waveform.path.ecg" : "heart.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if viewModel.calories.tefCalories > 0 {
+                            Label("TEF adds +\(Int(viewModel.calories.tefCalories)) kcal to today's target from digesting what you've already eaten.", systemImage: "flame.fill")
+                                .font(.caption)
+                                .foregroundStyle(.purple)
+                        }
+                        if viewModel.nutrition.hiddenOilHigh > 0 {
+                            Label("Hidden oil adds +\(Int(viewModel.calories.hiddenOilCalories)) kcal to eaten (range +\(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        Text("Estimated maintenance: \(Int(maintenance)) kcal")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -304,8 +464,8 @@ struct DashboardView: View {
 
     private var sodiumColor: Color {
         let ratio = viewModel.nutrition.sodium / sodiumLimit
-        if ratio > 1 { return .red }
-        if ratio >= 0.8 { return .orange }
+        if ratio >= NotificationRulesEngine.exceededRatio { return .red }
+        if ratio >= NotificationRulesEngine.sodiumApproachingRatio { return .orange }
         return .green
     }
 
@@ -337,24 +497,34 @@ struct DashboardView: View {
                 actionTick += 1
                 activeWorkout = WorkoutScheduleGeneratorService.workout(
                     for: session, existingWorkouts: allWorkouts, context: context)
-            })
+            },
+            onToggle: { Task { await refreshReminderSchedules() } },
+            dietaryWatchLines: dietaryWatchLines)
     }
 
     private var looksCard: some View {
         NavigationLink(destination: LooksDashboardView()) {
             DashboardCard(title: "Looks", systemImage: "sparkles") {
                 HStack {
+                    StatChip(label: "Overall",
+                             value: overallLooksScore.map { "\(Int($0))" } ?? "N/A")
                     StatChip(label: "Face",
-                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "N/A")
                     StatChip(label: "Body",
-                             value: latestBodyCheckIn.map { "\(Int($0.totalScore))" } ?? "—")
+                             value: displayedBodyScore.map { "\(Int($0))" } ?? "N/A")
+                }
+                HStack {
                     StatChip(label: "Streak",
-                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "—")
+                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "N/A")
                     StatChip(label: "Suggestions",
                              value: "\(pendingSuggestionCount)",
                              color: pendingSuggestionCount > 0 ? .orange : .primary)
                 }
-                if appearanceCheckIns.isEmpty {
+                if latestBodyCheckIn == nil, liveBodyScore != nil {
+                    Text("Body score estimated from your logged weight and body fat. Add a body photo check-in for the full picture.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if appearanceCheckIns.isEmpty {
                     Text("Track face and body scores from daily photos and your existing body data.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -366,6 +536,27 @@ struct DashboardView: View {
 
     private var appearanceStreak: Int {
         AppearanceScoringService.faceStreak(history: appearanceCheckIns)
+    }
+
+    private var sleepCard: some View {
+        NavigationLink(destination: SleepDashboardView()) {
+            DashboardCard(title: "Sleep", systemImage: "bed.double.fill") {
+                HStack {
+                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore))" } ?? "N/A")
+                    StatChip(label: "Duration", value: latestSleepLog.map { "\(Formatters.trimmed($0.durationHours))h" } ?? "N/A")
+                    StatChip(label: "Wake-ups", value: latestSleepLog.map { "\($0.wakeUps)" } ?? "N/A")
+                }
+                HStack {
+                    StatChip(label: "Streak", value: sleepStreak > 0 ? "\(sleepStreak)d" : "N/A")
+                }
+                if sleepLogs.isEmpty {
+                    Text("Log your bedtime and wake time to start tracking your sleep score.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .buttonStyle(.pressable)
     }
 
     private var trendCard: some View {
@@ -387,8 +578,8 @@ struct DashboardView: View {
     }
 
     private var adherenceLabel: String {
-        guard viewModel.nutrition.calories > 0 else { return "No logs" }
-        let deviation = abs(viewModel.nutrition.calories - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
+        guard viewModel.calories.eaten > 0 else { return "No logs" }
+        let deviation = abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
         return deviation <= 0.1 ? "On track" : deviation <= 0.2 ? "Close" : "Review"
     }
 

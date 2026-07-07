@@ -12,7 +12,7 @@ enum SeedDataService {
     }
 
     /// One-time cleanup for blank "Workout" entries left behind by the quick-add
-    /// buttons before they opened the logger immediately — untitled, unedited,
+    /// buttons before they opened the logger immediately; untitled, unedited,
     /// no exercises, never completed. Runs once per install; later blank
     /// workouts a user is mid-way through filling in are left alone.
     static func clearEmptyWorkoutsIfNeeded(context: ModelContext) {

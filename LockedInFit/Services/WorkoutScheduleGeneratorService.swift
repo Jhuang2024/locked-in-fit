@@ -200,11 +200,11 @@ enum WorkoutScheduleGeneratorService {
     private static func exerciseNote(goal: WorkoutScheduleGoal, isCompound: Bool) -> String {
         switch goal {
         case .strength:
-            return isCompound ? "Add 2.5 kg once all sets hit target reps with 1–2 in reserve." : "Support work — quality reps over load."
+            return isCompound ? "Add 2.5 kg once all sets hit target reps with 1–2 in reserve." : "Support work; quality reps over load."
         case .muscleGain:
             return "Add a rep each session; add weight at the top of the rep range."
         case .fatLoss:
-            return "Keep rest honest and load steady — the deficit does the fat loss, training keeps the muscle."
+            return "Keep rest honest and load steady; the deficit does the fat loss, training keeps the muscle."
         case .maintenance:
             return "Hold current loads; effort ~2 reps in reserve."
         case .generalFitness:
@@ -215,10 +215,10 @@ enum WorkoutScheduleGeneratorService {
     private static func progressionNote(for request: ScheduleRequest) -> String {
         var note: String
         switch request.goal {
-        case .strength: note = "Progression: linear load — add 2.5 kg to a lift when every set hits target reps with 1–2 reps in reserve."
-        case .muscleGain: note = "Progression: double progression — add reps to the top of the range, then add weight and drop back."
+        case .strength: note = "Progression: linear load; add 2.5 kg to a lift when every set hits target reps with 1–2 reps in reserve."
+        case .muscleGain: note = "Progression: double progression; add reps to the top of the range, then add weight and drop back."
         case .fatLoss: note = "Progression: hold loads through the deficit; treat maintaining strength as winning."
-        case .maintenance: note = "Progression: none required — consistency is the whole job."
+        case .maintenance: note = "Progression: none required; consistency is the whole job."
         case .generalFitness: note = "Progression: add a rep or small load bump whenever a session feels comfortable."
         }
         if request.experience != .beginner {

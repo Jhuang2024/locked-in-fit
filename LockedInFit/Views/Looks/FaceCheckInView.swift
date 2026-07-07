@@ -14,6 +14,8 @@ struct FaceCheckInView: View {
     @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var checkIns: [AppearanceCheckIn]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
+    @Query private var checklistItems: [DailyChecklistItem]
+    @Query(sort: \SleepLog.date, order: .reverse) private var sleepLogs: [SleepLog]
 
     @State private var viewModel = AppearanceAnalysisViewModel()
     @State private var pickerItem: PhotosPickerItem?
@@ -33,6 +35,23 @@ struct FaceCheckInView: View {
             todaySodiumMg: nutrition.sodium,
             sodiumLimitMg: max(1, settings?.sodiumLimitMg ?? 2300),
             recentWorkoutCount: completedWorkouts.filter { $0.date > Date().daysAgo(28) }.count)
+    }
+
+    /// Connects the score to actually-logged grooming/sleep behavior instead
+    /// of photo statistics.
+    private var looksComplianceRatio: Double? {
+        DailyChecklistService.recentComplianceRatio(checklistItems, category: .looks)
+    }
+    /// Prefers real logged sleep quality (SleepLog score) once the user is
+    /// using sleep tracking; falls back to the sleep-category checklist proxy
+    /// for anyone who isn't, so the connection is never silently ignored.
+    private var sleepComplianceRatio: Double? {
+        let recentLogs = sleepLogs.filter { $0.date > Date().daysAgo(14) }
+        if !recentLogs.isEmpty {
+            let goodNights = recentLogs.filter { $0.totalScore >= 70 }.count
+            return Double(goodNights) / Double(recentLogs.count)
+        }
+        return DailyChecklistService.recentComplianceRatio(checklistItems, category: .sleep)
     }
 
     var body: some View {
@@ -66,7 +85,7 @@ struct FaceCheckInView: View {
         .onChange(of: pickerItem) {
             Task {
                 if let data = try? await pickerItem?.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
+                   let image = UIImage.downsampled(from: data, maxDimension: 1600) {
                     viewModel.faceImage = image
                     await viewModel.validateFacePhoto()
                 }
@@ -104,7 +123,7 @@ struct FaceCheckInView: View {
     private var privacyCard: some View {
         DashboardCard(title: "Private by Default", systemImage: "lock") {
             Text(usesOpenRouter
-                 ? "This photo is stored on your device. Because OpenRouter analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations — nothing is saved until you review the result."
+                 ? "This photo is stored on your device. Because OpenRouter analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations; nothing is saved until you review the result."
                  : "This photo is stored on your device only and analyzed locally. Nothing is saved until you review the result.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -168,7 +187,7 @@ struct FaceCheckInView: View {
         DashboardCard(title: "Photo Check", systemImage: validation.isUsable ? "checkmark.seal" : "exclamationmark.triangle") {
             VStack(alignment: .leading, spacing: 6) {
                 if validation.issues.isEmpty {
-                    Label("Looks good — one face, sharp, well exposed.", systemImage: "checkmark.circle.fill")
+                    Label("Looks good: one face, sharp, well exposed.", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
                 }
@@ -193,7 +212,9 @@ struct FaceCheckInView: View {
                 Task {
                     await viewModel.analyzeFace(history: Array(checkIns),
                                                 context: suggestionContext,
-                                                useAI: usesOpenRouter)
+                                                useAI: usesOpenRouter,
+                                                looksComplianceRatio: looksComplianceRatio,
+                                                sleepComplianceRatio: sleepComplianceRatio)
                 }
             } label: {
                 Label(validation.isUsable ? "Analyze Photo" : "Fix Issues Above First",
@@ -238,7 +259,7 @@ struct FaceCheckInView: View {
                                 .foregroundStyle(.secondary)
                         }
                         if result.confidence < 0.5 {
-                            Text("Low confidence — mostly photo quality. Retaking in better light helps.")
+                            Text("Low confidence — more check-ins, logged grooming/sleep habits, or enabling AI analysis all sharpen this.")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
@@ -249,11 +270,10 @@ struct FaceCheckInView: View {
 
             DashboardCard(title: "Why This Score?", systemImage: "questionmark.circle") {
                 VStack(spacing: 8) {
-                    reviewBreakdownRow("Photo quality", result.quality, 20)
-                    reviewBreakdownRow("Skin proxy", result.skin, 20)
-                    reviewBreakdownRow("Symmetry proxy", result.symmetry, 15)
-                    reviewBreakdownRow("Grooming/visibility", result.grooming, 15)
-                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 15)
+                    reviewBreakdownRow("Skin", result.skin, 25)
+                    reviewBreakdownRow("Symmetry", result.symmetry, 20)
+                    reviewBreakdownRow("Grooming", result.grooming, 20)
+                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 20)
                     reviewBreakdownRow("Consistency", result.trend, 15)
                 }
                 VStack(alignment: .leading, spacing: 5) {
@@ -268,8 +288,13 @@ struct FaceCheckInView: View {
             }
 
             if let ai = viewModel.aiResult, !ai.observations.isEmpty {
-                DashboardCard(title: "AI Observations", systemImage: "sparkles") {
+                DashboardCard(title: ai.isUnableToAssess ? "AI Couldn't Assess This Photo" : "AI Observations", systemImage: "sparkles") {
                     VStack(alignment: .leading, spacing: 5) {
+                        if ai.isUnableToAssess {
+                            Text("Your local score above stands on its own — nothing here was penalized for it.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                         ForEach(ai.observations, id: \.self) { line in
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)
@@ -284,13 +309,13 @@ struct FaceCheckInView: View {
             }
 
             DashboardCard(title: "Notes", systemImage: "note.text") {
-                TextField("Optional — sleep, sodium, context…", text: $viewModel.notes, axis: .vertical)
+                TextField("Optional: sleep, sodium, context…", text: $viewModel.notes, axis: .vertical)
                     .font(.subheadline)
             }
 
             if !viewModel.draftSuggestions.isEmpty {
                 DashboardCard(title: "Suggestions Ready", systemImage: "lightbulb") {
-                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Review and approve them after saving — nothing becomes a task without your OK.")
+                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Any that are genuinely new are ready to review after saving — duplicates of ones you already have are merged automatically, and nothing becomes a task without your OK.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -339,7 +364,7 @@ struct FaceCheckInView: View {
 
     private func saveCheckIn() {
         guard viewModel.save(into: context) != nil else { return }
-        // Today's photo is done — pull today's pending face reminder.
+        // Today's photo is done; pull today's pending face reminder.
         if let settings {
             Task {
                 await NotificationService.refreshFaceReminders(
@@ -349,7 +374,7 @@ struct FaceCheckInView: View {
                     faceCheckedInToday: true)
             }
         }
-        if viewModel.draftSuggestions.isEmpty {
+        if viewModel.insertedSuggestionCount == 0 {
             dismiss()
         } else {
             showSuggestionReview = true

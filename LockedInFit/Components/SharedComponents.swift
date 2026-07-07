@@ -223,7 +223,7 @@ struct ChartCard<Content: View>: View {
 // MARK: - EmptyStateView
 
 /// A quiet, non-demo empty state: an outlined glyph, a short title, and one line
-/// of guidance. No illustrations, no sample data — just what to do next.
+/// of guidance. No illustrations, no sample data; just what to do next.
 struct EmptyStateView: View {
     let systemImage: String
     let title: String

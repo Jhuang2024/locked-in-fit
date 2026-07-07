@@ -84,7 +84,7 @@ struct WorkoutScheduleGeneratorView: View {
                     Toggle("Sync to Google Calendar", isOn: $syncToCalendar)
                 } footer: {
                     if syncToCalendar && !GoogleCalendarService.shared.isConnected {
-                        Text("Google Calendar isn't connected yet — you'll be able to connect when saving, or the schedule saves with local reminders only.")
+                        Text("Google Calendar isn't connected yet; you'll be able to connect when saving, or the schedule saves with local reminders only.")
                     } else {
                         Text("Optional. Local workout reminders work with or without Calendar sync.")
                     }
@@ -137,7 +137,7 @@ struct WorkoutScheduleGeneratorView: View {
             }
         }
 
-        // Optional Calendar sync — failures never block the save.
+        // Optional Calendar sync; failures never block the save.
         if schedule.syncToCalendar && GoogleCalendarService.shared.isConnected {
             let reminderMinutes = settings?.defaultWorkoutReminderMinutes ?? 60
             Task { await syncScheduleToCalendar(schedule, reminderMinutes: reminderMinutes) }

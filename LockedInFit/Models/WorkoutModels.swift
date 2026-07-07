@@ -14,6 +14,10 @@ final class Workout {
     var perceivedDifficulty: Int = 0
     var completed: Bool = false
     var isTemplate: Bool = false
+    /// Calories burned by this specific workout: manually entered, from an AI
+    /// description estimate, or (if left at 0) defaulted from the duration/
+    /// type/RPE heuristic when the workout is finished.
+    var caloriesBurned: Double = 0
 
     var type: WorkoutType {
         get { WorkoutType(rawValue: typeRaw) ?? .custom }

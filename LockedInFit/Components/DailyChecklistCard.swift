@@ -15,6 +15,15 @@ struct DailyChecklistCard: View {
     /// Completed workouts (to mark scheduled sessions done).
     let completedWorkouts: [Workout]
     var onStartSession: (WorkoutScheduleSession) -> Void
+    /// Called after any item's completion state changes, so callers can
+    /// refresh reminders immediately (SwiftData's identity-based Equatable
+    /// means an in-place `isCompleted` flip doesn't change the query array
+    /// itself, so `onChange(of:)` on `items` alone won't catch it).
+    var onToggle: () -> Void = {}
+    /// Short "approaching/exceeded" dietary-limit lines — the same events
+    /// that drive push notifications, surfaced here too so the checklist is
+    /// where you actually notice them, not just an alert that already fired.
+    var dietaryWatchLines: [String] = []
 
     @State private var showAddItem = false
     @State private var completionTick = 0
@@ -40,6 +49,16 @@ struct DailyChecklistCard: View {
     var body: some View {
         DashboardCard(title: "Today's Checklist", systemImage: "checklist") {
             VStack(alignment: .leading, spacing: 10) {
+                if !dietaryWatchLines.isEmpty {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(dietaryWatchLines, id: \.self) { line in
+                            Label(line, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+
                 if totalCount > 0 {
                     ProgressView(value: Double(doneCount), total: Double(max(1, totalCount)))
                         .tint(doneCount == totalCount ? .green : .accentColor)
@@ -115,6 +134,7 @@ struct DailyChecklistCard: View {
             DailyChecklistService.toggle(item)
         }
         completionTick += 1
+        onToggle()
     }
 
     private func systemRow(title: String, subtitle: String?, systemImage: String, done: Bool) -> some View {

@@ -29,7 +29,7 @@ struct WeightTrendsView: View {
         }
         return start...max(chartEnd, start.addingTimeInterval(86400))
     }
-    /// For a bounded window, seed the smoothing from entries in that window only —
+    /// For a bounded window, seed the smoothing from entries in that window only;
     /// otherwise an all-time HealthKit import can anchor the EWMA to an old weight
     /// and take dozens of readings to converge back to the present. "All" keeps the
     /// full history since that's the point of viewing it.

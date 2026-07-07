@@ -10,7 +10,7 @@ extension BodyWeightEntry: DatedHealthEntry {}
 extension BodyFatEntry: DatedHealthEntry {}
 
 /// Reads steps, body mass, body fat %, and active energy from Apple Health.
-/// Renpho data arrives here via Apple Health — no direct Renpho integration.
+/// Renpho data arrives here via Apple Health; no direct Renpho integration.
 /// The app works fully without HealthKit permission; sync is opt-in.
 @Observable
 final class HealthKitManager {
@@ -56,7 +56,7 @@ final class HealthKitManager {
         }
     }
 
-    /// Apple Health has no concept of continuous per-second polling — HKObserverQuery
+    /// Apple Health has no concept of continuous per-second polling; HKObserverQuery
     /// only fires when new data actually lands, and background delivery is scheduled
     /// by iOS rather than on a fixed clock. While the app is in the foreground we
     /// still honor a literal 1-second refresh here; in the background the observer
@@ -74,7 +74,7 @@ final class HealthKitManager {
 
     /// Registers an HKObserverQuery per read type with immediate background delivery,
     /// so a new Renpho weigh-in or step count synced into Health is pulled in as soon
-    /// as iOS wakes the app for it — no manual "Sync Now" tap required.
+    /// as iOS wakes the app for it; no manual "Sync Now" tap required.
     private func startBackgroundObservers() {
         guard isAvailable else { return }
         for case let sampleType as HKSampleType in readTypes {

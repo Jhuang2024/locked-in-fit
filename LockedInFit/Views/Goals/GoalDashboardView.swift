@@ -10,6 +10,7 @@ struct GoalDashboardView: View {
     @Query(sort: \MealLog.date) private var meals: [MealLog]
     @Query(sort: \StepEntry.date) private var steps: [StepEntry]
     @Query private var settingsList: [UserSettings]
+    @Query private var suggestions: [AppearanceSuggestion]
 
     @State private var showEdit = false
 
@@ -117,11 +118,46 @@ struct GoalDashboardView: View {
                 if !goal.measurementGoals.isEmpty {
                     measurementProgress(goal: goal)
                 }
+
+                if !activeFocuses.isEmpty {
+                    activeFocusesCard
+                }
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
+    }
+
+    /// Approved, long-term appearance suggestions read as standing goals here
+    /// — the natural place a "hold this for months" suggestion lands once approved.
+    private var activeFocuses: [AppearanceSuggestion] {
+        suggestions.filter { $0.status == .approved && $0.durationType == .longTerm }
+    }
+
+    private var activeFocusesCard: some View {
+        DashboardCard(title: "Active Focuses", systemImage: "target") {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(activeFocuses, id: \.persistentModelID) { suggestion in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: suggestion.category.systemImage)
+                            .foregroundStyle(.tint)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suggestion.title)
+                                .font(.subheadline.weight(.medium))
+                            Text(suggestion.expectedImpact)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                Text("From approved face/body check-in suggestions marked long-term.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 
     private func recommendationRow(_ icon: String, _ title: String, _ detail: String) -> some View {

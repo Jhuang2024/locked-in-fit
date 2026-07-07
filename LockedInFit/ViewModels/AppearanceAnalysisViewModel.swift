@@ -35,10 +35,17 @@ final class AppearanceAnalysisViewModel {
     var aiResult: AppearanceAIResult?
     var providerUsed = ""
     var notes = ""
-    /// Suggestions generated for the pending check-in; inserted on save.
+    /// Suggestions generated for the pending check-in; reconciled on save —
+    /// duplicates of a live suggestion get refreshed in place instead of inserted.
     var draftSuggestions: [AppearanceSuggestion] = []
     /// The unsaved check-in shown on the review screen.
     var draftCheckIn: AppearanceCheckIn?
+    /// How many of `draftSuggestions` were actually inserted as new pending
+    /// rows by the last `save(into:)` call (vs. deduped into a refresh of an
+    /// existing suggestion). Callers should gate "show suggestion review" on
+    /// this, not on `draftSuggestions.isEmpty` — an all-duplicate batch still
+    /// generates suggestions but has nothing new to review.
+    private(set) var insertedSuggestionCount = 0
 
     var bodyImages: [UIImage] { [frontImage, sideImage, backImage].compactMap { $0 } }
 
@@ -56,21 +63,27 @@ final class AppearanceAnalysisViewModel {
     }
 
     /// Score locally, optionally enrich with AI, and build the draft check-in.
+    /// `looksComplianceRatio`/`sleepComplianceRatio` connect the score to
+    /// actually-logged grooming/sleep checklist behavior (nil when nothing's
+    /// been tracked yet — scored neutrally).
     func analyzeFace(history: [AppearanceCheckIn],
                      context: SuggestionGenerationService.Context,
-                     useAI: Bool) async {
+                     useAI: Bool,
+                     looksComplianceRatio: Double? = nil,
+                     sleepComplianceRatio: Double? = nil) async {
         guard let faceImage, let validation, validation.isUsable else { return }
         phase = .analyzing
 
-        let scores = AppearanceScoringService.scoreFace(metrics: validation.metrics, history: history)
+        let scores = AppearanceScoringService.scoreFace(
+            metrics: validation.metrics, history: history,
+            looksComplianceRatio: looksComplianceRatio, sleepComplianceRatio: sleepComplianceRatio)
 
         let checkIn = AppearanceCheckIn(kind: .face)
         checkIn.faceWidthHeightRatio = validation.metrics.widthHeightRatio
         apply(face: scores, to: checkIn)
 
         var suggestions = SuggestionGenerationService.faceSuggestions(
-            result: scores, metrics: validation.metrics, checkIn: checkIn,
-            history: history, context: context)
+            result: scores, checkIn: checkIn, history: history, context: context)
 
         if useAI {
             let service = AIServiceFactory.makeAppearance(settings: context.settings)
@@ -79,11 +92,13 @@ final class AppearanceAnalysisViewModel {
                 let summary = faceContextSummary(scores: scores, validation: validation)
                 let ai = try await service.analyzeFace(image: faceImage, context: summary)
                 aiResult = ai
-                checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
-                let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "face", checkInId: checkIn.uuid) }
-                suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                if !ai.isUnableToAssess {
+                    checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
+                    let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "face", checkInId: checkIn.uuid) }
+                    suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                }
             } catch {
-                // AI is enrichment only — local scoring stands on its own.
+                // AI is enrichment only; local scoring stands on its own.
                 providerUsed += " (unavailable: \(error.localizedDescription))"
             }
         }
@@ -116,9 +131,11 @@ final class AppearanceAnalysisViewModel {
                     scores.explanations.joined(separator: " ")
                 let ai = try await service.analyzeBody(images: bodyImages, context: summary)
                 aiResult = ai
-                checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
-                let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "body", checkInId: checkIn.uuid) }
-                suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                if !ai.isUnableToAssess {
+                    checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
+                    let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "body", checkInId: checkIn.uuid) }
+                    suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                }
             } catch {
                 providerUsed += " (unavailable: \(error.localizedDescription))"
             }
@@ -146,8 +163,22 @@ final class AppearanceAnalysisViewModel {
             draftCheckIn.backPhotoPath = backImage.flatMap { ImageStore.save($0, prefix: "body-back") }
         }
         modelContext.insert(draftCheckIn)
-        for suggestion in draftSuggestions {
+
+        // Only live suggestions can be duplicates — rejected ones are excluded
+        // so a dismissed rule can resurface, and there's no need to fetch them.
+        let rejectedRaw = AppearanceSuggestionStatus.rejected.rawValue
+        let descriptor = FetchDescriptor<AppearanceSuggestion>(predicate: #Predicate { $0.statusRaw != rejectedRaw })
+        let existing = (try? modelContext.fetch(descriptor)) ?? []
+        let (toInsert, toRefresh) = SuggestionGenerationService.reconcile(drafts: draftSuggestions, existing: existing)
+        insertedSuggestionCount = toInsert.count
+        for suggestion in toInsert {
             modelContext.insert(suggestion)
+        }
+        for (existingSuggestion, draft) in toRefresh {
+            // Same suggestion as before — refresh its reasoning instead of duplicating it.
+            existingSuggestion.explanation = draft.explanation
+            existingSuggestion.expectedImpact = draft.expectedImpact
+            existingSuggestion.relatedCheckInId = draft.relatedCheckInId
         }
         return draftCheckIn
     }
@@ -156,7 +187,8 @@ final class AppearanceAnalysisViewModel {
 
     private func apply(face scores: AppearanceScoringService.FaceScoreResult, to checkIn: AppearanceCheckIn) {
         checkIn.totalScore = scores.total
-        checkIn.qualityScore = scores.quality
+        // qualityScore intentionally left at its default (0) — photo
+        // quality no longer contributes to or is displayed as a score component.
         checkIn.skinScore = scores.skin
         checkIn.symmetryScore = scores.symmetry
         checkIn.groomingScore = scores.grooming
@@ -171,7 +203,7 @@ final class AppearanceAnalysisViewModel {
         checkIn.muscularityScore = scores.leanMass
         checkIn.postureScore = scores.photoPosture
         checkIn.trendScore = scores.trendDirection
-        checkIn.qualityScore = scores.quality
+        // qualityScore intentionally left at its default (0) — see above.
         checkIn.confidence = scores.confidence
     }
 

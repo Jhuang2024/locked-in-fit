@@ -57,6 +57,53 @@ enum DailyChecklistService {
             }
     }
 
+    /// Due-and-incomplete items outside `.sleep`, which has its own reminder
+    /// category — shared by the Dashboard's reminder refresh and the
+    /// Notifications settings screen so both agree on what the checklist
+    /// digest covers.
+    static func openItemsExcludingSleep(_ items: [DailyChecklistItem], on date: Date = .now) -> [DailyChecklistItem] {
+        dueItems(items, on: date).filter { $0.category != .sleep && !isCompleted($0, on: date) }
+    }
+
+    /// Whether a due `.sleep` item is still open today.
+    static func sleepItemDueIncomplete(_ items: [DailyChecklistItem], on date: Date = .now) -> Bool {
+        dueItems(items, on: date).contains { $0.category == .sleep && !isCompleted($0, on: date) }
+    }
+
+    /// Fraction of `category`'s items completed on their due days over the
+    /// last `days` days (recurring items count each due day; one-time items
+    /// count once). `nil` when nothing in that category was due in the
+    /// window, so callers can treat "nothing tracked" as neutral rather than
+    /// a hard 0 — used to connect actual logged behavior (grooming, sleep)
+    /// into face/body scoring.
+    static func recentComplianceRatio(_ items: [DailyChecklistItem], category: ChecklistCategory,
+                                      days: Int = 14, endingAt date: Date = .now) -> Double? {
+        let calendar = Calendar.current
+        let categoryItems = items.filter { $0.category == category }
+        guard !categoryItems.isEmpty else { return nil }
+        var dueCount = 0
+        var doneCount = 0
+        for item in categoryItems {
+            if item.recurrence == .none {
+                // One-time items count once — `isDue` is true on every day
+                // from the due date onward, so looping days here would count
+                // a single overdue item against compliance up to `days` times.
+                guard item.dueDate.startOfDay <= date.startOfDay else { continue }
+                dueCount += 1
+                if item.isCompleted { doneCount += 1 }
+            } else {
+                for offset in 0..<days {
+                    guard let day = calendar.date(byAdding: .day, value: -offset, to: date),
+                          isDue(item, on: day) else { continue }
+                    dueCount += 1
+                    if isCompleted(item, on: day) { doneCount += 1 }
+                }
+            }
+        }
+        guard dueCount > 0 else { return nil }
+        return Double(doneCount) / Double(dueCount)
+    }
+
     /// Create (and insert) a checklist item from an approved suggestion.
     @discardableResult
     static func createItem(from suggestion: AppearanceSuggestion,

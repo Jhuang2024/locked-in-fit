@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import UIKit
 
 /// Saves meal/progress photos to Documents/Photos and loads them by relative path.
@@ -45,5 +46,24 @@ enum ImageStore {
         for file in files where prefixes.contains(where: { file.lastPathComponent.hasPrefix($0 + "-") }) {
             try? FileManager.default.removeItem(at: file)
         }
+    }
+}
+
+extension UIImage {
+    /// Decodes straight to a downsampled bitmap, never materializing a
+    /// full-resolution decode in memory. Camera/Photos-library assets can be
+    /// 12MP+ (tens of MB once decoded); filling multiple photo slots with
+    /// `UIImage(data:)` before anything shrinks them is a reliable OOM crash.
+    static func downsampled(from data: Data, maxDimension: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }

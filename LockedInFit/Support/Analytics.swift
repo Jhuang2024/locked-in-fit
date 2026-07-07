@@ -3,15 +3,29 @@ import Foundation
 /// Shared aggregation helpers used by dashboard, trends, and goal screens.
 enum Analytics {
 
-    /// Total calories per day from meal logs.
+    /// Consumed calories per day from meal logs: logged calories plus the
+    /// hidden-oil midpoint, matching the dashboard/food-log "eaten" number so
+    /// trends and maintenance estimation use the same intake figure.
     static func dailyCalories(_ meals: [MealLog]) -> [Date: Double] {
         Dictionary(grouping: meals) { $0.date.startOfDay }
-            .mapValues { $0.reduce(0) { $0 + $1.calories } }
+            .mapValues { $0.reduce(0) { $0 + $1.consumedCalories } }
     }
 
     static func dailyProtein(_ meals: [MealLog]) -> [Date: Double] {
         Dictionary(grouping: meals) { $0.date.startOfDay }
             .mapValues { $0.reduce(0) { $0 + $1.protein } }
+    }
+
+    /// TEF (thermic effect of food) per day, from that day's total macros —
+    /// the same figure the dashboard adds back into the day's calorie target.
+    static func dailyTEF(_ meals: [MealLog]) -> [Date: Double] {
+        Dictionary(grouping: meals) { $0.date.startOfDay }
+            .mapValues { dayMeals in
+                NutritionCalculator.tef(
+                    protein: dayMeals.reduce(0) { $0 + $1.protein },
+                    carbs: dayMeals.reduce(0) { $0 + $1.carbs },
+                    fat: dayMeals.reduce(0) { $0 + $1.fat })
+            }
     }
 
     static func avgDailySteps(_ steps: [StepEntry], days: Int = 14) -> Int {
@@ -59,7 +73,7 @@ enum Analytics {
     }
 
     /// "Locked In" daily score 0–100, entirely earned from today's logged behavior.
-    /// A day with nothing logged yet must read as 0 — no free credit.
+    /// A day with nothing logged yet must read as 0; no free credit.
     static func lockedInScore(todayCalories: Double, calorieTarget: Double,
                               todayProtein: Double, proteinTarget: Double,
                               todaySteps: Int, stepTarget: Int,

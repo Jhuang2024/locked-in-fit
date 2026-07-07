@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Google Calendar connection flow. Entirely optional — the app never requires
+/// Google Calendar connection flow. Entirely optional; the app never requires
 /// it. Uses the system browser (OAuth + PKCE) with the narrow calendar.events
 /// scope; tokens live in the Keychain only.
 struct GoogleCalendarConnectView: View {
@@ -27,7 +27,7 @@ struct GoogleCalendarConnectView: View {
 
             Section {
                 Text("""
-                LockedInFit only requests the narrow "calendar.events" scope — it can create, update, \
+                LockedInFit only requests the narrow "calendar.events" scope; it can create, update, \
                 and delete events it made, and nothing else. Sign-in happens in the system browser via \
                 Google OAuth with PKCE; no password ever touches the app, no client secret is embedded, \
                 and tokens are stored in the iOS Keychain, never in the database. Disconnect anytime to \
@@ -86,7 +86,7 @@ struct GoogleCalendarConnectView: View {
             Text("""
             One-time setup: create a free OAuth "iOS" client ID in Google Cloud Console \
             (APIs & Services → Credentials) with this app's bundle ID, enable the Google Calendar API, \
-            and paste the client ID here. iOS OAuth clients have no secret — the ID is safe to store.
+            and paste the client ID here. iOS OAuth clients have no secret; the ID is safe to store.
             """)
         }
     }
@@ -128,7 +128,7 @@ struct GoogleCalendarConnectView: View {
             connectionState?.grantedScopes = [GoogleCalendarService.eventsScope]
             connectionState?.lastSyncDate = nil
         } catch GoogleCalendarError.cancelled {
-            // User backed out — not an error state worth showing.
+            // User backed out; not an error state worth showing.
         } catch {
             errorMessage = error.localizedDescription
         }

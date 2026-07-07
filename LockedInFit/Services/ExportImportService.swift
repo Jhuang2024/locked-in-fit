@@ -173,7 +173,7 @@ enum ExportImportService {
 
     // MARK: - Import
 
-    /// Imports a JSON snapshot, appending entries (no dedup — meant for restore into a fresh install).
+    /// Imports a JSON snapshot, appending entries (no dedup; meant for restore into a fresh install).
     static func importJSON(from url: URL, context: ModelContext) throws -> Int {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }

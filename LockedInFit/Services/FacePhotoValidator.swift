@@ -3,7 +3,7 @@ import UIKit
 import Vision
 
 /// Measurements extracted from a face photo with Vision + a small pixel pass.
-/// All values are proxies used for photo-quality and self-comparison scoring —
+/// All values are proxies used for photo-quality and self-comparison scoring;
 /// never for inferring protected traits.
 struct FacePhotoMetrics {
     var faceCount: Int = 0
@@ -82,7 +82,7 @@ enum FacePhotoValidator {
             return FacePhotoValidation(metrics: metrics, issues: issues)
         }
         if faces.count > 1 {
-            issues.append(FacePhotoIssue(severity: .warning, message: "Multiple faces detected — scoring uses the largest one. Solo photos track better."))
+            issues.append(FacePhotoIssue(severity: .warning, message: "Multiple faces detected; scoring uses the largest one. Solo photos track better."))
         }
 
         let box = face.boundingBox
