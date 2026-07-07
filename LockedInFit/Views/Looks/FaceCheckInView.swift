@@ -14,6 +14,7 @@ struct FaceCheckInView: View {
     @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var checkIns: [AppearanceCheckIn]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
+    @Query private var checklistItems: [DailyChecklistItem]
 
     @State private var viewModel = AppearanceAnalysisViewModel()
     @State private var pickerItem: PhotosPickerItem?
@@ -33,6 +34,15 @@ struct FaceCheckInView: View {
             todaySodiumMg: nutrition.sodium,
             sodiumLimitMg: max(1, settings?.sodiumLimitMg ?? 2300),
             recentWorkoutCount: completedWorkouts.filter { $0.date > Date().daysAgo(28) }.count)
+    }
+
+    /// Connects the score to actually-logged grooming/sleep checklist
+    /// behavior instead of photo statistics.
+    private var looksComplianceRatio: Double? {
+        DailyChecklistService.recentComplianceRatio(checklistItems, category: .looks)
+    }
+    private var sleepComplianceRatio: Double? {
+        DailyChecklistService.recentComplianceRatio(checklistItems, category: .sleep)
     }
 
     var body: some View {
@@ -193,7 +203,9 @@ struct FaceCheckInView: View {
                 Task {
                     await viewModel.analyzeFace(history: Array(checkIns),
                                                 context: suggestionContext,
-                                                useAI: usesOpenRouter)
+                                                useAI: usesOpenRouter,
+                                                looksComplianceRatio: looksComplianceRatio,
+                                                sleepComplianceRatio: sleepComplianceRatio)
                 }
             } label: {
                 Label(validation.isUsable ? "Analyze Photo" : "Fix Issues Above First",
@@ -238,7 +250,7 @@ struct FaceCheckInView: View {
                                 .foregroundStyle(.secondary)
                         }
                         if result.confidence < 0.5 {
-                            Text("Low confidence; mostly photo quality. Retaking in better light helps.")
+                            Text("Low confidence — more check-ins, logged grooming/sleep habits, or enabling AI analysis all sharpen this.")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
@@ -249,11 +261,10 @@ struct FaceCheckInView: View {
 
             DashboardCard(title: "Why This Score?", systemImage: "questionmark.circle") {
                 VStack(spacing: 8) {
-                    reviewBreakdownRow("Photo quality", result.quality, 20)
-                    reviewBreakdownRow("Skin proxy", result.skin, 20)
-                    reviewBreakdownRow("Symmetry proxy", result.symmetry, 15)
-                    reviewBreakdownRow("Grooming/visibility", result.grooming, 15)
-                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 15)
+                    reviewBreakdownRow("Skin", result.skin, 25)
+                    reviewBreakdownRow("Symmetry", result.symmetry, 20)
+                    reviewBreakdownRow("Grooming", result.grooming, 20)
+                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 20)
                     reviewBreakdownRow("Consistency", result.trend, 15)
                 }
                 VStack(alignment: .leading, spacing: 5) {
@@ -268,8 +279,13 @@ struct FaceCheckInView: View {
             }
 
             if let ai = viewModel.aiResult, !ai.observations.isEmpty {
-                DashboardCard(title: "AI Observations", systemImage: "sparkles") {
+                DashboardCard(title: ai.isUnableToAssess ? "AI Couldn't Assess This Photo" : "AI Observations", systemImage: "sparkles") {
                     VStack(alignment: .leading, spacing: 5) {
+                        if ai.isUnableToAssess {
+                            Text("Your local score above stands on its own — nothing here was penalized for it.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                         ForEach(ai.observations, id: \.self) { line in
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)

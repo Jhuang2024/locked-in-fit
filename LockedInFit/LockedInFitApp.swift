@@ -85,10 +85,52 @@ struct RootTabView: View {
     }
 }
 
-/// Trends hub: weekly, weight, goal, body data.
+/// Trends hub: weekly, weight, goal, body data. The "This Week" summary is
+/// where nutrition, training, appearance, and suggestions converge into one
+/// view — trends isn't just weight charts, it's the whole system's readout.
 struct TrendsHomeView: View {
+    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
+    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
+    @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
+    private var completedWorkouts: [Workout]
+    @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query private var suggestions: [AppearanceSuggestion]
+
+    private var goal: Goal? { activeGoals.first }
+    private var weekStart: Date {
+        Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start ?? Date().daysAgo(7)
+    }
+    private var workoutsThisWeek: Int {
+        completedWorkouts.filter { $0.date >= weekStart }.count
+    }
+    /// Days in the last 7 with a protein target hit, out of days with any meal logged.
+    private var proteinHitDaysThisWeek: Int {
+        guard let target = goal?.proteinTarget, target > 0 else { return 0 }
+        let calendar = Calendar.current
+        var count = 0
+        for offset in 0..<7 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
+            let dayMeals = meals.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            guard !dayMeals.isEmpty, dayMeals.reduce(0, { $0 + $1.protein }) >= target else { continue }
+            count += 1
+        }
+        return count
+    }
+    private var faceStreak: Int { AppearanceScoringService.faceStreak(history: appearanceCheckIns) }
+    private var pendingSuggestionCount: Int { suggestions.filter { $0.status == .pending }.count }
+
     var body: some View {
         List {
+            Section("This Week") {
+                summaryRow("Workouts", "\(workoutsThisWeek)", systemImage: "dumbbell")
+                summaryRow("Protein target hit", "\(proteinHitDaysThisWeek)/7 days", systemImage: "fish")
+                summaryRow("Face check-in streak", faceStreak > 0 ? "\(faceStreak)d" : "—", systemImage: "face.smiling")
+                if pendingSuggestionCount > 0 {
+                    NavigationLink(destination: AppearanceSuggestionReviewView()) {
+                        summaryRow("Pending suggestions", "\(pendingSuggestionCount)", systemImage: "lightbulb")
+                    }
+                }
+            }
             Section("Progress") {
                 NavigationLink(destination: GoalDashboardView()) {
                     Label("Goal Dashboard", systemImage: "target")
@@ -125,5 +167,13 @@ struct TrendsHomeView: View {
             }
         }
         .navigationTitle("Trends")
+    }
+
+    private func summaryRow(_ label: String, _ value: String, systemImage: String) -> some View {
+        HStack {
+            Label(label, systemImage: systemImage)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
     }
 }

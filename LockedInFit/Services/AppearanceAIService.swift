@@ -21,19 +21,20 @@ struct MockAppearanceAIService: AppearanceAIService {
             scoreAdjustment: 0,
             confidence: 0.5,
             observations: [
-                "[Mock] Lighting looks usable for day-to-day comparison.",
-                "[Mock] Keep the same distance and angle tomorrow for the cleanest trend."
+                "[Mock] Face reads consistent with your recent check-ins.",
+                "[Mock] No major changes since your last check-in."
             ],
             suggestions: [
                 AppearanceAISuggestion(
-                    title: "Use the same lighting tomorrow",
-                    category: "photo_quality",
-                    explanation: "Consistent lighting keeps the score trend meaningful.",
-                    expectedImpact: "Cleaner score trend.",
+                    title: "Add a 2-minute morning skincare routine",
+                    category: "skin",
+                    explanation: "Consistent basic skincare is the highest-evidence lever available for skin appearance.",
+                    expectedImpact: "Steadier skin component over time.",
                     durationType: "short_term",
                     destination: "checklist",
                     priority: 3)
-            ])
+            ],
+            unableToAssess: false)
     }
 
     func analyzeBody(images: [UIImage], context: String) async throws -> AppearanceAIResult {
@@ -41,8 +42,9 @@ struct MockAppearanceAIService: AppearanceAIService {
         return AppearanceAIResult(
             scoreAdjustment: 0,
             confidence: 0.5,
-            observations: ["[Mock] Photo set received. Same spot and lighting next time keeps comparisons honest."],
-            suggestions: [])
+            observations: ["[Mock] Composition reads consistent with your recent history."],
+            suggestions: [],
+            unableToAssess: false)
     }
 }
 

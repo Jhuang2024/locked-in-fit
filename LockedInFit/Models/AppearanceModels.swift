@@ -4,9 +4,10 @@ import SwiftData
 // MARK: - AppearanceCheckIn
 
 /// One face or body check-in. Scores are explainable component values, not a
-/// claim about objective attractiveness: they reflect photo quality, composition
-/// data, grooming/consistency proxies, and self-comparison against the user's
-/// own history. Raw photos stay on-device via ImageStore.
+/// claim about objective attractiveness: they reflect composition data,
+/// logged grooming/sleep behavior, consistency, and self-comparison against
+/// the user's own history — never background, lighting, sharpness, camera
+/// angle, or resolution. Raw photos stay on-device via ImageStore.
 @Model
 final class AppearanceCheckIn {
     /// Stable string ID so suggestions can reference a check-in across saves.
@@ -21,8 +22,11 @@ final class AppearanceCheckIn {
     var backPhotoPath: String?
     /// 0–100 overall.
     var totalScore: Double = 0
-    // Component scores. Face uses quality/skin/symmetry/grooming/puffiness/trend;
-    // body uses composition/muscularity/posture/trend/quality. Unused ones stay 0.
+    // Component scores. Face uses skin/symmetry/grooming/puffiness/trend;
+    // body uses composition/muscularity/posture/trend. Unused ones stay 0.
+    /// Legacy field from when photo-technical quality contributed to the
+    /// score. No longer populated — kept only so older saved check-ins keep
+    /// their original historical value.
     var qualityScore: Double = 0
     var compositionScore: Double = 0
     var skinScore: Double = 0
@@ -32,7 +36,8 @@ final class AppearanceCheckIn {
     var muscularityScore: Double = 0
     var postureScore: Double = 0
     var trendScore: Double = 0
-    /// 0–1. Drops with poor photo quality or missing composition data.
+    /// 0–1. Reflects measurement/data confidence — never lowered because of
+    /// how the person looks, only because there's less to go on.
     var confidence: Double = 0
     var notes: String = ""
     /// Face width/height ratio from Vision landmarks; used only for

@@ -6,6 +6,13 @@ import Foundation
 /// event still only reaches the user once per day.
 enum NotificationRulesEngine {
 
+    /// Shared with the Dashboard's on-screen sodium warning color so the push
+    /// alert and the visible indicator always agree on what "approaching"
+    /// means — one threshold, not two copies that can drift apart.
+    static let approachingRatio = 0.9
+    static let sodiumApproachingRatio = 0.8
+    static let exceededRatio = 1.0
+
     struct Inputs {
         let nutrition: DailyNutritionSummary
         /// Today's base calorie target (unadjusted) — same number the
@@ -29,16 +36,16 @@ enum NotificationRulesEngine {
 
         if input.adjustedCalorieTarget > 0 {
             let ratio = input.nutrition.calories / input.adjustedCalorieTarget
-            if ratio >= 1.0 {
+            if ratio >= exceededRatio {
                 events.append(.init(key: "calories-exceeded", title: "Calories",
                                      body: "\(Int(input.nutrition.calories - input.adjustedCalorieTarget)) kcal over today's target."))
-            } else if ratio >= 0.9 {
+            } else if ratio >= approachingRatio {
                 events.append(.init(key: "calories-approaching", title: "Calories",
                                      body: "\(Int(input.adjustedCalorieTarget - input.nutrition.calories)) kcal left before today's target."))
             }
 
             let projected = input.nutrition.calories + input.nutrition.hiddenOilHigh
-            if ratio < 1.0, input.nutrition.hiddenOilHigh > 0, projected > input.adjustedCalorieTarget {
+            if ratio < exceededRatio, input.nutrition.hiddenOilHigh > 0, projected > input.adjustedCalorieTarget {
                 events.append(.init(key: "oil-risk", title: "Hidden oil",
                                      body: "Cooking oil could push you ~\(Int(projected - input.adjustedCalorieTarget)) kcal over today."))
             }
@@ -46,10 +53,10 @@ enum NotificationRulesEngine {
 
         if input.sodiumLimit > 0 {
             let ratio = input.nutrition.sodium / input.sodiumLimit
-            if ratio >= 1.0 {
+            if ratio >= exceededRatio {
                 events.append(.init(key: "sodium-exceeded", title: "Sodium",
                                      body: "\(Int(input.nutrition.sodium - input.sodiumLimit)) mg over today's limit."))
-            } else if ratio >= 0.8 {
+            } else if ratio >= sodiumApproachingRatio {
                 events.append(.init(key: "sodium-approaching", title: "Sodium",
                                      body: "\(Int(input.sodiumLimit - input.nutrition.sodium)) mg left before today's limit."))
             }
@@ -61,10 +68,10 @@ enum NotificationRulesEngine {
         if input.calorieTarget > 0 {
             let fatTarget = max(1, (input.calorieTarget * 0.25) / 9)
             let fatRatio = input.nutrition.fat / fatTarget
-            if fatRatio >= 1.0 {
+            if fatRatio >= exceededRatio {
                 events.append(.init(key: "fat-exceeded", title: "Fat",
                                      body: "\(Int(input.nutrition.fat - fatTarget))g over today's fat guide."))
-            } else if fatRatio >= 0.9 {
+            } else if fatRatio >= approachingRatio {
                 events.append(.init(key: "fat-approaching", title: "Fat",
                                      body: "\(Int(fatTarget - input.nutrition.fat))g left before today's fat guide."))
             }
@@ -73,7 +80,7 @@ enum NotificationRulesEngine {
         // Protein "hit" is a positive goal-achievement event, not a limit — only "approaching" lives here.
         if input.proteinTarget > 0 {
             let ratio = input.nutrition.protein / input.proteinTarget
-            if ratio >= 0.9 && ratio < 1.0 {
+            if ratio >= approachingRatio && ratio < exceededRatio {
                 events.append(.init(key: "protein-approaching", title: "Protein",
                                      body: "\(Int(input.proteinTarget - input.nutrition.protein))g left to hit your protein target."))
             }

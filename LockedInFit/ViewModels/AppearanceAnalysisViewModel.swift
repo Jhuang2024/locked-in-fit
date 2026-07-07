@@ -63,21 +63,27 @@ final class AppearanceAnalysisViewModel {
     }
 
     /// Score locally, optionally enrich with AI, and build the draft check-in.
+    /// `looksComplianceRatio`/`sleepComplianceRatio` connect the score to
+    /// actually-logged grooming/sleep checklist behavior (nil when nothing's
+    /// been tracked yet — scored neutrally).
     func analyzeFace(history: [AppearanceCheckIn],
                      context: SuggestionGenerationService.Context,
-                     useAI: Bool) async {
+                     useAI: Bool,
+                     looksComplianceRatio: Double? = nil,
+                     sleepComplianceRatio: Double? = nil) async {
         guard let faceImage, let validation, validation.isUsable else { return }
         phase = .analyzing
 
-        let scores = AppearanceScoringService.scoreFace(metrics: validation.metrics, history: history)
+        let scores = AppearanceScoringService.scoreFace(
+            metrics: validation.metrics, history: history,
+            looksComplianceRatio: looksComplianceRatio, sleepComplianceRatio: sleepComplianceRatio)
 
         let checkIn = AppearanceCheckIn(kind: .face)
         checkIn.faceWidthHeightRatio = validation.metrics.widthHeightRatio
         apply(face: scores, to: checkIn)
 
         var suggestions = SuggestionGenerationService.faceSuggestions(
-            result: scores, metrics: validation.metrics, checkIn: checkIn,
-            history: history, context: context)
+            result: scores, checkIn: checkIn, history: history, context: context)
 
         if useAI {
             let service = AIServiceFactory.makeAppearance(settings: context.settings)
@@ -86,9 +92,11 @@ final class AppearanceAnalysisViewModel {
                 let summary = faceContextSummary(scores: scores, validation: validation)
                 let ai = try await service.analyzeFace(image: faceImage, context: summary)
                 aiResult = ai
-                checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
-                let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "face", checkInId: checkIn.uuid) }
-                suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                if !ai.isUnableToAssess {
+                    checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
+                    let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "face", checkInId: checkIn.uuid) }
+                    suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                }
             } catch {
                 // AI is enrichment only; local scoring stands on its own.
                 providerUsed += " (unavailable: \(error.localizedDescription))"
@@ -123,9 +131,11 @@ final class AppearanceAnalysisViewModel {
                     scores.explanations.joined(separator: " ")
                 let ai = try await service.analyzeBody(images: bodyImages, context: summary)
                 aiResult = ai
-                checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
-                let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "body", checkInId: checkIn.uuid) }
-                suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                if !ai.isUnableToAssess {
+                    checkIn.totalScore = max(0, min(100, checkIn.totalScore + ai.clampedAdjustment))
+                    let aiSuggestions = ai.suggestions.map { $0.makeSuggestion(sourceKind: "body", checkInId: checkIn.uuid) }
+                    suggestions = SuggestionGenerationService.merge(local: suggestions, ai: aiSuggestions)
+                }
             } catch {
                 providerUsed += " (unavailable: \(error.localizedDescription))"
             }
@@ -177,7 +187,8 @@ final class AppearanceAnalysisViewModel {
 
     private func apply(face scores: AppearanceScoringService.FaceScoreResult, to checkIn: AppearanceCheckIn) {
         checkIn.totalScore = scores.total
-        checkIn.qualityScore = scores.quality
+        // qualityScore intentionally left at its default (0) — photo
+        // quality no longer contributes to or is displayed as a score component.
         checkIn.skinScore = scores.skin
         checkIn.symmetryScore = scores.symmetry
         checkIn.groomingScore = scores.grooming
@@ -192,7 +203,7 @@ final class AppearanceAnalysisViewModel {
         checkIn.muscularityScore = scores.leanMass
         checkIn.postureScore = scores.photoPosture
         checkIn.trendScore = scores.trendDirection
-        checkIn.qualityScore = scores.quality
+        // qualityScore intentionally left at its default (0) — see above.
         checkIn.confidence = scores.confidence
     }
 

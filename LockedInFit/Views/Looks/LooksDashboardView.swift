@@ -70,7 +70,7 @@ struct LooksDashboardView: View {
                 ScoreRingView(label: "Combined", score: combined ?? 0, maxScore: 100,
                               color: combined == nil ? .gray : .teal)
             }
-            Text("Scores track photo quality, consistency, grooming, composition data, and comparison against your own history, not attractiveness or anyone else's standard.")
+            Text("Scores track consistency, logged grooming/sleep habits, composition data, and comparison against your own history — never photo quality, and never attractiveness or anyone else's standard.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -280,7 +280,7 @@ struct AppearanceCheckInDetailView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             if checkIn.confidence < 0.5 {
-                                Text("Low confidence; better photo quality or more data sharpens this.")
+                                Text("Low confidence — more check-ins or logged data sharpens this.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }
@@ -294,18 +294,16 @@ struct AppearanceCheckInDetailView: View {
                 DashboardCard(title: "Score Breakdown", systemImage: "list.bullet.rectangle") {
                     VStack(spacing: 8) {
                         if checkIn.kind == .face {
-                            breakdownRow("Photo quality", checkIn.qualityScore, 20)
-                            breakdownRow("Skin proxy", checkIn.skinScore, 20)
-                            breakdownRow("Symmetry proxy", checkIn.symmetryScore, 15)
-                            breakdownRow("Grooming/visibility", checkIn.groomingScore, 15)
-                            breakdownRow("Puffiness vs baseline", checkIn.puffinessScore, 15)
+                            breakdownRow("Skin", checkIn.skinScore, 25)
+                            breakdownRow("Symmetry", checkIn.symmetryScore, 20)
+                            breakdownRow("Grooming", checkIn.groomingScore, 20)
+                            breakdownRow("Puffiness vs baseline", checkIn.puffinessScore, 20)
                             breakdownRow("Consistency", checkIn.trendScore, 15)
                         } else {
                             breakdownRow("Composition", checkIn.compositionScore, 40)
                             breakdownRow("Lean mass proxy", checkIn.muscularityScore, 15)
-                            breakdownRow("Photo/posture", checkIn.postureScore, 15)
-                            breakdownRow("Trend vs goal", checkIn.trendScore, 10)
-                            breakdownRow("Photo quality", checkIn.qualityScore, 5)
+                            breakdownRow("Photo coverage", checkIn.postureScore, 15)
+                            breakdownRow("Trend vs goal", checkIn.trendScore, 15)
                         }
                     }
                 }
@@ -423,9 +421,8 @@ struct LiveBodyScoreDetailView: View {
                         breakdownRow("Composition", result.composition, 40)
                         breakdownRow("Lean mass proxy", result.leanMass, 15)
                         breakdownRow("Training consistency", result.training, 15)
-                        breakdownRow("Photo/posture", result.photoPosture, 15)
-                        breakdownRow("Trend vs goal", result.trendDirection, 10)
-                        breakdownRow("Photo quality", result.quality, 5)
+                        breakdownRow("Photo coverage", result.photoPosture, 15)
+                        breakdownRow("Trend vs goal", result.trendDirection, 15)
                     }
                 }
 

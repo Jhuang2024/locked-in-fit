@@ -132,9 +132,12 @@ struct AppearanceTrendsView: View {
         ChartCard(title: "Face Score Breakdown", subtitle: "Component points over time") {
             Chart {
                 ForEach(Array(faceCheckIns.enumerated()), id: \.offset) { _, checkIn in
-                    LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.qualityScore),
-                             series: .value("Component", "Photo quality"))
-                        .foregroundStyle(by: .value("Component", "Photo quality"))
+                    LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.skinScore),
+                             series: .value("Component", "Skin"))
+                        .foregroundStyle(by: .value("Component", "Skin"))
+                    LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.groomingScore),
+                             series: .value("Component", "Grooming"))
+                        .foregroundStyle(by: .value("Component", "Grooming"))
                     LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.puffinessScore),
                              series: .value("Component", "Puffiness"))
                         .foregroundStyle(by: .value("Component", "Puffiness"))
@@ -144,7 +147,7 @@ struct AppearanceTrendsView: View {
                 }
             }
             .id("breakdown-\(windowDays)")
-            .chartYScale(domain: 0.0...20.0)
+            .chartYScale(domain: 0.0...25.0)
         }
     }
 

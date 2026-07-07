@@ -70,6 +70,30 @@ enum DailyChecklistService {
         dueItems(items, on: date).contains { $0.category == .sleep && !isCompleted($0, on: date) }
     }
 
+    /// Fraction of `category`'s items completed on their due days over the
+    /// last `days` days (recurring items count each due day; one-time items
+    /// count once). `nil` when nothing in that category was due in the
+    /// window, so callers can treat "nothing tracked" as neutral rather than
+    /// a hard 0 — used to connect actual logged behavior (grooming, sleep)
+    /// into face/body scoring.
+    static func recentComplianceRatio(_ items: [DailyChecklistItem], category: ChecklistCategory,
+                                      days: Int = 14, endingAt date: Date = .now) -> Double? {
+        let calendar = Calendar.current
+        let categoryItems = items.filter { $0.category == category }
+        guard !categoryItems.isEmpty else { return nil }
+        var dueCount = 0
+        var doneCount = 0
+        for offset in 0..<days {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: date) else { continue }
+            for item in categoryItems where isDue(item, on: day) {
+                dueCount += 1
+                if isCompleted(item, on: day) { doneCount += 1 }
+            }
+        }
+        guard dueCount > 0 else { return nil }
+        return Double(doneCount) / Double(dueCount)
+    }
+
     /// Create (and insert) a checklist item from an approved suggestion.
     @discardableResult
     static func createItem(from suggestion: AppearanceSuggestion,

@@ -192,21 +192,26 @@ struct DashboardView: View {
         await evaluateNotificationEvents(settings: settings)
     }
 
+    /// Shared with the checklist's dietary-watch banner below, so the push
+    /// alert and the on-screen warning are always computed from the same numbers.
+    private var notificationInputs: NotificationRulesEngine.Inputs {
+        NotificationRulesEngine.Inputs(
+            nutrition: viewModel.nutrition,
+            calorieTarget: calorieTarget,
+            adjustedCalorieTarget: viewModel.calories.adjustedTarget,
+            proteinTarget: proteinTarget,
+            sodiumLimit: sodiumLimit,
+            stepsToday: viewModel.stepsToday,
+            stepTarget: viewModel.stepTarget,
+            completedWorkoutsToday: viewModel.completedWorkoutsToday,
+            now: .now)
+    }
+
     /// Dietary-limit and goal-achievement alerts fire immediately when
     /// crossed, but NotificationService.fireOnce ensures each one only
     /// reaches the user once per day.
     private func evaluateNotificationEvents(settings: UserSettings) async {
-        let today = viewModel
-        let input = NotificationRulesEngine.Inputs(
-            nutrition: today.nutrition,
-            calorieTarget: calorieTarget,
-            adjustedCalorieTarget: today.calories.adjustedTarget,
-            proteinTarget: proteinTarget,
-            sodiumLimit: sodiumLimit,
-            stepsToday: today.stepsToday,
-            stepTarget: today.stepTarget,
-            completedWorkoutsToday: today.completedWorkoutsToday,
-            now: .now)
+        let input = notificationInputs
         var events: [NotificationService.NotificationEvent] = []
         if settings.dietaryLimitAlertsEnabled {
             events += NotificationRulesEngine.dietaryEvents(input)
@@ -216,6 +221,14 @@ struct DashboardView: View {
                 input, sleepGoalHit: sleepGoalHitToday, looksChecklistComplete: looksChecklistCompleteToday)
         }
         await NotificationService.fireOnce(events, settings: settings)
+    }
+
+    /// Same dietary events as the push notifications, shown inline on
+    /// Today's Checklist so limits are visible where the user is already
+    /// looking, not just in an alert that already fired.
+    private var dietaryWatchLines: [String] {
+        guard settings?.dietaryLimitAlertsEnabled ?? true else { return [] }
+        return NotificationRulesEngine.dietaryEvents(notificationInputs).map { "\($0.title): \($0.body)" }
     }
 
     private func saveWeight() {
@@ -430,8 +443,8 @@ struct DashboardView: View {
 
     private var sodiumColor: Color {
         let ratio = viewModel.nutrition.sodium / sodiumLimit
-        if ratio > 1 { return .red }
-        if ratio >= 0.8 { return .orange }
+        if ratio >= NotificationRulesEngine.exceededRatio { return .red }
+        if ratio >= NotificationRulesEngine.sodiumApproachingRatio { return .orange }
         return .green
     }
 
@@ -464,7 +477,8 @@ struct DashboardView: View {
                 activeWorkout = WorkoutScheduleGeneratorService.workout(
                     for: session, existingWorkouts: allWorkouts, context: context)
             },
-            onToggle: { Task { await refreshReminderSchedules() } })
+            onToggle: { Task { await refreshReminderSchedules() } },
+            dietaryWatchLines: dietaryWatchLines)
     }
 
     private var looksCard: some View {

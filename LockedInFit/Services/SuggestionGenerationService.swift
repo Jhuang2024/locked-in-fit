@@ -16,85 +16,57 @@ enum SuggestionGenerationService {
 
     // MARK: - Face
 
+    /// Every branch here is about the person, never the photo — no lighting,
+    /// framing, angle, or "retake the photo" suggestions. Only genuine
+    /// subject signals drive these (puffiness vs personal baseline, logged
+    /// grooming/sleep behavior via `result`).
     static func faceSuggestions(result: AppearanceScoringService.FaceScoreResult,
-                                metrics: FacePhotoMetrics,
                                 checkIn: AppearanceCheckIn,
                                 history: [AppearanceCheckIn],
                                 context: Context) -> [AppearanceSuggestion] {
         var out: [AppearanceSuggestion] = []
         let id = checkIn.uuid
 
-        if result.quality < 12 {
-            out.append(AppearanceSuggestion(
-                sourceKind: "face",
-                title: "Retake tomorrow's photo in window light",
-                explanation: metrics.meanLuminance < 0.3
-                    ? "Today's photo is underexposed, which lowers comparison confidence."
-                    : "Today's photo quality (sharpness/framing) limits how well it compares to your history.",
-                expectedImpact: "Cleaner score trend and higher confidence.",
-                category: .photoQuality, priority: 1, durationType: .shortTerm,
-                destination: .checklist, relatedCheckInId: id))
-        }
-
-        if metrics.yawDegrees > 15 || metrics.rollDegrees > 15 {
-            out.append(AppearanceSuggestion(
-                sourceKind: "face",
-                title: "Shoot straight-on at eye level",
-                explanation: "Today's photo is angled, which distorts the symmetry and puffiness proxies.",
-                expectedImpact: "More comparable photos day to day.",
-                category: .photoQuality, priority: 2, durationType: .shortTerm,
-                destination: .checklist, relatedCheckInId: id))
-        }
-
-        if result.puffiness < 10 {
+        // Puffiness: the actionable fix is the real driver (sodium or sleep), not photo timing.
+        if result.puffiness < 13 {
             let sodiumHigh = context.todaySodiumMg > context.sodiumLimitMg
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
-                title: "Take tomorrow's photo before caffeine or a salty breakfast",
+                title: sodiumHigh ? "Cut evening sodium this week" : "Prioritize a consistent sleep window this week",
                 explanation: sodiumHigh
-                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit; morning timing plus lower sodium gives a cleaner read."
-                    : "Face reads puffier than your baseline. Morning photos before food and caffeine remove the biggest confounders.",
-                expectedImpact: "Cleaner puffiness tracking.",
-                category: sodiumHigh ? .nutrition : .photoQuality, priority: 2,
+                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit — sodium is the fastest lever on facial water retention."
+                    : "Face reads puffier than your baseline. Sleep and hydration are the most common drivers of day-to-day facial puffiness.",
+                expectedImpact: "Less puffiness, cleaner trend.",
+                category: sodiumHigh ? .nutrition : .sleep, priority: 2,
                 durationType: .shortTerm, destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.skin < 14 {
+        if result.skin < 18 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Add sunscreen to your morning checklist",
-                explanation: "Skin-region readings vary a lot in your photos. Daily SPF is the single highest-evidence skin habit, independent of what the camera shows.",
+                explanation: "Daily SPF is the single highest-evidence skin habit available, independent of anything a photo can show.",
                 expectedImpact: "Long-run skin quality; steadier skin component.",
                 category: .skin, priority: 2, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.grooming < 11 {
+        if result.grooming < 15 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Schedule a haircut every 4 weeks",
-                explanation: "Face visibility/grooming reads inconsistent across recent photos. A standing grooming cadence keeps it maintained without thinking about it.",
+                explanation: "Grooming/looks checklist items are due but incomplete. A standing grooming cadence keeps it maintained without thinking about it.",
                 expectedImpact: "Consistent grooming component; one less decision.",
                 category: .grooming, priority: 3, durationType: .longTerm,
                 destination: .calendar, relatedCheckInId: id))
         }
 
-        if result.trend < 8 {
-            out.append(AppearanceSuggestion(
-                sourceKind: "face",
-                title: "Turn on the daily face-photo reminder",
-                explanation: "Your check-in consistency is low, and every comparison-based component gets noisier with gaps.",
-                expectedImpact: "Better baseline, higher-confidence scores.",
-                category: .photoQuality, priority: 3, durationType: .shortTerm,
-                destination: .saveOnly, relatedCheckInId: id))
-        }
-
-        // Sleep angle only when puffiness AND consistency both flag; a real pattern, not filler.
-        if result.puffiness < 9 && result.trend >= 8 {
+        // Sleep angle only when puffiness AND consistency both flag — a real pattern, not filler.
+        if result.puffiness < 12 && result.trend >= 8 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Hold a consistent sleep window this week",
-                explanation: "Puffiness is up against your baseline while photo timing is consistent; short or irregular sleep is the usual remaining driver.",
+                explanation: "Puffiness is up against your baseline while your check-in consistency is solid — short or irregular sleep is the usual remaining driver.",
                 expectedImpact: "Less morning puffiness; better recovery.",
                 category: .sleep, priority: 3, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))
@@ -105,6 +77,8 @@ enum SuggestionGenerationService {
 
     // MARK: - Body
 
+    /// Every branch here is about the person — composition, training,
+    /// posture, nutrition — never photo coverage/lighting/spot consistency.
     static func bodySuggestions(result: AppearanceScoringService.BodyScoreResult,
                                 checkIn: AppearanceCheckIn,
                                 context: Context) -> [AppearanceSuggestion] {
@@ -151,16 +125,6 @@ enum SuggestionGenerationService {
                 destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.photoPosture < 10 {
-            out.append(AppearanceSuggestion(
-                sourceKind: "body",
-                title: "Retake body photos in the same spot and lighting",
-                explanation: "Photo coverage or quality is limiting visual comparison. Same location, same time of day, phone propped at the same height.",
-                expectedImpact: "Comparison confidence goes up immediately.",
-                category: .photoQuality, priority: 2, durationType: .shortTerm,
-                destination: .checklist, relatedCheckInId: id))
-        }
-
         if context.recentWorkoutCount >= 8 {
             out.append(AppearanceSuggestion(
                 sourceKind: "body",
@@ -171,7 +135,7 @@ enum SuggestionGenerationService {
                 destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.trendDirection < 5, let phase {
+        if result.trendDirection < 8, let phase {
             out.append(AppearanceSuggestion(
                 sourceKind: "body",
                 title: "Tighten nutrition consistency for two weeks",

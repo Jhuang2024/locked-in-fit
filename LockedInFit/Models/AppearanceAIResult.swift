@@ -8,16 +8,29 @@ struct AppearanceAIResult: Codable {
     var scoreAdjustment: Double
     /// 0–1 confidence in the observations.
     var confidence: Double
-    /// Qualitative, non-judgmental observations about lighting, framing, changes vs prior photo.
+    /// Qualitative, non-judgmental observations about the subject and
+    /// changes vs their own history — never about lighting, background, or
+    /// other photo-technical qualities.
     var observations: [String]
     var suggestions: [AppearanceAISuggestion]
+    /// True when the photo passed capture-time checks but the AI still
+    /// couldn't reliably judge the person (e.g. subject obscured or
+    /// unclear). When true, callers should ignore scoreAdjustment/suggestions
+    /// and keep the local score as-is rather than penalizing the user for an
+    /// unreadable photo. Optional so older/mock payloads without this field
+    /// still decode.
+    var unableToAssess: Bool?
 
     var clampedAdjustment: Double { max(-10, min(10, scoreAdjustment)) }
+    var isUnableToAssess: Bool { unableToAssess ?? false }
 }
 
 struct AppearanceAISuggestion: Codable {
     var title: String
-    /// Raw AppearanceSuggestionCategory value (skin/grooming/posture/workout/nutrition/sleep/body/photo_quality).
+    /// Raw AppearanceSuggestionCategory value (skin/grooming/posture/workout/nutrition/sleep/body).
+    /// `photo_quality` still parses for backward compatibility but the
+    /// current prompt never asks the model to use it — suggestions must be
+    /// about the subject, not the photo.
     var category: String
     var explanation: String
     var expectedImpact: String
@@ -37,7 +50,7 @@ struct AppearanceAISuggestion: Codable {
             expectedImpact: expectedImpact,
             category: AppearanceSuggestionCategory(rawValue: category)
                 ?? AppearanceSuggestionCategory(rawValue: category.replacingOccurrences(of: "photoQuality", with: "photo_quality"))
-                ?? .photoQuality,
+                ?? .skin,
             priority: max(1, min(5, priority)),
             durationType: SuggestionDurationType(rawValue: durationType)
                 ?? (durationType.lowercased().contains("long") ? .longTerm : .shortTerm),
