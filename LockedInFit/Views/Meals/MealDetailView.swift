@@ -5,6 +5,7 @@ import SwiftData
 struct MealDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query private var settingsList: [UserSettings]
     @Bindable var meal: MealLog
     @State private var confirmDelete = false
 
@@ -26,6 +27,10 @@ struct MealDetailView: View {
                 Text(meal.honestSummary)
                     .font(.callout.weight(.semibold))
                 ConfidenceBadge(confidence: meal.confidence)
+            }
+
+            Section("Nutrition Analysis") {
+                MealNutritionAnalysisView(meal: meal, settings: settingsList.first)
             }
 
             Section("Meal") {

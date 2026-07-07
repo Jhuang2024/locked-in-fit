@@ -168,6 +168,22 @@ enum ProcessedLevel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum MealAnalysisState: String, Codable {
+    case notAnalyzed = "not_analyzed"
+    case analyzing
+    case completed
+    case failed
+
+    var label: String {
+        switch self {
+        case .notAnalyzed: return "Not analyzed"
+        case .analyzing: return "Analyzing…"
+        case .completed: return "Analyzed"
+        case .failed: return "Analysis unavailable"
+        }
+    }
+}
+
 enum EntrySource: String, Codable, CaseIterable {
     case manual
     case healthKit = "health_kit"
