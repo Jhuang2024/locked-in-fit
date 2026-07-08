@@ -49,10 +49,14 @@ struct MockFoodAIService: FoodAIService {
             ])
     ]
 
-    func analyzeMeal(image: UIImage, context: MealAnalysisContext) async throws -> MealEstimate {
+    func analyzeMeal(images: [UIImage], context: MealAnalysisContext) async throws -> MealEstimate {
         // Simulate a short analysis delay so the UI flow matches the real provider.
         try await Task.sleep(for: .seconds(1.2))
-        return estimate(context: context, source: "photo")
+        // More photos → more dishes, mirroring how the real provider is told
+        // to combine every photo into one meal estimate.
+        return estimate(context: context,
+                        source: images.count > 1 ? "\(images.count) photos" : "photo",
+                        templateCount: min(max(images.count, 1), 2))
     }
 
     func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate {
@@ -61,8 +65,10 @@ struct MockFoodAIService: FoodAIService {
         return estimate(context: context, source: "description")
     }
 
-    private func estimate(context: MealAnalysisContext, source: String) -> MealEstimate {
-        var template = Self.templates.randomElement()!
+    private func estimate(context: MealAnalysisContext, source: String, templateCount: Int = 1) -> MealEstimate {
+        let picked = Self.templates.shuffled().prefix(templateCount)
+        var template = Template(notes: picked.map(\.notes).joined(separator: " "),
+                                items: picked.flatMap(\.items))
         // Small random scaling so repeated mock runs don't look identical.
         let scale = Double.random(in: 0.85...1.15)
         let items = template.items.map { item in

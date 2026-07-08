@@ -111,7 +111,7 @@ struct DailyLogView: View {
                         }
                         .onDelete { offsets in
                             for index in offsets {
-                                ImageStore.delete(mealsOfType[index].photoPath)
+                                ImageStore.deleteAll(mealsOfType[index].allPhotoPaths)
                                 context.delete(mealsOfType[index])
                             }
                         }

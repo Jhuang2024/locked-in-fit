@@ -10,7 +10,7 @@ struct MealPhotoAnalysisView: View {
     @Query private var settingsList: [UserSettings]
 
     @State private var model = MealAnalysisViewModel()
-    @State private var photoItem: PhotosPickerItem?
+    @State private var photoItems: [PhotosPickerItem] = []
     @State private var showCamera = false
     @State private var draft: MealLog?
 
@@ -41,14 +41,8 @@ struct MealPhotoAnalysisView: View {
     private var setupAndAnalyze: some View {
         Form {
             Section {
-                if let image = model.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 260)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
+                if !model.images.isEmpty {
+                    photoStrip
                 }
                 HStack {
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -60,13 +54,17 @@ struct MealPhotoAnalysisView: View {
                         }
                         .buttonStyle(.bordered)
                     }
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("Library", systemImage: "photo")
+                    PhotosPicker(selection: $photoItems, maxSelectionCount: 8, matching: .images) {
+                        Label(model.images.isEmpty ? "Library" : "Add More", systemImage: "photo")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .listRowBackground(Color.clear)
+            } footer: {
+                if model.images.count > 1 {
+                    Text("All \(model.images.count) photos are analyzed together as one meal. Each dish is counted once, even if it shows up in more than one photo.")
+                }
             }
 
             Section("Context") {
@@ -105,11 +103,12 @@ struct MealPhotoAnalysisView: View {
                     Button {
                         Task { await runAnalysis(forceMock: false) }
                     } label: {
-                        Label("Analyze Photo", systemImage: "sparkles")
+                        Label(model.images.count > 1 ? "Analyze \(model.images.count) Photos" : "Analyze Photo",
+                              systemImage: "sparkles")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.image == nil)
+                    .disabled(model.images.isEmpty)
                 }
             } footer: {
                 let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
@@ -122,20 +121,62 @@ struct MealPhotoAnalysisView: View {
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
-                model.image = image
+                model.images.append(image)
                 model.phase = .ready
             }
             .ignoresSafeArea()
         }
-        .onChange(of: photoItem) {
+        .onChange(of: photoItems) {
+            // Selections are consumed and appended, then the picker binding
+            // is cleared so "Add More" starts fresh (and re-picking doesn't
+            // silently duplicate). The guard stops the clearing itself from
+            // re-entering this handler.
+            guard !photoItems.isEmpty else { return }
+            let items = photoItems
+            photoItems = []
             Task {
-                if let data = try? await photoItem?.loadTransferable(type: Data.self),
-                   let image = UIImage.downsampled(from: data, maxDimension: 1600) {
-                    model.image = image
-                    model.phase = .ready
+                for item in items {
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let image = UIImage.downsampled(from: data, maxDimension: 1600) {
+                        model.images.append(image)
+                    }
                 }
+                if !model.images.isEmpty { model.phase = .ready }
             }
         }
+    }
+
+    /// Horizontal strip of the chosen photos, each removable individually.
+    private var photoStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(Array(model.images.enumerated()), id: \.offset) { index, image in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        Button {
+                            model.images.remove(at: index)
+                            if model.images.isEmpty { model.phase = .pickingPhoto }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .black.opacity(0.55))
+                        }
+                        // Borderless keeps the tap target on the X itself;
+                        // a default-styled button inside a Form row makes
+                        // the whole row trigger it.
+                        .buttonStyle(.borderless)
+                        .padding(5)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .listRowBackground(Color.clear)
     }
 
     private func runAnalysis(forceMock: Bool) async {

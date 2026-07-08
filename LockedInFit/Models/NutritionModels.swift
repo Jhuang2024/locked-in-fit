@@ -6,6 +6,12 @@ final class MealLog {
     var date: Date = Date()
     var mealTypeRaw: String = MealType.snack.rawValue
     var photoPath: String?
+    /// Additional photos beyond `photoPath`, for meals logged from several
+    /// pictures (multiple dishes, or the same spread from different angles).
+    /// `photoPath` stays the primary/thumbnail photo so every existing view
+    /// keeps working; these are the rest, in the order they were added.
+    /// Additive with a default, per the migration policy in LockedInFitApp.
+    var extraPhotoPaths: [String] = []
     var calories: Double = 0
     var protein: Double = 0
     var carbs: Double = 0
@@ -37,6 +43,10 @@ final class MealLog {
     }
 
     var items: [FoodItem] { foodItems ?? [] }
+
+    /// Every photo attached to this meal (primary first), for display and
+    /// for cleanup on delete. Same shape as AppearanceCheckIn.allPhotoPaths.
+    var allPhotoPaths: [String?] { [photoPath] + extraPhotoPaths.map(Optional.some) }
 
     var facts: [String] {
         get { factsRaw }

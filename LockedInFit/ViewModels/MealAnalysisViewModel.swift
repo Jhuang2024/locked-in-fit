@@ -13,7 +13,10 @@ final class MealAnalysisViewModel {
     }
 
     var phase: Phase = .pickingPhoto
-    var image: UIImage?
+    /// One meal can be logged from several photos (multiple dishes, or the
+    /// same spread from different angles); they're all analyzed together
+    /// into a single combined estimate.
+    var images: [UIImage] = []
     var mealType: MealType = .guess()
     var userDescription = ""
     var isHomeCooked = true
@@ -21,7 +24,7 @@ final class MealAnalysisViewModel {
     var providerUsed = ""
 
     func analyze(settings: UserSettings?, forceMock: Bool = false) async {
-        guard let image else { return }
+        guard !images.isEmpty else { return }
         phase = .analyzing
         let service: FoodAIService = forceMock ? MockFoodAIService() : AIServiceFactory.make(settings: settings)
         providerUsed = service.providerName
@@ -29,18 +32,21 @@ final class MealAnalysisViewModel {
             let context = MealAnalysisContext(mealType: mealType,
                                               userDescription: userDescription,
                                               isLikelyHomeCooked: isHomeCooked)
-            estimate = try await service.analyzeMeal(image: image, context: context)
+            estimate = try await service.analyzeMeal(images: images, context: context)
             phase = .reviewing
         } catch {
             phase = .failed(error.localizedDescription)
         }
     }
 
-    /// Builds the draft MealLog (with saved photo) for review/editing. Not inserted here.
+    /// Builds the draft MealLog (with all photos saved) for review/editing.
+    /// Not inserted here. First photo becomes the primary/thumbnail photo;
+    /// the rest go to extraPhotoPaths.
     func makeDraft() -> MealLog? {
         guard let estimate else { return nil }
-        let path = image.flatMap { ImageStore.save($0, prefix: "meal") }
-        let draft = estimate.makeDraft(photoPath: path)
+        let paths = images.compactMap { ImageStore.save($0, prefix: "meal") }
+        let draft = estimate.makeDraft(photoPath: paths.first)
+        draft.extraPhotoPaths = Array(paths.dropFirst())
         draft.mealType = mealType
         return draft
     }

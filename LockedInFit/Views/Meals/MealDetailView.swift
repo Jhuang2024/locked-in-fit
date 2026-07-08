@@ -8,18 +8,38 @@ struct MealDetailView: View {
     @Query private var settingsList: [UserSettings]
     @Bindable var meal: MealLog
     @State private var confirmDelete = false
+    /// Loaded once on appear instead of decoded from disk inside the body:
+    /// this Form re-renders on every keystroke in its text fields, and a
+    /// multi-photo meal would re-decode every JPEG per character otherwise.
+    @State private var photos: [UIImage] = []
 
     var body: some View {
         Form {
-            if let image = ImageStore.load(meal.photoPath) {
+            if !photos.isEmpty {
                 Section {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 240)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .frame(maxWidth: .infinity)
+                    if photos.count == 1, let image = photos.first {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 240)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .frame(maxWidth: .infinity)
+                            .listRowBackground(Color.clear)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(Array(photos.enumerated()), id: \.offset) { _, image in
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 180, height: 180)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
                         .listRowBackground(Color.clear)
+                    }
                 }
             }
 
@@ -81,9 +101,14 @@ struct MealDetailView: View {
         .navigationTitle(meal.mealType.label)
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDoneToolbar()
+        .onAppear {
+            if photos.isEmpty {
+                photos = meal.allPhotoPaths.compactMap { ImageStore.load($0) }
+            }
+        }
         .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                ImageStore.delete(meal.photoPath)
+                ImageStore.deleteAll(meal.allPhotoPaths)
                 context.delete(meal)
                 dismiss()
             }

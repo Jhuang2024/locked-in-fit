@@ -21,7 +21,7 @@ import os
 /// pre-migration snapshot. See the additive-only migration policy documented
 /// next to `ModelContainer(for:)` in LockedInFitApp.
 enum PersistenceGuard {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2 // v2: MealLog.extraPhotoPaths added
 
     private static let logger = Logger(subsystem: "com.jerryhuang.LockedInFit", category: "PersistenceGuard")
     private static let lastSeenSchemaVersionKey = "LockedInFit.lastSeenSchemaVersion"

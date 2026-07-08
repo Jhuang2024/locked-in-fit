@@ -25,29 +25,39 @@ struct OpenRouterFoodAIService: FoodAIService {
     All numbers are plain numbers (kcal, grams, mg for sodium). confidence is 0-1.
     """
 
-    func analyzeMeal(image: UIImage, context: MealAnalysisContext) async throws -> MealEstimate {
+    func analyzeMeal(images: [UIImage], context: MealAnalysisContext) async throws -> MealEstimate {
         guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
-        guard let jpeg = image.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else {
-            throw FoodAIError.parsing("Couldn't encode the photo.")
+        guard !images.isEmpty else { throw FoodAIError.parsing("No photos to analyze.") }
+        let jpegs = images.compactMap { $0.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) }
+        guard jpegs.count == images.count else {
+            throw FoodAIError.parsing("Couldn't encode one of the photos.")
         }
 
         var userText = "Meal type: \(context.mealType.rawValue)."
+        if images.count > 1 {
+            userText += " This ONE meal is shown across \(images.count) photos (multiple dishes, or the same"
+            userText += " spread from different angles). Produce a SINGLE combined estimate covering everything"
+            userText += " eaten, counting each distinct dish exactly once even if it appears in more than one photo."
+        }
         if context.isLikelyHomeCooked {
             userText += " This is likely home-cooked or restaurant food; reason explicitly about hidden oil."
         }
         if !context.userDescription.isEmpty {
             userText += " User description: \(context.userDescription)"
         }
-        userText += " Analyze the attached photo and return the strict JSON estimate."
+        userText += " Analyze the attached photo\(images.count > 1 ? "s" : "") and return the strict JSON estimate."
+
+        var userContent: [[String: Any]] = [["type": "text", "text": userText]]
+        for jpeg in jpegs {
+            userContent.append(["type": "image_url",
+                                "image_url": ["url": "data:image/jpeg;base64,\(jpeg.base64EncodedString())"]])
+        }
 
         let body: [String: Any] = [
             "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.systemPrompt],
-                ["role": "user", "content": [
-                    ["type": "text", "text": userText],
-                    ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(jpeg.base64EncodedString())"]]
-                ]]
+                ["role": "user", "content": userContent]
             ],
             "temperature": 0.2,
             "max_tokens": 1500
