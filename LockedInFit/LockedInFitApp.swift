@@ -11,6 +11,13 @@ struct LockedInFitApp: App {
         // the stalled call itself was never instrumented and never returns.
         MainThreadHangDetector.shared.start()
 
+        // Resolve the shared App Group container immediately (background
+        // queue, non-blocking, duration logged). Backup mirrors are written
+        // there so they survive the container wipes that updates can cause,
+        // and the restore pickers need it resolved to SHOW those mirrors —
+        // including on the very first launch after such a wipe.
+        AppGroupContainerLocator.beginResolvingContainer()
+
         // Byte-for-byte safety net, before SwiftData gets a chance to open
         // (and possibly migrate) the store. See PersistenceGuard.
         PerfLog.measure("launch.persistenceGuard") { PersistenceGuard.runPreLaunchChecks() }

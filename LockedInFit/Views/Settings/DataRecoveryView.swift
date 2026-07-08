@@ -18,6 +18,7 @@ struct DataRecoveryView: View {
     /// mirrors that survive reinstalls — sorted most-complete first, since
     /// after a wipe the newest backup is usually of the post-wipe state.
     @State private var backups: [BackupService.BackupInfo] = []
+    @State private var checkingSharedContainer = false
 
     var body: some View {
         NavigationStack {
@@ -32,7 +33,15 @@ struct DataRecoveryView: View {
                 }
 
                 Section {
-                    if backups.isEmpty {
+                    if checkingSharedContainer {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Checking the shared container for backups…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if backups.isEmpty && !checkingSharedContainer {
                         Text("No backup is available on this device or in the shared container.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -84,12 +93,24 @@ struct DataRecoveryView: View {
             }
             .navigationTitle("Data Recovery")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                backups = (BackupService.listBackups() + BackupService.appGroupMirrorBackups())
-                    .sorted {
-                        if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
-                        return $0.date > $1.date
-                    }
+            .task {
+                // This screen appears at launch right after a wipe — the
+                // exact moment the App Group lookup (kicked off in
+                // App.init) may still be in flight, and the shared-container
+                // mirrors are usually the only backups that survived. Keep
+                // re-loading until the lookup settles.
+                AppGroupContainerLocator.beginResolvingContainer()
+                loadBackups()
+                for _ in 0..<20 {
+                    let state = AppGroupContainerLocator.lookupState
+                    guard state == .checking || state == .notStarted else { break }
+                    checkingSharedContainer = true
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    loadBackups()
+                }
+                checkingSharedContainer = false
+                loadBackups()
             }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 switch result {
@@ -112,6 +133,14 @@ struct DataRecoveryView: View {
                 }
             }
         }
+    }
+
+    private func loadBackups() {
+        backups = (BackupService.listBackups() + BackupService.appGroupMirrorBackups())
+            .sorted {
+                if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
+                return $0.date > $1.date
+            }
     }
 
     private func restore(from backup: BackupService.BackupInfo) {

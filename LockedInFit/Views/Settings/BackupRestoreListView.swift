@@ -14,11 +14,20 @@ struct BackupRestoreListView: View {
     @State private var backups: [BackupService.BackupInfo] = []
     @State private var pendingRestore: BackupService.BackupInfo?
     @State private var result: String?
+    @State private var checkingSharedContainer = false
 
     var body: some View {
         Form {
             Section {
-                if backups.isEmpty {
+                if checkingSharedContainer {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Checking the shared container for backups…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if backups.isEmpty && !checkingSharedContainer {
                     Text("No backups found on this device or in the shared container yet. Backups are taken automatically as you use the app.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -47,7 +56,24 @@ struct BackupRestoreListView: View {
         }
         .navigationTitle("Restore From Backup")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: load)
+        .task {
+            // The shared-container mirrors are the backups most likely to
+            // matter (they survive the wipes), so make sure the container
+            // is resolved — and keep re-loading while the background
+            // lookup runs — before concluding "no backups".
+            AppGroupContainerLocator.beginResolvingContainer()
+            load()
+            for _ in 0..<20 {
+                let state = AppGroupContainerLocator.lookupState
+                guard state == .checking || state == .notStarted else { break }
+                checkingSharedContainer = true
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                load()
+            }
+            checkingSharedContainer = false
+            load()
+        }
         .confirmationDialog("Restore this backup?",
                             isPresented: Binding(get: { pendingRestore != nil },
                                                  set: { if !$0 { pendingRestore = nil } }),

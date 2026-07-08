@@ -92,7 +92,7 @@ struct SocialClimberLinkView: View {
             if let context = socialClimberContext {
                 LabeledContent("Last updated", value: Formatters.mediumDate(context.updatedAt))
             }
-            if lookupState == .unavailable || lookupState == .disabled {
+            if lookupState == .unavailable {
                 Button {
                     AppGroupContainerLocator.retryContainerLookup()
                     Task { await pollWhileChecking() }
@@ -103,7 +103,7 @@ struct SocialClimberLinkView: View {
         } header: {
             Text("Status")
         } footer: {
-            if lookupState == .unavailable || lookupState == .disabled {
+            if lookupState == .unavailable {
                 Text("If this stays unavailable, both apps need the same App Group (\(AppGroupContainerLocator.appGroupIdentifier)) enabled under Signing & Capabilities in Xcode, with valid provisioning for each. The console logs how long the check took (appGroup.lookup.finished).")
             }
         }
@@ -123,8 +123,6 @@ struct SocialClimberLinkView: View {
             Text("Checking…").font(.caption).foregroundStyle(.secondary)
         case .unavailable:
             Text("Not available on this build").font(.caption).foregroundStyle(.secondary)
-        case .disabled:
-            Text("Suspended after a slow check").font(.caption).foregroundStyle(.orange)
         }
     }
 
