@@ -3,6 +3,31 @@ import SwiftData
 import UniformTypeIdentifiers
 import UIKit
 
+/// Value-based routes for everything pushed in the Settings area. These
+/// exist because `NavigationLink(destination:)` stores a fully-constructed
+/// destination VIEW VALUE inside the link, rebuilt on every re-evaluation —
+/// and on iOS 26 that fed a self-sustaining update cycle: push Goal (or any
+/// integration page) and Self._printChanges showed SettingsView and the
+/// child re-reporting "@self changed" in lockstep, hundreds of times per
+/// second, freezing the app inside a single never-draining SwiftUI update.
+/// The child's navigation-bar preferences re-trigger navigation resolution,
+/// which reconstructs the eager destination values, which invalidates the
+/// views again. With value-based links the link stores only this enum;
+/// destinations are built lazily by navigationDestination(for:) in
+/// DashboardView, exactly once per push, so there is no view value left to
+/// churn.
+enum SettingsRoute: Hashable {
+    case settings
+    case goalEdit
+    case notifications
+    case aiSettings
+    case healthKitSync
+    case looksSettings
+    case socialClimber
+    case googleCalendar
+    case diagnostics
+}
+
 // Shared, file-scope fetch descriptors: never rebuilt per view init, so
 // SwiftUI's attribute-graph equality check on the @Query configurations is
 // trivially stable. See the matching comment in DashboardView.swift — a
@@ -55,23 +80,23 @@ struct SettingsView: View {
             goalSection
 
             Section("Integrations") {
-                NavigationLink(destination: NotificationSettingsView()) {
+                NavigationLink(value: SettingsRoute.notifications) {
                     Label("Notifications", systemImage: "bell.badge")
                 }
-                NavigationLink(destination: AISettingsView()) {
+                NavigationLink(value: SettingsRoute.aiSettings) {
                     Label("AI Analysis", systemImage: "sparkles")
                 }
-                NavigationLink(destination: HealthKitSyncView()) {
+                NavigationLink(value: SettingsRoute.healthKitSync) {
                     Label("Apple Health Sync", systemImage: "heart.fill")
                 }
-                NavigationLink(destination: LooksSettingsView()) {
+                NavigationLink(value: SettingsRoute.looksSettings) {
                     Label("Looks & Calendar", systemImage: "face.smiling")
                 }
-                NavigationLink(destination: SocialClimberLinkView()) {
+                NavigationLink(value: SettingsRoute.socialClimber) {
                     Label("Social Climber", systemImage: "person.2.wave.2")
                 }
                 #if DEBUG
-                NavigationLink(destination: DiagnosticsView()) {
+                NavigationLink(value: SettingsRoute.diagnostics) {
                     Label("Diagnostics", systemImage: "wrench.and.screwdriver")
                 }
                 #endif
@@ -291,7 +316,7 @@ struct SettingsView: View {
     /// calorie/protein/step targets get set.
     private var goalSection: some View {
         Section("Goal") {
-            NavigationLink(destination: GoalEditView(goal: activeGoals.first)) {
+            NavigationLink(value: SettingsRoute.goalEdit) {
                 Label(activeGoals.isEmpty ? "Set Up Goal" : "Edit Goal", systemImage: "target")
             }
             if let goal = activeGoals.first {

@@ -6,6 +6,7 @@ import SwiftData
 private let goalEditWeights = FetchDescriptor<BodyWeightEntry>(sortBy: [SortDescriptor(\BodyWeightEntry.date)])
 private let goalEditMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date)])
 private let goalEditSteps = FetchDescriptor<StepEntry>(sortBy: [SortDescriptor(\StepEntry.date)])
+private let goalEditActiveGoals = FetchDescriptor<Goal>(predicate: #Predicate<Goal> { $0.active })
 
 struct GoalEditView: View {
     @Environment(\.modelContext) private var context
@@ -13,9 +14,13 @@ struct GoalEditView: View {
     @Query(goalEditWeights) private var weights: [BodyWeightEntry]
     @Query(goalEditMeals) private var meals: [MealLog]
     @Query(goalEditSteps) private var steps: [StepEntry]
+    @Query(goalEditActiveGoals) private var activeGoals: [Goal]
     @Query private var settingsList: [UserSettings]
 
-    let goal: Goal?
+    /// Queried here rather than passed in: this view is reached via the
+    /// value-based SettingsRoute.goalEdit (no payload), so it looks up the
+    /// active goal itself — same source of truth SettingsView's row uses.
+    private var goal: Goal? { activeGoals.first }
 
     @State private var phase: GoalPhase = .cut
     @State private var targetWeight: Double = 75

@@ -40,7 +40,7 @@ struct LooksSettingsView: View {
             }
 
             Section("Google Calendar") {
-                NavigationLink(destination: GoogleCalendarConnectView()) {
+                NavigationLink(value: SettingsRoute.googleCalendar) {
                     HStack {
                         Label("Calendar Connection", systemImage: "calendar")
                         Spacer()

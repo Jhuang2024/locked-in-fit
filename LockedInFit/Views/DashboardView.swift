@@ -174,9 +174,32 @@ struct DashboardView: View {
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
+                    NavigationLink(value: SettingsRoute.settings) {
                         Image(systemName: "gearshape")
                     }
+                }
+            }
+            // Lazy, value-based destinations for the whole Settings area.
+            // Each screen is constructed exactly once when its route is
+            // pushed — never stored inside a NavigationLink value, never
+            // rebuilt by toolbar/navigation re-resolution. See SettingsRoute
+            // for the update-cycle bug this exists to prevent.
+            .navigationDestination(for: SettingsRoute.self) { route in
+                switch route {
+                case .settings: SettingsView()
+                case .goalEdit: GoalEditView()
+                case .notifications: NotificationSettingsView()
+                case .aiSettings: AISettingsView()
+                case .healthKitSync: HealthKitSyncView()
+                case .looksSettings: LooksSettingsView()
+                case .socialClimber: SocialClimberLinkView()
+                case .googleCalendar: GoogleCalendarConnectView()
+                case .diagnostics:
+                    #if DEBUG
+                    DiagnosticsView()
+                    #else
+                    EmptyView()
+                    #endif
                 }
             }
     }
