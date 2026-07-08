@@ -170,6 +170,8 @@ struct DashboardView: View {
             .onChange(of: steps) { _, _ in triggerReminderRefresh(); scheduleBackup() }
             .onChange(of: appearanceCheckIns) { _, _ in triggerReminderRefresh(); scheduleBackup() }
             .onChange(of: sleepLogs) { _, _ in scheduleBackup() }
+            .onChange(of: weights) { _, _ in scheduleBackup() }
+            .onChange(of: bodyFats) { _, _ in scheduleBackup() }
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

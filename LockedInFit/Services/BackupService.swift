@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftData
 
@@ -31,6 +32,7 @@ enum BackupService {
     /// bypasses it.
     static let minimumAutomaticInterval: TimeInterval = 5 * 60
     fileprivate static let lastAutomaticBackupKey = "LockedInFit.lastAutomaticBackupDate"
+    private static let lastBackupHashKey = "LockedInFit.lastBackupContentHash"
 
     struct BackupInfo: Identifiable {
         enum Location {
@@ -99,6 +101,20 @@ enum BackupService {
         await BackupCoordinator.shared.backupManually(container: container)
     }
 
+    /// Fire-and-forget backup when the app is backgrounded — the moment that
+    /// precedes an app update, the event local backups exist to survive.
+    /// Bypasses the debounce and throttle (backgrounding frequency is
+    /// bounded by the user), never blocks resigning active (all work runs on
+    /// the background actor), and the content-hash check inside
+    /// `performBackup` makes the no-changes case a cheap no-op, so ordinary
+    /// app switching doesn't churn out duplicate backups.
+    static func backupOnBackgrounding(container: ModelContainer) {
+        PerfLog.event("backup.background")
+        Task.detached(priority: .utility) {
+            _ = await BackupCoordinator.shared.backupManually(container: container)
+        }
+    }
+
     /// The actual work: fetch, encode, write, rotate. Called only from
     /// `BackupActor`'s isolated context, so it always runs off the main
     /// thread. Not private so `BackupActor` (a separate type) can call it.
@@ -109,6 +125,19 @@ enum BackupService {
         let existingIndex = readIndex()
         if snapshot.totalRecordCount == 0, existingIndex.contains(where: { $0.recordCount > 0 }) {
             return nil
+        }
+
+        // Content dedupe: backups now also fire on every app backgrounding,
+        // which happens constantly during normal phone use. When nothing
+        // actually changed since the last backup, skip the write entirely so
+        // the rotation isn't flooded with identical snapshots (which would
+        // push older, distinct backups off the list). The hash excludes the
+        // exportedAt timestamp, which would otherwise differ every time.
+        let hash = contentHash(of: snapshot)
+        if let hash, hash == UserDefaults.standard.string(forKey: lastBackupHashKey),
+           let newest = existingIndex.max(by: { $0.date < $1.date }) {
+            PerfLog.event("backup.unchanged")
+            return backupsDirectory.appendingPathComponent(newest.filename)
         }
 
         let encoder = JSONEncoder()
@@ -136,7 +165,23 @@ enum BackupService {
         writeIndex(updatedIndex)
         rotate()
         mirrorToAppGroup(data: data, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount)
+        if let hash {
+            UserDefaults.standard.set(hash, forKey: lastBackupHashKey)
+        }
         return destination
+    }
+
+    /// SHA-256 of the snapshot with `exportedAt` normalized away, so two
+    /// snapshots of identical data hash identically regardless of when they
+    /// were taken.
+    private static func contentHash(of snapshot: ExportImportService.Snapshot) -> String? {
+        var comparable = snapshot
+        comparable.exportedAt = Date(timeIntervalSince1970: 0)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(comparable) else { return nil }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     /// All local backups, newest first. Reads the small index file rather
@@ -326,11 +371,24 @@ private actor BackupCoordinator {
         }
     }
 
+    /// Trailing-edge throttle: a change landing inside the minimum interval
+    /// is DEFERRED to when the interval expires, never dropped. The old
+    /// behavior silently discarded it, which meant "make a change, close the
+    /// app, update" lost the change forever — the exact event backups exist
+    /// for. (The backgrounding hook additionally captures state immediately
+    /// whenever the app leaves the foreground.)
     private func runAutomaticIfDue(container: ModelContainer) async {
-        guard !isRunning else { return }
-        if let last = UserDefaults.standard.object(forKey: BackupService.lastAutomaticBackupKey) as? Date,
-           Date().timeIntervalSince(last) < BackupService.minimumAutomaticInterval {
+        if isRunning {
+            scheduleSoon(container: container, after: 5)
             return
+        }
+        if let last = UserDefaults.standard.object(forKey: BackupService.lastAutomaticBackupKey) as? Date {
+            let remaining = BackupService.minimumAutomaticInterval - Date().timeIntervalSince(last)
+            if remaining > 0 {
+                PerfLog.event("backup.deferred")
+                scheduleSoon(container: container, after: remaining + 1)
+                return
+            }
         }
         _ = await runBackup(container: container)
     }

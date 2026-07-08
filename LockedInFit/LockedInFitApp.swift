@@ -69,21 +69,28 @@ struct LockedInFitApp: App {
         HealthKitManager.shared.configureAutoSync(container: container)
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             RootTabView()
         }
         .modelContainer(container)
+        // Backgrounding is the moment right before an app update — the exact
+        // event local backups exist to survive — so capture the latest state
+        // here. Unlike an earlier design that ran the whole JSON snapshot
+        // synchronously on the main thread (and blocked resigning active),
+        // this does a cheap main-context save so the snapshot sees the last
+        // few seconds of edits, then fires a detached background backup and
+        // returns immediately. The content-hash dedupe inside performBackup
+        // makes ordinary app switching with no changes a no-op.
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .background else { return }
+            try? container.mainContext.save()
+            BackupService.backupOnBackgrounding(container: container)
+        }
     }
 }
-
-// Backgrounding intentionally does not force a backup here. A synchronous
-// backup on scenePhase change used to block the main thread on exactly the
-// path that must be instant (resigning active/backgrounding). Automatic
-// backups already run in the background, off the main actor, debounced and
-// throttled after real data mutations (see BackupService.scheduleBackupSoon);
-// SwiftData's own autosave covers ordinary persistence on backgrounding.
-// The app must never wait on backup work to leave the foreground.
 
 struct RootTabView: View {
     private enum Tab: Hashable { case today, log, train, looks, trends }
