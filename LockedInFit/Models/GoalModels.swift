@@ -94,6 +94,11 @@ final class UserSettings {
     /// dietary-limit and goal-achievement alerts fire once per day, not on
     /// every recalculation. Pruned to the last 2 days on write.
     var notifiedEventKeys: [String] = []
+    /// Whether the optional cross-app bridge to Social Climber is on: publish
+    /// LockedInFit's small public snapshot, and react to Social Climber's
+    /// event context. See CrossAppIntegrationManager and
+    /// Settings → Social Climber.
+    var crossAppSharingEnabled: Bool = true
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }

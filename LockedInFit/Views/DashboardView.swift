@@ -188,12 +188,20 @@ struct DashboardView: View {
         }
     }
 
+    /// Settings → Social Climber kill switch for the whole bridge, in both
+    /// directions. Defaults to on since the bridge is already fail-safe, but
+    /// this is the explicit off switch for keeping LockedInFit fully
+    /// self-contained.
+    private var crossAppSharingEnabled: Bool { settings?.crossAppSharingEnabled ?? true }
+
     /// Fresh (non-stale) Social Climber event context, reduced to what the
     /// dashboard and checklist need. Reading is a cheap local file check and
-    /// nil the vast majority of the time (no App Group, no Social Climber,
-    /// or no notable event), so it's safe to recompute on each render.
+    /// nil the vast majority of the time (sharing off, no App Group, no
+    /// Social Climber, or no notable event), so it's safe to recompute on
+    /// each render.
     private var socialReadiness: CrossAppIntegrationManager.SocialReadiness? {
-        CrossAppIntegrationManager.socialReadiness(from: CrossAppIntegrationManager.readSocialContext())
+        guard crossAppSharingEnabled else { return nil }
+        return CrossAppIntegrationManager.socialReadiness(from: CrossAppIntegrationManager.readSocialContext())
     }
 
     @ViewBuilder
@@ -244,6 +252,7 @@ struct DashboardView: View {
     /// Climber's context is missing/stale/corrupt — see
     /// CrossAppIntegrationManager.
     private func syncCrossAppContext() {
+        guard crossAppSharingEnabled else { return }
         CrossAppIntegrationManager.publish(crossAppPublishInput)
         guard let socialReadiness else { return }
         EventAwareChecklistService.generateItems(

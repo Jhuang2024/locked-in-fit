@@ -40,6 +40,9 @@ struct SettingsView: View {
                 NavigationLink(destination: LooksSettingsView()) {
                     Label("Looks & Calendar", systemImage: "face.smiling")
                 }
+                NavigationLink(destination: SocialClimberLinkView()) {
+                    Label("Social Climber", systemImage: "person.2.wave.2")
+                }
             }
 
             Section("Data") {
