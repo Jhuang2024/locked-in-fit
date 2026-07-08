@@ -58,13 +58,18 @@ final class HealthKitManager {
 
     /// Apple Health has no concept of continuous per-second polling; HKObserverQuery
     /// only fires when new data actually lands, and background delivery is scheduled
-    /// by iOS rather than on a fixed clock. While the app is in the foreground we
-    /// still honor a literal 1-second refresh here; in the background the observer
-    /// queries below take over so battery isn't spent polling for nothing.
+    /// by iOS rather than on a fixed clock. This foreground timer is just a backstop
+    /// in case an observer query is missed; it used to fire every second, which meant
+    /// running full async HealthKit queries plus several SwiftData fetch/insert calls
+    /// on the main actor every single second the app was open, a real source of main
+    /// thread contention. A minute is plenty for a backstop: genuinely new data is
+    /// already caught near-instantly by the observer queries below.
+    private static let foregroundSyncInterval: TimeInterval = 60
+
     private func startForegroundAutoSync() {
         guard foregroundTimer == nil else { return }
         autoSyncEnabled = true
-        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: Self.foregroundSyncInterval, repeats: true) { [weak self] _ in
             guard let self, let container = self.container, !self.syncing else { return }
             Task { @MainActor in await self.syncRecent(context: container.mainContext) }
         }
@@ -100,8 +105,12 @@ final class HealthKitManager {
     @MainActor
     func sync(days: Int? = 60, context: ModelContext) async {
         guard isAvailable else { return }
+        PerfLog.event("healthkit.sync.started")
         syncing = true
-        defer { syncing = false }
+        defer {
+            syncing = false
+            PerfLog.event("healthkit.sync.finished")
+        }
         do {
             try await requestAuthorization()
             let steps = try await dailySteps(days: days)

@@ -111,6 +111,7 @@ struct DataRecoveryView: View {
 
     private func finish() {
         DataLossGuard.acknowledge(context: context)
+        BackupService.scheduleBackupSoon(container: context.container)
         onResolved()
     }
 }

@@ -4,7 +4,6 @@ import SwiftData
 @main
 struct LockedInFitApp: App {
     let container: ModelContainer
-    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Byte-for-byte safety net, before SwiftData gets a chance to open
@@ -46,17 +45,16 @@ struct LockedInFitApp: App {
             RootTabView()
         }
         .modelContainer(container)
-        .onChange(of: scenePhase) { _, newPhase in
-            // Catch-all: whatever changed during this session (including
-            // edits no other trigger covers, e.g. Settings or Goal) gets
-            // backed up the moment the user leaves, not just the specific
-            // changes DashboardView watches for.
-            if newPhase == .background {
-                BackupService.backupNow(context: container.mainContext)
-            }
-        }
     }
 }
+
+// Backgrounding intentionally does not force a backup here. A synchronous
+// backup on scenePhase change used to block the main thread on exactly the
+// path that must be instant (resigning active/backgrounding). Automatic
+// backups already run in the background, off the main actor, debounced and
+// throttled after real data mutations (see BackupService.scheduleBackupSoon);
+// SwiftData's own autosave covers ordinary persistence on backgrounding.
+// The app must never wait on backup work to leave the foreground.
 
 struct RootTabView: View {
     private enum Tab: Hashable { case today, log, train, looks, trends }
@@ -108,9 +106,13 @@ struct RootTabView: View {
         }
         .onAppear {
             guard dataLossDetected == nil else { return }
-            let lostData = DataLossGuard.checkForSuddenDataLoss(context: context)
+            let lostData = PerfLog.measure("launch.dataLossCheck") {
+                DataLossGuard.checkForSuddenDataLoss(context: context)
+            }
             dataLossDetected = lostData
-            if !lostData { BackupService.scheduleBackupSoon(context: context) }
+            // No backup scheduled here: launch is not a data-mutation event.
+            // Automatic backups only run after something actually changes
+            // (see BackupService.scheduleBackupSoon call sites).
         }
     }
 

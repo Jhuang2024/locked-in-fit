@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var weightInput = ""
     @State private var backupResult: String?
     @State private var confirmRestore = false
+    @State private var isBackingUp = false
     /// Cached instead of calling BackupService.latestBackup() directly from
     /// the view body: that call decodes every backup file's full JSON
     /// snapshot from disk, and the body re-evaluates on every keystroke in
@@ -106,6 +107,7 @@ struct SettingsView: View {
                 do {
                     let count = try ExportImportService.importJSON(from: url, context: context)
                     importResult = "Imported \(count) records."
+                    BackupService.scheduleBackupSoon(container: context.container)
                 } catch {
                     importResult = "Import failed: \(error.localizedDescription)"
                 }
@@ -116,7 +118,11 @@ struct SettingsView: View {
         .confirmationDialog("Restore from the latest local backup?", isPresented: $confirmRestore, titleVisibility: .visible) {
             Button("Restore") { performRestore() }
         }
+        .onChange(of: settingsList) { _, _ in
+            BackupService.scheduleBackupSoon(container: context.container)
+        }
         .onAppear {
+            PerfLog.event("Settings.appear")
             if settingsList.isEmpty {
                 context.insert(UserSettings())
             }
@@ -124,6 +130,9 @@ struct SettingsView: View {
                 weightInput = String(format: "%.1f", latestWeight.weightKg)
             }
             cachedLatestBackup = BackupService.latestBackup()
+        }
+        .onDisappear {
+            PerfLog.event("Settings.disappear")
         }
     }
 
@@ -287,12 +296,24 @@ struct SettingsView: View {
     private var backupSection: some View {
         Section {
             Button {
-                let saved = BackupService.backupNow(context: context) != nil
-                backupResult = saved ? "Backup saved just now." : "Nothing to back up, or backup skipped to protect existing history."
-                cachedLatestBackup = BackupService.latestBackup()
+                Task {
+                    isBackingUp = true
+                    let saved = await BackupService.backupNowManually(container: context.container) != nil
+                    backupResult = saved ? "Backup saved just now." : "Nothing to back up, or a backup was already running."
+                    cachedLatestBackup = BackupService.latestBackup()
+                    isBackingUp = false
+                }
             } label: {
-                Label("Backup Now", systemImage: "externaldrive.badge.checkmark")
+                if isBackingUp {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Backing Up…")
+                    }
+                } else {
+                    Label("Backup Now", systemImage: "externaldrive.badge.checkmark")
+                }
             }
+            .disabled(isBackingUp)
             if let latestBackup = cachedLatestBackup {
                 Button {
                     confirmRestore = true

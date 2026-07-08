@@ -6,6 +6,18 @@ import SwiftData
 /// export, kept in a directory of their own separate from both the live
 /// SwiftData store and the App Group container.
 ///
+/// Every backup, automatic or manual, builds and writes on `BackupActor`, a
+/// private `@ModelActor` with its own background-safe `ModelContext`.
+/// Fetching, encoding, and writing to disk never touch the main actor or
+/// `container.mainContext`. Scheduling (debounce + throttle + in-flight
+/// guard) lives on `BackupCoordinator`, a plain actor, so the shared
+/// scheduling state can't race even though calls come from the main thread
+/// (view code) and background tasks concurrently.
+///
+/// Automatic backups only ever run after an actual data mutation is
+/// reported via `scheduleBackupSoon`; nothing here runs on launch, on
+/// backgrounding, or as a side effect of routine notification refreshes.
+///
 /// Important boundary to be honest about: these backups live inside this
 /// app's own sandbox, so they protect against in-app mistakes (a bad
 /// migration, an accidental reset) but NOT against a genuine app uninstall,
@@ -14,6 +26,11 @@ import SwiftData
 /// Export JSON, shared to Files/iCloud Drive/AirDrop).
 enum BackupService {
     static let maxBackupsKept = 5
+    /// Automatic backups never run more often than this, no matter how many
+    /// changes happen in between. Only the explicit "Backup Now" button
+    /// bypasses it.
+    static let minimumAutomaticInterval: TimeInterval = 5 * 60
+    fileprivate static let lastAutomaticBackupKey = "LockedInFit.lastAutomaticBackupDate"
 
     struct BackupInfo: Identifiable {
         let url: URL
@@ -30,10 +47,7 @@ enum BackupService {
 
     /// Tiny per-backup record kept in `index.json`, so listing backups never
     /// has to decode a backup's full (potentially large, months-of-history)
-    /// snapshot content just to read its date and record count. Decoding
-    /// full snapshot content on every list call was expensive enough to
-    /// stall the main thread, especially for backups made back when there
-    /// was more data logged than there is now.
+    /// snapshot content just to read its date and record count.
     private struct IndexEntry: Codable {
         var filename: String
         var date: Date
@@ -52,27 +66,35 @@ enum BackupService {
 
     private static var indexURL: URL { backupsDirectory.appendingPathComponent("index.json") }
 
-    private static var pendingBackup: DispatchWorkItem?
+    // MARK: - Scheduling (debounced, throttled, background-safe)
 
-    /// Coalesces rapid, repeated changes (typing in a field, logging several
-    /// sets back to back) into a single backup once things go quiet, instead
-    /// of rebuilding and re-encoding a full snapshot on every keystroke.
-    /// Call this from anywhere the user just changed something; the actual
-    /// work only runs once, `after` seconds since the *last* call.
-    static func scheduleBackupSoon(context: ModelContext, after seconds: Double = 2.5) {
-        pendingBackup?.cancel()
-        let work = DispatchWorkItem { backupNow(context: context) }
-        pendingBackup = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    /// Call this after an actual data mutation only: adding a meal, editing
+    /// a goal, saving a setting, logging a workout/sleep/check-in, an
+    /// import. Never call it from launch, backgrounding, or routine refresh
+    /// code, none of which are data-mutation events. Fire-and-forget: hops
+    /// onto `BackupCoordinator` to debounce and throttle, never blocking the
+    /// caller.
+    static func scheduleBackupSoon(container: ModelContainer, after seconds: Double = 3) {
+        PerfLog.event("backup.scheduled")
+        Task { await BackupCoordinator.shared.scheduleSoon(container: container, after: seconds) }
     }
 
-    /// Builds a fresh snapshot and writes it as a new timestamped backup.
-    /// Refuses to write an empty snapshot when a non-empty backup already
-    /// exists, so a transient empty read never buries good history (req: never
-    /// let an empty state crowd out real data). Rotates old backups afterward.
+    /// Explicit manual "Backup Now": bypasses the throttle, but still
+    /// refuses to overlap an in-flight backup. Fully off the main thread;
+    /// callers should show their own progress UI around the await for a
+    /// large database.
     @discardableResult
-    static func backupNow(context: ModelContext) -> URL? {
-        guard let snapshot = try? ExportImportService.makeSnapshot(context: context) else { return nil }
+    static func backupNowManually(container: ModelContainer) async -> URL? {
+        await BackupCoordinator.shared.backupManually(container: container)
+    }
+
+    /// The actual work: fetch, encode, write, rotate. Called only from
+    /// `BackupActor`'s isolated context, so it always runs off the main
+    /// thread. Not private so `BackupActor` (a separate type) can call it.
+    static func performBackup(context: ModelContext) -> URL? {
+        guard let snapshot = PerfLog.measure("backup.snapshot", { try? ExportImportService.makeSnapshot(context: context) }) else {
+            return nil
+        }
         let existingIndex = readIndex()
         if snapshot.totalRecordCount == 0, existingIndex.contains(where: { $0.recordCount > 0 }) {
             return nil
@@ -81,18 +103,22 @@ enum BackupService {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
-        guard let data = try? encoder.encode(snapshot) else { return nil }
+        guard let data = PerfLog.measure("backup.encode", { try? encoder.encode(snapshot) }) else { return nil }
 
         let filename = "backup-\(fileStamp(snapshot.exportedAt)).json"
         let destination = backupsDirectory.appendingPathComponent(filename)
         let temp = backupsDirectory.appendingPathComponent(filename + ".tmp-\(UUID().uuidString)")
-        do {
-            try data.write(to: temp, options: .atomic)
-            _ = try FileManager.default.replaceItemAt(destination, withItemAt: temp)
-        } catch {
-            try? FileManager.default.removeItem(at: temp)
-            return nil
+        let written = PerfLog.measure("backup.write") { () -> Bool in
+            do {
+                try data.write(to: temp, options: .atomic)
+                _ = try FileManager.default.replaceItemAt(destination, withItemAt: temp)
+                return true
+            } catch {
+                try? FileManager.default.removeItem(at: temp)
+                return false
+            }
         }
+        guard written else { return nil }
 
         var updatedIndex = existingIndex
         updatedIndex.append(IndexEntry(filename: filename, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount))
@@ -130,7 +156,10 @@ enum BackupService {
     /// Restores a backup into `context`. Import is always additive (never
     /// deletes existing rows), so the only real guard needed is refusing to
     /// "restore" an empty backup onto a database that already has data,
-    /// which would be a confusing no-op rather than a real recovery.
+    /// which would be a confusing no-op rather than a real recovery. Runs on
+    /// the caller's context (the main context, in every call site) since
+    /// it's a rare, explicit, user-confirmed action whose inserted records
+    /// need to show up immediately in the UI.
     static func restore(from backup: BackupInfo, context: ModelContext, currentRecordCount: Int) -> RestoreOutcome {
         guard backup.recordCount > 0 || currentRecordCount == 0 else { return .emptyBackupSkipped }
         do {
@@ -184,5 +213,67 @@ enum BackupService {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .current
         return formatter.string(from: date)
+    }
+}
+
+/// Owns the scheduling state (pending debounce task, in-flight flag, reused
+/// backup actor) on its own actor, so concurrent calls to
+/// `BackupService.scheduleBackupSoon`/`backupNowManually` from the main
+/// thread and background tasks can't race on shared mutable state the way
+/// plain static vars would.
+private actor BackupCoordinator {
+    static let shared = BackupCoordinator()
+
+    private var pendingTask: Task<Void, Never>?
+    private var backupActor: BackupActor?
+    private var isRunning = false
+
+    func scheduleSoon(container: ModelContainer, after seconds: Double) {
+        pendingTask?.cancel()
+        pendingTask = Task.detached(priority: .utility) { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.runAutomaticIfDue(container: container)
+        }
+    }
+
+    private func runAutomaticIfDue(container: ModelContainer) async {
+        guard !isRunning else { return }
+        if let last = UserDefaults.standard.object(forKey: BackupService.lastAutomaticBackupKey) as? Date,
+           Date().timeIntervalSince(last) < BackupService.minimumAutomaticInterval {
+            return
+        }
+        _ = await runBackup(container: container)
+    }
+
+    func backupManually(container: ModelContainer) async -> URL? {
+        guard !isRunning else { return nil }
+        return await runBackup(container: container)
+    }
+
+    @discardableResult
+    private func runBackup(container: ModelContainer) async -> URL? {
+        isRunning = true
+        defer { isRunning = false }
+        PerfLog.event("backup.started")
+        let actor = backupActor ?? BackupActor(modelContainer: container)
+        backupActor = actor
+        let url = await actor.backupNow()
+        PerfLog.event("backup.finished")
+        if url != nil {
+            UserDefaults.standard.set(Date(), forKey: BackupService.lastAutomaticBackupKey)
+        }
+        return url
+    }
+}
+
+/// Private, background-safe `ModelContext` for building and writing backups
+/// entirely off the main actor. `@ModelActor` gives this its own
+/// actor-isolated context bound to the same persistent store as the app's
+/// main context; nothing here ever touches `container.mainContext`.
+@ModelActor
+actor BackupActor {
+    func backupNow() -> URL? {
+        BackupService.performBackup(context: modelContext)
     }
 }

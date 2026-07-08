@@ -141,11 +141,12 @@ struct DashboardView: View {
                 await refreshReminderSchedules()
             }
             .task { await refreshReminderSchedules() }
-            .onChange(of: meals) { _, _ in triggerReminderRefresh() }
-            .onChange(of: completedWorkouts) { _, _ in triggerReminderRefresh() }
-            .onChange(of: checklistItems) { _, _ in triggerReminderRefresh() }
-            .onChange(of: steps) { _, _ in triggerReminderRefresh() }
-            .onChange(of: appearanceCheckIns) { _, _ in triggerReminderRefresh() }
+            .onChange(of: meals) { _, _ in triggerReminderRefresh(); scheduleBackup() }
+            .onChange(of: completedWorkouts) { _, _ in triggerReminderRefresh(); scheduleBackup() }
+            .onChange(of: checklistItems) { _, _ in triggerReminderRefresh(); scheduleBackup() }
+            .onChange(of: steps) { _, _ in triggerReminderRefresh(); scheduleBackup() }
+            .onChange(of: appearanceCheckIns) { _, _ in triggerReminderRefresh(); scheduleBackup() }
+            .onChange(of: sleepLogs) { _, _ in scheduleBackup() }
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -158,6 +159,17 @@ struct DashboardView: View {
 
     private func triggerReminderRefresh() {
         Task { await refreshReminderSchedules() }
+    }
+
+    /// Backup scheduling is deliberately its own trigger, separate from
+    /// reminder refresh: reminder scheduling can run for reasons that have
+    /// nothing to do with data changing (notification settings, timing
+    /// windows), and bundling a backup into it meant routine refreshes were
+    /// scheduling backups too. This only fires from actual data-mutation
+    /// signals (the onChange triggers above). Fully non-blocking: hands off
+    /// to BackupService's own debounce/throttle, off the main thread.
+    private func scheduleBackup() {
+        BackupService.scheduleBackupSoon(container: context.container)
     }
 
     private var dashboardScrollView: some View {
@@ -243,10 +255,6 @@ struct DashboardView: View {
 
         await evaluateNotificationEvents(settings: settings)
         syncCrossAppContext()
-        // Debounced: this runs after meals, workouts, checklist items, steps,
-        // or appearance check-ins change (see the onChange triggers below),
-        // but the actual backup only fires once activity settles.
-        BackupService.scheduleBackupSoon(context: context)
     }
 
     /// Optional cross-app bridge: publishes a small public snapshot for

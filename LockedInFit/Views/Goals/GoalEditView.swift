@@ -136,6 +136,7 @@ struct GoalEditView: View {
                                 calorieTarget: calorieTarget, proteinTarget: proteinTarget,
                                 stepTarget: stepTarget, measurementGoals: measurementGoals, active: true))
         }
+        BackupService.scheduleBackupSoon(container: context.container)
         dismiss()
     }
 }
