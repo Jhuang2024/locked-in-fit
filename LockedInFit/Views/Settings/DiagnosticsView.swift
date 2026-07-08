@@ -9,6 +9,8 @@ import SwiftData
 struct DiagnosticsView: View {
     @Environment(\.modelContext) private var context
     @State private var recordCount: Int?
+    @State private var latestBackup: BackupService.BackupInfo?
+    @State private var backupCount = 0
 
     private var storeDirectory: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -48,24 +50,35 @@ struct DiagnosticsView: View {
                     .foregroundStyle(.secondary)
             }
             Section("Backups") {
-                if let latest = BackupService.latestBackup() {
-                    LabeledContent("Latest backup", value: Formatters.mediumDate(latest.date))
-                    LabeledContent("Latest backup records", value: "\(latest.recordCount)")
+                if let latestBackup {
+                    LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
+                    LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
                 } else {
                     Text("No backups yet.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Backups kept", value: "\(BackupService.listBackups().count) / \(BackupService.maxBackupsKept)")
+                LabeledContent("Backups kept", value: "\(backupCount) / \(BackupService.maxBackupsKept)")
                 LabeledContent("Backups directory", value: BackupService.backupsDirectory.path)
             }
             Section {
-                Button("Refresh") { recordCount = DataLossGuard.currentRecordCount(context: context) }
+                Button("Refresh") { refresh() }
             }
         }
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { recordCount = DataLossGuard.currentRecordCount(context: context) }
+        .onAppear { refresh() }
+    }
+
+    /// Pulled into one explicit action (initial appear, or tapping Refresh)
+    /// rather than computed inline in the body: decoding every backup
+    /// file's full JSON just to read this screen isn't something that
+    /// should happen on every unrelated re-render.
+    private func refresh() {
+        recordCount = DataLossGuard.currentRecordCount(context: context)
+        let backups = BackupService.listBackups()
+        latestBackup = backups.first
+        backupCount = backups.count
     }
 }
 #endif

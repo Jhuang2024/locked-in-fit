@@ -17,6 +17,12 @@ struct SettingsView: View {
     @State private var weightInput = ""
     @State private var backupResult: String?
     @State private var confirmRestore = false
+    /// Cached instead of calling BackupService.latestBackup() directly from
+    /// the view body: that call decodes every backup file's full JSON
+    /// snapshot from disk, and the body re-evaluates on every keystroke in
+    /// any Settings field (live @Bindable bindings), which made typing
+    /// anywhere in Settings re-decode all backups on every character.
+    @State private var cachedLatestBackup: BackupService.BackupInfo?
 
     private var latestWeight: BodyWeightEntry? { weights.last }
 
@@ -117,6 +123,7 @@ struct SettingsView: View {
             if weightInput.isEmpty, let latestWeight {
                 weightInput = String(format: "%.1f", latestWeight.weightKg)
             }
+            cachedLatestBackup = BackupService.latestBackup()
         }
     }
 
@@ -280,15 +287,13 @@ struct SettingsView: View {
     private var backupSection: some View {
         Section {
             Button {
-                if BackupService.backupNow(context: context) != nil {
-                    backupResult = "Backup saved just now."
-                } else {
-                    backupResult = "Nothing to back up, or backup skipped to protect existing history."
-                }
+                let saved = BackupService.backupNow(context: context) != nil
+                backupResult = saved ? "Backup saved just now." : "Nothing to back up, or backup skipped to protect existing history."
+                cachedLatestBackup = BackupService.latestBackup()
             } label: {
                 Label("Backup Now", systemImage: "externaldrive.badge.checkmark")
             }
-            if let latestBackup = BackupService.latestBackup() {
+            if let latestBackup = cachedLatestBackup {
                 Button {
                     confirmRestore = true
                 } label: {
@@ -297,7 +302,7 @@ struct SettingsView: View {
                 LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
                 LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
             } else {
-                Text("No backups yet. Backups are also taken automatically, at most once a day.")
+                Text("No backups yet. Backups are also taken automatically as you use the app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -314,7 +319,7 @@ struct SettingsView: View {
     }
 
     private func performRestore() {
-        guard let latestBackup = BackupService.latestBackup() else { return }
+        guard let latestBackup = cachedLatestBackup else { return }
         let currentCount = DataLossGuard.currentRecordCount(context: context)
         switch BackupService.restore(from: latestBackup, context: context, currentRecordCount: currentCount) {
         case .restored(let count):
