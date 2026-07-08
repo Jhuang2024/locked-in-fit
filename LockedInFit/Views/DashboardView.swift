@@ -113,26 +113,7 @@ struct DashboardView: View {
     private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
-        dashboardScrollView
-            .background(Color(.systemGroupedBackground))
-            .refreshable {
-                await healthKit.sync(context: context)
-                await refreshReminderSchedules()
-            }
-            .task { await refreshReminderSchedules() }
-            .onChange(of: meals) { _, _ in Task { await refreshReminderSchedules() } }
-            .onChange(of: completedWorkouts) { _, _ in Task { await refreshReminderSchedules() } }
-            .onChange(of: checklistItems) { _, _ in Task { await refreshReminderSchedules() } }
-            .onChange(of: steps) { _, _ in Task { await refreshReminderSchedules() } }
-            .onChange(of: appearanceCheckIns) { _, _ in Task { await refreshReminderSchedules() } }
-            .navigationTitle("Today")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
+        dashboardCore
             .sheet(isPresented: $showAddMeal) { AddMealView() }
             .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
             .sheet(item: $activeWorkout) { workout in
@@ -147,9 +128,38 @@ struct DashboardView: View {
             .sensoryFeedback(.selection, trigger: actionTick)
     }
 
-    /// Split out of `body` so the view tree and the long modifier chain above
-    /// aren't type-checked as one combined expression — that combination is
-    /// what was blowing past the compiler's time limit.
+    /// The scroll view plus its "always on" modifiers (background, reminder
+    /// refresh triggers, navigation chrome) — split from the sheets/alert
+    /// above so `body` never has to type-check the whole modifier chain as
+    /// one expression. That single-expression combination is what was
+    /// blowing past the compiler's time limit.
+    private var dashboardCore: some View {
+        dashboardScrollView
+            .background(Color(.systemGroupedBackground))
+            .refreshable {
+                await healthKit.sync(context: context)
+                await refreshReminderSchedules()
+            }
+            .task { await refreshReminderSchedules() }
+            .onChange(of: meals) { _, _ in triggerReminderRefresh() }
+            .onChange(of: completedWorkouts) { _, _ in triggerReminderRefresh() }
+            .onChange(of: checklistItems) { _, _ in triggerReminderRefresh() }
+            .onChange(of: steps) { _, _ in triggerReminderRefresh() }
+            .onChange(of: appearanceCheckIns) { _, _ in triggerReminderRefresh() }
+            .navigationTitle("Today")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+    }
+
+    private func triggerReminderRefresh() {
+        Task { await refreshReminderSchedules() }
+    }
+
     private var dashboardScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
