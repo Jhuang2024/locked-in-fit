@@ -32,10 +32,19 @@ struct GoalEditView: View {
         WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 75
     }
 
+    // No NavigationStack here, deliberately. This view used to be presented
+    // as a sheet (where owning a stack is correct), but it is now PUSHED
+    // from SettingsView inside the Today tab's NavigationStack — and a
+    // nested NavigationStack inside a pushed destination made SwiftUI cycle
+    // updates between parent and child forever on iOS 26: the render-loop
+    // detector showed SettingsView.body and GoalEditView.body re-evaluating
+    // in lockstep hundreds of times per second inside one blocked update,
+    // freezing the whole app the moment this screen was pushed. The Form
+    // hangs its title/toolbar on the enclosing stack's navigation bar, and
+    // the back button is the cancel path (edits only commit in save()).
     var body: some View {
         let _ = PerfLog.tick("GoalEditView.body")
-        NavigationStack {
-            Form {
+        Form {
                 Section("Phase") {
                     Picker("Phase", selection: $phase) {
                         ForEach(GoalPhase.allCases) { Text($0.label).tag($0) }
@@ -72,14 +81,12 @@ struct GoalEditView: View {
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             }
             .onAppear {
                 PerfLog.event("nav.goalEdit.appear")
                 PerfLog.measure("goalEdit.load") { load() }
             }
-        }
     }
 
     private func numberField(_ label: String, value: Binding<Double>, unit: String) -> some View {
