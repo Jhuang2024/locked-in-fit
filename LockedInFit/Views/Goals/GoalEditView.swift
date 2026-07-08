@@ -83,13 +83,7 @@ struct GoalEditView: View {
             }
             .navigationTitle(goal == nil ? "New Goal" : "Edit Goal")
             .navigationBarTitleDisplayMode(.inline)
-            // No keyboardDoneToolbar here while this view is pushed from
-            // SettingsView: the parent Form registers its own keyboard
-            // ToolbarItemGroup, and two keyboard accessory groups active in
-            // the same navigation hierarchy are a suspect in the update
-            // loop (the "Invalid frame dimension" layout warning is
-            // keyboard-accessory-shaped). Form's interactive
-            // scroll-to-dismiss still closes the numeric keyboard.
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             }
