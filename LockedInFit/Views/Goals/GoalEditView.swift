@@ -44,6 +44,10 @@ struct GoalEditView: View {
     // the back button is the cancel path (edits only commit in save()).
     var body: some View {
         let _ = PerfLog.tick("GoalEditView.body")
+        // Prints which dependency (@Query, @State, environment, identity)
+        // triggered each body re-evaluation — the render-loop detector
+        // proves THIS body cycles endlessly; this names what drives it.
+        let _ = Self._printChanges()
         Form {
                 Section("Phase") {
                     Picker("Phase", selection: $phase) {
@@ -79,7 +83,13 @@ struct GoalEditView: View {
             }
             .navigationTitle(goal == nil ? "New Goal" : "Edit Goal")
             .navigationBarTitleDisplayMode(.inline)
-            .keyboardDoneToolbar()
+            // No keyboardDoneToolbar here while this view is pushed from
+            // SettingsView: the parent Form registers its own keyboard
+            // ToolbarItemGroup, and two keyboard accessory groups active in
+            // the same navigation hierarchy are a suspect in the update
+            // loop (the "Invalid frame dimension" layout warning is
+            // keyboard-accessory-shaped). Form's interactive
+            // scroll-to-dismiss still closes the numeric keyboard.
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             }

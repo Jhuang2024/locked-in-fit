@@ -39,6 +39,10 @@ struct SettingsView: View {
 
     var body: some View {
         let _ = PerfLog.tick("SettingsView.body")
+        // Prints which dependency (@Query, @State, environment, identity)
+        // triggered each body re-evaluation — the render-loop detector
+        // proves THIS body cycles endlessly; this names what drives it.
+        let _ = Self._printChanges()
         Form {
             if let settings = settingsList.first {
                 brandSection
