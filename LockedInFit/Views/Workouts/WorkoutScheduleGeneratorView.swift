@@ -145,6 +145,10 @@ struct WorkoutScheduleGeneratorView: View {
         dismiss()
     }
 
+    // @MainActor: reads and writes main-context models (sessions, schedule)
+    // between awaits; as a nonisolated async method this would touch them
+    // from a background executor, which can deadlock the store.
+    @MainActor
     private func syncScheduleToCalendar(_ schedule: WorkoutSchedule, reminderMinutes: Int) async {
         for session in schedule.sessionList {
             guard session.calendarEventId == nil, // never duplicate
@@ -323,6 +327,8 @@ struct WorkoutScheduleDetailView: View {
         }
     }
 
+    // @MainActor for the same reason as syncScheduleToCalendar above.
+    @MainActor
     private func syncNow() async {
         syncing = true
         defer { syncing = false }

@@ -187,6 +187,7 @@ struct NotificationSettingsView: View {
         }
     }
 
+    @MainActor
     private func refreshStatus() async {
         authorizationStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         nextReminder = await NotificationService.nextScheduledReminder()

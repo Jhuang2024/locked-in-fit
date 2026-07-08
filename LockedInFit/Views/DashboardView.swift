@@ -227,6 +227,13 @@ struct DashboardView: View {
     /// events. Never prompts for permission; NotificationService skips
     /// scheduling if not authorized. Runs on appear and whenever today's
     /// logs change, so it survives normal navigation and data updates.
+    ///
+    /// @MainActor explicitly (not left to SDK inference): this reads
+    /// main-context models (settings, schedules, meals, checklist) between
+    /// awaits, and as a nonisolated async method it would run on a
+    /// background executor — cross-thread model access that can deadlock
+    /// the store against whatever the main thread is fetching.
+    @MainActor
     private func refreshReminderSchedules() async {
         guard let settings else { return }
         await NotificationService.refreshFaceReminders(
@@ -330,6 +337,7 @@ struct DashboardView: View {
     /// Dietary-limit and goal-achievement alerts fire immediately when
     /// crossed, but NotificationService.fireOnce ensures each one only
     /// reaches the user once per day.
+    @MainActor
     private func evaluateNotificationEvents(settings: UserSettings) async {
         let input = notificationInputs
         var events: [NotificationService.NotificationEvent] = []
