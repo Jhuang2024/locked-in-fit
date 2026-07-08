@@ -153,6 +153,17 @@ enum SleepScoringService {
         apply(result, to: log)
     }
 
+    /// Recomputes every log from its own overnight data and that day's
+    /// current naps. Idempotent, so it's safe to run on every launch — logs
+    /// whose stored score/explanations were computed under a past scoring
+    /// bug self-heal here instead of needing a one-off data migration.
+    static func repairAll(logs: [SleepLog], naps: [NapLog]) {
+        for log in logs {
+            let dayNaps = naps.filter { $0.date == log.date }
+            recompute(log, history: logs, naps: dayNaps)
+        }
+    }
+
     /// Consecutive nights ending today/yesterday with at least one sleep log.
     static func streak(history: [SleepLog], endingAt date: Date = .now) -> Int {
         let days = Set(history.map { $0.date.startOfDay })

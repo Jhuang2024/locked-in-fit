@@ -21,6 +21,9 @@ struct LockedInFitApp: App {
         }
         SeedDataService.seedIfNeeded(context: container.mainContext)
         SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
+        SleepScoringService.repairAll(
+            logs: (try? container.mainContext.fetch(FetchDescriptor<SleepLog>())) ?? [],
+            naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
         HealthKitManager.shared.configureAutoSync(container: container)
     }
 

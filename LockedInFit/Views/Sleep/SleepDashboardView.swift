@@ -337,6 +337,13 @@ struct SleepLogDetailView: View {
                 dismiss()
             }
         }
+        .onAppear {
+            // Self-heals any log whose stored nap score/explanations were
+            // computed under a past scoring bug: recomputing from the
+            // current naps for this day with today's logic is always safe
+            // (recompute is idempotent) and needs no data migration.
+            SleepScoringService.recompute(log, history: allLogs, naps: dayNaps)
+        }
     }
 
     private func breakdownRow(_ label: String, _ value: Double, _ max: Double) -> some View {
@@ -354,15 +361,15 @@ struct SleepLogDetailView: View {
         }
     }
 
-    /// Nap points can run negative or positive, so this doesn't reuse
-    /// breakdownRow's 0...max bar; it draws a bar diverging from a zero mark
-    /// at SleepScoringService's penalty/bonus caps, filled toward the value.
+    /// Naps can help (up to +napBonusCap) or hurt (down to napPenaltyCap)
+    /// instead of climbing toward one fixed max like the other rows, so this
+    /// shows how much of *that direction's* cap the nap contribution used —
+    /// same "value / cap" bar as breakdownRow (identical ProgressView, same
+    /// thickness), just green filling up toward the bonus cap or red filling
+    /// up toward the penalty cap.
     private func napImpactRow(_ value: Double) -> some View {
-        let minValue = SleepScoringService.napPenaltyCap
-        let maxValue = SleepScoringService.napBonusCap
-        let range = maxValue - minValue
-        let zeroFraction = (0 - minValue) / range
-        let valueFraction = (min(maxValue, max(minValue, value)) - minValue) / range
+        let cap = value < 0 ? abs(SleepScoringService.napPenaltyCap) : SleepScoringService.napBonusCap
+        let magnitude = min(abs(value), cap)
         return VStack(spacing: 3) {
             HStack {
                 Text("Naps")
@@ -372,18 +379,8 @@ struct SleepLogDetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(value > 0 ? .green : (value < 0 ? .red : .secondary))
             }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color(.tertiarySystemFill))
-                        .frame(height: 6)
-                    Capsule()
-                        .fill(value > 0 ? Color.green : (value < 0 ? Color.red : Color.clear))
-                        .frame(width: max(2, abs(valueFraction - zeroFraction) * geo.size.width), height: 6)
-                        .offset(x: min(valueFraction, zeroFraction) * geo.size.width)
-                }
-            }
-            .frame(height: 6)
+            ProgressView(value: magnitude, total: cap)
+                .tint(value > 0 ? .green : (value < 0 ? .red : .secondary))
         }
     }
 
@@ -528,6 +525,7 @@ struct NapLogEntryView: View {
     @State private var napStart: Date = Calendar.current.date(bySettingHour: 13, minute: 0, second: 0, of: Date()) ?? Date()
     @State private var napEnd: Date = Calendar.current.date(bySettingHour: 13, minute: 20, second: 0, of: Date()) ?? Date()
     @State private var notes: String = ""
+    @State private var didSave = false
 
     private var durationMinutes: Double {
         max(0, napEnd.timeIntervalSince(napStart) / 60)
@@ -556,7 +554,7 @@ struct NapLogEntryView: View {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }.disabled(durationMinutes <= 0)
+                Button("Save") { save() }.disabled(durationMinutes <= 0 || didSave)
             }
         }
         .keyboardDoneToolbar()
@@ -565,7 +563,11 @@ struct NapLogEntryView: View {
     /// Naps are stored separately from overnight sleep but tagged with the
     /// same calendar day; if that day already has an overnight log, its
     /// score is recomputed immediately so this nap counts right away.
+    /// `didSave` guards against a double-tap inserting two NapLog records
+    /// for the same nap before the sheet dismisses.
     private func save() {
+        guard !didSave else { return }
+        didSave = true
         let day = napStart.startOfDay
         let nap = NapLog(date: day, napStart: napStart, napEnd: napEnd, durationMinutes: durationMinutes, notes: notes)
         context.insert(nap)
