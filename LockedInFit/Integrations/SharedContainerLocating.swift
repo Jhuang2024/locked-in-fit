@@ -8,8 +8,8 @@ protocol SharedContainerLocating {
     var containerURL: URL? { get }
 }
 
-/// Looks up the shared App Group container. Returns nil — never throws or
-/// crashes — whenever the entitlement is missing or unprovisioned, which is
+/// Looks up the shared App Group container. Returns nil, and never throws or
+/// crashes, whenever the entitlement is missing or unprovisioned, which is
 /// exactly the "App Groups unavailable" case the integration layer is built
 /// to fall back through.
 struct AppGroupContainerLocator: SharedContainerLocating {

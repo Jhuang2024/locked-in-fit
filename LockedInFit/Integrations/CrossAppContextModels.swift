@@ -114,7 +114,7 @@ struct LockedInFitPublicContext: Codable {
 // MARK: - Social Climber's published snapshot (read-only)
 
 /// LockedInFit's best-effort contract for what Social Climber publishes.
-/// Every field decodes defensively — missing keys, wrong types, or unknown
+/// Every field decodes defensively: missing keys, wrong types, or unknown
 /// enum cases fall back to a neutral default instead of failing the whole
 /// decode, since a partially-understood snapshot is still useful and a
 /// failed decode must look identical to "no file at all" to the rest of the

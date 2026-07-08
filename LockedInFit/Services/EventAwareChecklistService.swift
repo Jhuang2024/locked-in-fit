@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Turns a fresh, non-stale Social Climber context into ordinary LockedInFit
-/// checklist items — reusing DailyChecklistItem/DailyChecklistService
+/// checklist items, reusing DailyChecklistItem/DailyChecklistService
 /// end-to-end instead of a second task system. Every generated item is owned
 /// by LockedInFit (ChecklistSource.socialClimberEvent) and keyed by day so
 /// re-running this on the same day never duplicates a suggestion.

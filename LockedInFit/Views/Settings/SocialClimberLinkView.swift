@@ -3,7 +3,7 @@ import SwiftData
 
 /// Settings screen for the optional cross-app bridge to Social Climber: a
 /// single on/off toggle plus a transparent look at what's shared and what's
-/// read. There's no separate sign-in flow here — unlike Google Calendar,
+/// read. There's no separate sign-in flow here, unlike Google Calendar:
 /// "linking" just means both apps sit in the same App Group container, so
 /// this screen is status plus a kill switch, backed entirely by
 /// CrossAppIntegrationManager / SharedContextStore.
@@ -67,7 +67,7 @@ struct SocialClimberLinkView: View {
             neither can read the other's database. The only thing shared is a small, versioned JSON \
             file in a shared App Group container. LockedInFit publishes today's sleep score, energy \
             and recovery level, workout and nutrition status, checklist completion, and the titles of \
-            due tasks — never food logs, photos, exact measurements, or notes. It reads Social \
+            due tasks, but never food logs, photos, exact measurements, or notes. It reads Social \
             Climber's upcoming-event context the same way, and only reacts to it when that data is \
             present and less than 24 hours old; stale or missing data is treated as if Social Climber \
             weren't installed at all.

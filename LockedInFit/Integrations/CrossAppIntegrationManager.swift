@@ -2,7 +2,7 @@ import Foundation
 
 /// Optional, fail-safe bridge between LockedInFit and Social Climber. Reads
 /// and writes only small, versioned JSON snapshots through
-/// `SharedContextStore` — never the other app's private database, and never
+/// `SharedContextStore`, never the other app's private database, and never
 /// LockedInFit's own SwiftData store. Every read degrades to "no context"
 /// (missing App Group, missing file, stale data, corrupt JSON, unrecognized
 /// schema); LockedInFit must behave identically whether or not Social
@@ -38,7 +38,7 @@ enum CrossAppIntegrationManager {
     }
 
     /// Builds and writes today's public snapshot. Safe to call often (it
-    /// rides along with the existing reminder-refresh cycle) — a missing App
+    /// rides along with the existing reminder-refresh cycle); a missing App
     /// Group container simply makes this a no-op.
     @discardableResult
     static func publish(_ input: PublishInput, now: Date = .now) -> Bool {

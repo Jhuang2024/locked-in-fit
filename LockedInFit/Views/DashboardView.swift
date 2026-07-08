@@ -249,7 +249,7 @@ struct DashboardView: View {
     /// Social Climber to read, and turns any fresh Social Climber event
     /// context into ordinary checklist items owned by LockedInFit. Entirely
     /// a no-op if the shared App Group container isn't available or Social
-    /// Climber's context is missing/stale/corrupt — see
+    /// Climber's context is missing, stale, or corrupt. See
     /// CrossAppIntegrationManager.
     private func syncCrossAppContext() {
         guard crossAppSharingEnabled else { return }
