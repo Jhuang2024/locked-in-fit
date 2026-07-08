@@ -34,6 +34,11 @@ struct SocialClimberLinkView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             PerfLog.event("nav.socialClimber.appear")
+            // The only place in the app that kicks off App Group container
+            // resolution. Everything else treats "unresolved" as the normal
+            // unavailable state, so a broken/slow entitlement can never
+            // poison launch or navigation elsewhere.
+            AppGroupContainerLocator.beginResolvingContainer()
             PerfLog.measure("socialClimber.refresh") { refresh() }
         }
     }

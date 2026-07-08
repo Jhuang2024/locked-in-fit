@@ -19,31 +19,43 @@ struct AppGroupContainerLocator: SharedContainerLocating {
 
     /// Never calls FileManager directly; see `AppGroupContainerCache`.
     var containerURL: URL? { AppGroupContainerCache.shared.containerURL }
+
+    /// The one and only trigger for actually resolving the container.
+    /// Called from the Social Climber settings screen, never from launch
+    /// or any hot path; see `AppGroupContainerCache` for why.
+    static func beginResolvingContainer() {
+        AppGroupContainerCache.shared.beginResolutionIfNeeded()
+    }
 }
 
-/// Owns the one App Group lookup for the process lifetime — and refuses to
-/// run it at all on an install where it has ever been slow.
+/// Owns the one App Group lookup for the process lifetime — lazily, opt-in,
+/// and never on an install where it has ever been slow.
 ///
 /// Why this is so defensive: on this app's real device/signing
 /// configuration, `containerURL(forSecurityApplicationGroupIdentifier:)`
 /// blocks 20-30 seconds inside a containermanager XPC call (the App Group
 /// entitlement is in a half-provisioned state). Running that on the main
-/// thread froze launch outright. Running it on a background queue (the
-/// previous fix) turned out to be just as poisonous in a subtler way: the
-/// first use of that API can hold process-wide runtime/loader locks for
-/// its whole duration, and the Swift runtime needs those same locks to
-/// instantiate generic type metadata — which SwiftUI does in bulk the
-/// first time any screen is pushed. Result, confirmed by a debugger pause:
-/// the main thread deadlocked inside `_swift_getGenericMetadata` on
-/// whatever screen the user opened first while the XPC was pending,
-/// surviving every higher-level fix because no app code was on the stack.
+/// thread froze launch outright. Running it on a background queue turned
+/// out to be just as poisonous in a subtler way: while that XPC is
+/// pending, process-wide runtime/loader locks can be held, and both the
+/// Swift runtime (generic metadata instantiation) and SwiftUI's attribute
+/// graph need those lock chains — so the main thread deadlocked inside
+/// `_swift_getGenericMetadata` / `AG::Graph::propagate_dirty` on whatever
+/// screen was first pushed during the window, confirmed by debugger
+/// pauses, with no app code on the stack.
 ///
-/// So: the lookup runs at most once per install, timed. If it completes
-/// quickly (healthy provisioning), everything works and keeps working. If
-/// it's ever slow, or a previous attempt never finished (the app was
-/// killed mid-hang), the lookup is permanently disabled for this install
-/// and the container reports unavailable — a state every caller already
-/// treats as normal. A broken App Group gets an inert integration, not a
+/// Defense in depth, all of which must pass before FileManager is called:
+/// 1. Nothing resolves at launch. The lookup only ever starts when the
+///    user opens the Social Climber settings screen
+///    (`beginResolutionIfNeeded`). Until then every caller sees
+///    "unavailable", a state the whole integration already treats as
+///    normal.
+/// 2. The attempt is timed. If it ever measures slower than 3 seconds,
+///    the install is marked and no future launch ever tries again.
+/// 3. If a previous attempt never finished (the app was killed while it
+///    hung), the mark is implied and the lookup is likewise permanently
+///    disabled.
+/// A broken App Group costs an inert cross-app integration, never a
 /// frozen app.
 private final class AppGroupContainerCache: @unchecked Sendable {
     static let shared = AppGroupContainerCache()
@@ -56,19 +68,37 @@ private final class AppGroupContainerCache: @unchecked Sendable {
     private static let slowThresholdSeconds = 3.0
 
     private let lock = NSLock()
-    /// nil = lookup still in flight; .some(nil) = resolved, unavailable;
+    /// nil = not resolved (not attempted, or attempt in flight);
+    /// .some(nil) = resolved/disabled, unavailable;
     /// .some(.some(url)) = resolved, available at url.
     private var resolved: URL??
+    private var attemptInFlight = false
 
-    private init() {
+    var containerURL: URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        return resolved ?? nil
+    }
+
+    func beginResolutionIfNeeded() {
+        lock.lock()
+        if resolved != nil || attemptInFlight {
+            lock.unlock()
+            return
+        }
+
         let defaults = UserDefaults.standard
         let previousAttemptNeverFinished = defaults.object(forKey: Self.attemptStartedKey) != nil
             && !defaults.bool(forKey: Self.attemptCompletedKey)
         if defaults.bool(forKey: Self.markedSlowKey) || previousAttemptNeverFinished {
             resolved = .some(nil)
+            lock.unlock()
             PerfLog.event("appGroup.lookup.disabled")
             return
         }
+
+        attemptInFlight = true
+        lock.unlock()
 
         defaults.set(Date(), forKey: Self.attemptStartedKey)
         defaults.set(false, forKey: Self.attemptCompletedKey)
@@ -83,15 +113,11 @@ private final class AppGroupContainerCache: @unchecked Sendable {
                 defaults.set(true, forKey: Self.markedSlowKey)
             }
             PerfLog.event(String(format: "appGroup.lookup.finished in %.2fs", seconds))
-            self?.lock.lock()
-            self?.resolved = .some(url)
-            self?.lock.unlock()
+            guard let self else { return }
+            self.lock.lock()
+            self.resolved = .some(url)
+            self.attemptInFlight = false
+            self.lock.unlock()
         }
-    }
-
-    var containerURL: URL? {
-        lock.lock()
-        defer { lock.unlock() }
-        return resolved ?? nil
     }
 }
