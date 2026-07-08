@@ -37,7 +37,6 @@ struct NotificationSettingsView: View {
     }
 
     var body: some View {
-        let _ = PerfLog.tick("NotificationSettingsView.body")
         Form {
             statusSection
             if let settings {
@@ -168,17 +167,7 @@ struct NotificationSettingsView: View {
     }
 
     private func categoryToggle(_ label: String, systemImage: String, isOn: Binding<Bool>) -> some View {
-        // Instrumented wrapper: if SwiftUI ends up in a toggle-binding
-        // read loop (a debugger pause during the freeze showed
-        // Switch.updateUIView -> ToggleState.stateFor -> binding reads),
-        // the tick log names this screen's toggles as the cycling party.
-        let counted = Binding(
-            get: {
-                PerfLog.tick("NotificationSettings.toggle.get")
-                return isOn.wrappedValue
-            },
-            set: { isOn.wrappedValue = $0 })
-        return Toggle(isOn: counted) {
+        Toggle(isOn: isOn) {
             Label(label, systemImage: systemImage)
         }
     }

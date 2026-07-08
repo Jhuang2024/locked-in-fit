@@ -48,11 +48,6 @@ struct GoalEditView: View {
     // hangs its title/toolbar on the enclosing stack's navigation bar, and
     // the back button is the cancel path (edits only commit in save()).
     var body: some View {
-        let _ = PerfLog.tick("GoalEditView.body")
-        // Prints which dependency (@Query, @State, environment, identity)
-        // triggered each body re-evaluation — the render-loop detector
-        // proves THIS body cycles endlessly; this names what drives it.
-        let _ = Self._printChanges()
         Form {
                 Section("Phase") {
                     Picker("Phase", selection: $phase) {

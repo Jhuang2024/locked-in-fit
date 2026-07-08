@@ -8,7 +8,6 @@ struct HealthKitSyncView: View {
     @State private var syncDays = 60
 
     var body: some View {
-        let _ = PerfLog.tick("HealthKitSyncView.body")
         Form {
             Section {
                 if manager.isAvailable {

@@ -136,7 +136,6 @@ struct DashboardView: View {
     private var sodiumLimit: Double { max(1, settings?.sodiumLimitMg ?? 2300) }
 
     var body: some View {
-        let _ = PerfLog.tick("DashboardView.body")
         dashboardCore
             .sheet(isPresented: $showAddMeal) { AddMealView() }
             .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
