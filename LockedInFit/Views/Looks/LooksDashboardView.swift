@@ -70,7 +70,7 @@ struct LooksDashboardView: View {
                 ScoreRingView(label: "Combined", score: combined ?? 0, maxScore: 100,
                               color: combined == nil ? .gray : .teal)
             }
-            Text("Scores track consistency, logged grooming/sleep habits, composition data, and comparison against your own history — never photo quality, and never attractiveness or anyone else's standard.")
+            Text("Scores judge skin, grooming, puffiness, and body composition, using logged habits and comparison against your own history. Never photo quality, never check-in frequency, and never attractiveness or anyone else's standard.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -279,11 +279,6 @@ struct AppearanceCheckInDetailView: View {
                             Label("Confidence \(Formatters.percent(checkIn.confidence))", systemImage: "gauge.medium")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            if checkIn.confidence < 0.5 {
-                                Text("Low confidence — more check-ins or logged data sharpens this.")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                            }
                         }
                         Spacer()
                     }
@@ -294,17 +289,24 @@ struct AppearanceCheckInDetailView: View {
                 DashboardCard(title: "Score Breakdown", systemImage: "list.bullet.rectangle") {
                     VStack(spacing: 8) {
                         if checkIn.kind == .face {
-                            breakdownRow("Skin", checkIn.skinScore, 25)
-                            breakdownRow("Symmetry", checkIn.symmetryScore, 20)
-                            breakdownRow("Grooming", checkIn.groomingScore, 20)
-                            breakdownRow("Puffiness vs baseline", checkIn.puffinessScore, 20)
-                            breakdownRow("Consistency", checkIn.trendScore, 15)
+                            breakdownRow("Skin", checkIn.skinScore, 30)
+                            breakdownRow("Symmetry", checkIn.symmetryScore, 15)
+                            breakdownRow("Grooming", checkIn.groomingScore, 25)
+                            breakdownRow("Puffiness vs baseline", checkIn.puffinessScore, 30)
                         } else {
                             breakdownRow("Composition", checkIn.compositionScore, 40)
                             breakdownRow("Lean mass proxy", checkIn.muscularityScore, 15)
-                            breakdownRow("Photo coverage", checkIn.postureScore, 15)
+                            breakdownRow("Posture", checkIn.postureScore, 15)
                             breakdownRow("Trend vs goal", checkIn.trendScore, 15)
                         }
+                    }
+                }
+
+                if checkIn.confidence < 0.5 {
+                    DashboardCard(title: "Confidence & Tracking Notes", systemImage: "gauge.medium") {
+                        Text("Low confidence: more check-ins or logged data sharpens this. This never lowers the score itself.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
 
@@ -397,13 +399,8 @@ struct LiveBodyScoreDetailView: View {
                             Label("Confidence \(Formatters.percent(result.confidence))", systemImage: "gauge.medium")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            if result.compositionLimited {
-                                Label("Composition-limited", systemImage: "exclamationmark.circle")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                            }
                             if result.leannessGuard {
-                                Label("Leanness is not the limiter; no cut advice given", systemImage: "shield.checkered")
+                                Label("Leanness is not the limiter: no cut advice given", systemImage: "shield.checkered")
                                     .font(.caption2)
                                     .foregroundStyle(.teal)
                             }
@@ -421,7 +418,7 @@ struct LiveBodyScoreDetailView: View {
                         breakdownRow("Composition", result.composition, 40)
                         breakdownRow("Lean mass proxy", result.leanMass, 15)
                         breakdownRow("Training consistency", result.training, 15)
-                        breakdownRow("Photo coverage", result.photoPosture, 15)
+                        breakdownRow("Posture", result.posture, 15)
                         breakdownRow("Trend vs goal", result.trendDirection, 15)
                     }
                 }
@@ -432,6 +429,22 @@ struct LiveBodyScoreDetailView: View {
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)
                                 Text(line).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                if result.compositionLimited || !result.confidenceNotes.isEmpty {
+                    DashboardCard(title: "Confidence & Tracking Notes", systemImage: "gauge.medium") {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("These affect how much to trust the score above, not the score itself.")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            ForEach(result.confidenceNotes, id: \.self) { line in
+                                HStack(alignment: .top, spacing: 6) {
+                                    Text("•").font(.caption).foregroundStyle(.tertiary)
+                                    Text(line).font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }

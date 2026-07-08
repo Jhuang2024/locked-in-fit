@@ -8,7 +8,7 @@ enum NotificationRulesEngine {
 
     /// Shared with the Dashboard's on-screen sodium warning color so the push
     /// alert and the visible indicator always agree on what "approaching"
-    /// means — one threshold, not two copies that can drift apart.
+    /// means: one threshold, not two copies that can drift apart.
     static let approachingRatio = 0.9
     static let sodiumApproachingRatio = 0.8
     static let exceededRatio = 1.0
@@ -16,14 +16,14 @@ enum NotificationRulesEngine {
     struct Inputs {
         let nutrition: DailyNutritionSummary
         /// Calories counted against the target: logged food plus the
-        /// hidden-oil midpoint — same figure the Dashboard's "Eaten" stat
-        /// shows (`CalorieRemainingSummary.eaten`), so these alerts and the
+        /// hidden-oil midpoint (same figure the Dashboard's "Eaten" stat
+        /// shows, `CalorieRemainingSummary.eaten`), so these alerts and the
         /// on-screen number never disagree.
         let eaten: Double
-        /// Today's base calorie target (unadjusted) — same number the
+        /// Today's base calorie target (unadjusted), same number the
         /// Dashboard's macro rings are derived from.
         let calorieTarget: Double
-        /// Today's calorie target, adjusted for exercise and TEF — same
+        /// Today's calorie target, adjusted for exercise and TEF, same
         /// number the Dashboard's "Calories Remaining" card shows.
         let adjustedCalorieTarget: Double
         let proteinTarget: Double
@@ -71,7 +71,7 @@ enum NotificationRulesEngine {
         }
 
         // Same derived fat guide as the Dashboard macro ring (25% of the base
-        // calorie target / 9) — deliberately not exercise-adjusted, to match
+        // calorie target / 9), deliberately not exercise-adjusted, to match
         // what's on screen.
         if input.calorieTarget > 0 {
             let fatTarget = max(1, (input.calorieTarget * 0.25) / 9)
@@ -85,7 +85,7 @@ enum NotificationRulesEngine {
             }
         }
 
-        // Protein "hit" is a positive goal-achievement event, not a limit — only "approaching" lives here.
+        // Protein "hit" is a positive goal-achievement event, not a limit: only "approaching" lives here.
         if input.proteinTarget > 0 {
             let ratio = input.nutrition.protein / input.proteinTarget
             if ratio >= approachingRatio && ratio < exceededRatio {
@@ -104,11 +104,11 @@ enum NotificationRulesEngine {
 
         if input.proteinTarget > 0, input.nutrition.protein >= input.proteinTarget {
             events.append(.init(key: "protein-goal-hit", title: "Protein goal",
-                                 body: "Hit your protein target — \(Int(input.nutrition.protein))g."))
+                                 body: "Hit your protein target: \(Int(input.nutrition.protein))g."))
         }
         if input.stepTarget > 0, input.stepsToday >= input.stepTarget {
             events.append(.init(key: "step-goal-hit", title: "Steps",
-                                 body: "Step goal hit — \(input.stepsToday) today."))
+                                 body: "Step goal hit: \(input.stepsToday) today."))
         }
         if input.completedWorkoutsToday > 0 {
             events.append(.init(key: "workout-completed", title: "Workout", body: "Workout logged. Nice work."))
@@ -121,7 +121,7 @@ enum NotificationRulesEngine {
         }
 
         // End-of-day summary: only once it's actually evening, and only local
-        // data can say so — there's no separate "end of day" concept in the app.
+        // data can say so; there's no separate "end of day" concept in the app.
         if Calendar.current.component(.hour, from: input.now) >= 20,
            input.adjustedCalorieTarget > 0, input.eaten > 0 {
             let deviation = abs(input.eaten - input.adjustedCalorieTarget) / input.adjustedCalorieTarget

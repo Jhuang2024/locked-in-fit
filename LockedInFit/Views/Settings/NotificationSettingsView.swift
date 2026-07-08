@@ -5,7 +5,7 @@ import UserNotifications
 /// Single control surface for every notification category: what fires,
 /// whether it's on, and a quick status/next-reminder readout. Detailed
 /// scheduling (time of day, body-photo frequency, workout lead time) stays
-/// in Looks & Calendar — this is the at-a-glance switchboard.
+/// in Looks & Calendar: this is the at-a-glance switchboard.
 struct NotificationSettingsView: View {
     @Query private var settingsList: [UserSettings]
     @Query private var checklistItems: [DailyChecklistItem]
@@ -132,7 +132,7 @@ struct NotificationSettingsView: View {
         } header: {
             Text("Reminders")
         } footer: {
-            Text("Tied to what's actually due today — an already-completed item never nags. Face scan time and workout lead time are in Looks & Calendar.")
+            Text("Tied to what's actually due today: an already-completed item never nags. Face scan time and workout lead time are in Looks & Calendar.")
         }
     }
 

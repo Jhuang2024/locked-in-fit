@@ -129,8 +129,8 @@ struct GoalDashboardView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    /// Approved, long-term appearance suggestions read as standing goals here
-    /// — the natural place a "hold this for months" suggestion lands once approved.
+    /// Approved, long-term appearance suggestions read as standing goals here:
+    /// the natural place a "hold this for months" suggestion lands once approved.
     private var activeFocuses: [AppearanceSuggestion] {
         suggestions.filter { $0.status == .approved && $0.durationType == .longTerm }
     }

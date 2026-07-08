@@ -59,7 +59,7 @@ struct DashboardView: View {
         dueChecklistItemsToday.filter { $0.category == .sleep }
     }
     /// Once real sleep tracking is in use, "sleep goal hit" means today's
-    /// night was actually logged — that's the real signal now available.
+    /// night was actually logged: that's the real signal now available.
     /// Falls back to the sleep-category checklist proxy for anyone who
     /// hasn't logged a night yet, so the achievement still means something
     /// either way instead of going silent.
@@ -70,7 +70,7 @@ struct DashboardView: View {
         return !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
     }
     /// Only counts as "complete" when there's an actual looks/body/face
-    /// checklist item beyond the mandatory face photo — otherwise this would
+    /// checklist item beyond the mandatory face photo, otherwise this would
     /// fire every single day just for taking the daily face photo.
     private var looksChecklistCompleteToday: Bool {
         let looksItems = dueChecklistItemsToday.filter { [.looks, .body, .face].contains($0.category) }
@@ -129,7 +129,7 @@ struct DashboardView: View {
     }
 
     /// The scroll view plus its "always on" modifiers (background, reminder
-    /// refresh triggers, navigation chrome) — split from the sheets/alert
+    /// refresh triggers, navigation chrome), split from the sheets/alert
     /// above so `body` never has to type-check the whole modifier chain as
     /// one expression. That single-expression combination is what was
     /// blowing past the compiler's time limit.

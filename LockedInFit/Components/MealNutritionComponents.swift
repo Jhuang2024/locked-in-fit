@@ -24,7 +24,7 @@ enum MealScoreTier {
     }
 }
 
-/// Compact "72 Health" pill for the food log list — small enough for two per
+/// Compact "72 Health" pill for the food log list, small enough for two per
 /// row without crowding the card.
 struct MealScoreChip: View {
     let label: String

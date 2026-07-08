@@ -20,7 +20,7 @@ struct DailyChecklistCard: View {
     /// means an in-place `isCompleted` flip doesn't change the query array
     /// itself, so `onChange(of:)` on `items` alone won't catch it).
     var onToggle: () -> Void = {}
-    /// Short "approaching/exceeded" dietary-limit lines — the same events
+    /// Short "approaching/exceeded" dietary-limit lines, the same events
     /// that drive push notifications, surfaced here too so the checklist is
     /// where you actually notice them, not just an alert that already fired.
     var dietaryWatchLines: [String] = []

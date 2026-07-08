@@ -58,7 +58,7 @@ enum DailyChecklistService {
     }
 
     /// Due-and-incomplete items outside `.sleep`, which has its own reminder
-    /// category — shared by the Dashboard's reminder refresh and the
+    /// category. Shared by the Dashboard's reminder refresh and the
     /// Notifications settings screen so both agree on what the checklist
     /// digest covers.
     static func openItemsExcludingSleep(_ items: [DailyChecklistItem], on date: Date = .now) -> [DailyChecklistItem] {
@@ -74,7 +74,7 @@ enum DailyChecklistService {
     /// last `days` days (recurring items count each due day; one-time items
     /// count once). `nil` when nothing in that category was due in the
     /// window, so callers can treat "nothing tracked" as neutral rather than
-    /// a hard 0 — used to connect actual logged behavior (grooming, sleep)
+    /// a hard 0. Used to connect actual logged behavior (grooming, sleep)
     /// into face/body scoring.
     static func recentComplianceRatio(_ items: [DailyChecklistItem], category: ChecklistCategory,
                                       days: Int = 14, endingAt date: Date = .now) -> Double? {
@@ -85,7 +85,7 @@ enum DailyChecklistService {
         var doneCount = 0
         for item in categoryItems {
             if item.recurrence == .none {
-                // One-time items count once — `isDue` is true on every day
+                // One-time items count once: `isDue` is true on every day
                 // from the due date onward, so looping days here would count
                 // a single overdue item against compliance up to `days` times.
                 guard item.dueDate.startOfDay <= date.startOfDay else { continue }

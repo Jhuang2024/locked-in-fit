@@ -36,7 +36,7 @@ struct CalorieTrendsView: View {
     }
 
     /// Net calories: what's eaten minus what digesting it burns (TEF) and
-    /// minus that day's walking/step calorie burn — the figure that actually
+    /// minus that day's walking/step calorie burn: the figure that actually
     /// counts against the flat target, not raw logged intake.
     private var caloriePoints: [DayPoint] {
         let eaten = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })

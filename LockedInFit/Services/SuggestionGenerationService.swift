@@ -16,7 +16,7 @@ enum SuggestionGenerationService {
 
     // MARK: - Face
 
-    /// Every branch here is about the person, never the photo — no lighting,
+    /// Every branch here is about the person, never the photo: no lighting,
     /// framing, angle, or "retake the photo" suggestions. Only genuine
     /// subject signals drive these (puffiness vs personal baseline, logged
     /// grooming/sleep behavior via `result`).
@@ -27,52 +27,44 @@ enum SuggestionGenerationService {
         var out: [AppearanceSuggestion] = []
         let id = checkIn.uuid
 
-        // Puffiness: the actionable fix is the real driver (sodium or sleep), not photo timing.
-        if result.puffiness < 13 {
+        // puffiness = clamp(...)*8 + 22*clamp(...), so the neutral/no-baseline
+        // value is 22. This threshold must stay meaningfully below that or the
+        // suggestion fires for everyone instead of genuinely puffy readings.
+        if result.puffiness < 19 {
             let sodiumHigh = context.todaySodiumMg > context.sodiumLimitMg
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: sodiumHigh ? "Cut evening sodium this week" : "Prioritize a consistent sleep window this week",
                 explanation: sodiumHigh
-                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit — sodium is the fastest lever on facial water retention."
+                    ? "Face reads puffier than your baseline and today's sodium (\(Int(context.todaySodiumMg)) mg) is over your \(Int(context.sodiumLimitMg)) mg limit: sodium is the fastest lever on facial water retention."
                     : "Face reads puffier than your baseline. Sleep and hydration are the most common drivers of day-to-day facial puffiness.",
                 expectedImpact: "Less puffiness, cleaner trend.",
                 category: sodiumHigh ? .nutrition : .sleep, priority: 2,
                 durationType: .shortTerm, destination: .checklist, relatedCheckInId: id))
         }
 
-        if result.skin < 18 {
+        // skin = 16 + looksRatio*9 + sleepRatio*5, so the neutral/no-data value is 23.
+        if result.skin < 22 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Add sunscreen to your morning checklist",
                 explanation: "Daily SPF is the single highest-evidence skin habit available, independent of anything a photo can show.",
-                expectedImpact: "Long-run skin quality; steadier skin component.",
+                expectedImpact: "Long-run skin quality, steadier skin component.",
                 category: .skin, priority: 2, durationType: .shortTerm,
                 destination: .checklist, relatedCheckInId: id))
         }
 
-        // grooming = 9 + ratio*11, so the neutral/no-data value is 14.5 — this
+        // grooming = 11 + ratio*14, so the neutral/no-data value is 18. This
         // threshold must stay below that or the suggestion fires by default
         // for everyone, not just genuinely low compliance.
-        if result.grooming < 13 {
+        if result.grooming < 16 {
             out.append(AppearanceSuggestion(
                 sourceKind: "face",
                 title: "Schedule a haircut every 4 weeks",
-                explanation: "Grooming/looks checklist items are due but incomplete. A standing grooming cadence keeps it maintained without thinking about it.",
-                expectedImpact: "Consistent grooming component; one less decision.",
+                explanation: "Grooming and looks checklist items are due but incomplete. A standing grooming cadence keeps it maintained without thinking about it.",
+                expectedImpact: "Consistent grooming component, one less decision.",
                 category: .grooming, priority: 3, durationType: .longTerm,
                 destination: .calendar, relatedCheckInId: id))
-        }
-
-        // Sleep angle only when puffiness AND consistency both flag — a real pattern, not filler.
-        if result.puffiness < 12 && result.trend >= 8 {
-            out.append(AppearanceSuggestion(
-                sourceKind: "face",
-                title: "Hold a consistent sleep window this week",
-                explanation: "Puffiness is up against your baseline while your check-in consistency is solid — short or irregular sleep is the usual remaining driver.",
-                expectedImpact: "Less morning puffiness; better recovery.",
-                category: .sleep, priority: 3, durationType: .shortTerm,
-                destination: .checklist, relatedCheckInId: id))
         }
 
         return prioritize(out)
@@ -80,8 +72,8 @@ enum SuggestionGenerationService {
 
     // MARK: - Body
 
-    /// Every branch here is about the person — composition, training,
-    /// posture, nutrition — never photo coverage/lighting/spot consistency.
+    /// Every branch here is about the person (composition, training,
+    /// posture, nutrition), never photo coverage/lighting/spot consistency.
     static func bodySuggestions(result: AppearanceScoringService.BodyScoreResult,
                                 checkIn: AppearanceCheckIn,
                                 context: Context) -> [AppearanceSuggestion] {
@@ -184,7 +176,7 @@ enum SuggestionGenerationService {
     }
 
     /// Splits freshly generated suggestions into ones to insert and ones that
-    /// duplicate a live (pending/approved/completed) suggestion — those get
+    /// duplicate a live (pending/approved/completed) suggestion: those get
     /// their explanation/impact/related check-in refreshed on the existing
     /// row instead of creating a second copy. Rejected suggestions don't
     /// count as live, so a rule that was dismissed can resurface later.

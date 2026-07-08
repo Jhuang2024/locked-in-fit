@@ -16,7 +16,7 @@ enum Analytics {
             .mapValues { $0.reduce(0) { $0 + $1.protein } }
     }
 
-    /// TEF (thermic effect of food) per day, from that day's total macros —
+    /// TEF (thermic effect of food) per day, from that day's total macros:
     /// the same figure the dashboard adds back into the day's calorie target.
     static func dailyTEF(_ meals: [MealLog]) -> [Date: Double] {
         Dictionary(grouping: meals) { $0.date.startOfDay }

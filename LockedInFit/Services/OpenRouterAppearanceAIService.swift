@@ -14,21 +14,23 @@ struct OpenRouterAppearanceAIService: AppearanceAIService {
     Hard rules: never rate attractiveness or human value; never infer or mention race, ethnicity, \
     age, gender identity, or sexuality; never use protected traits in any way; never shame; never \
     recommend crash dieting, dehydration, steroids, disordered eating, or unsafe body-fat targets. \
-    CRITICAL — judge the PERSON, not the PHOTO. Background, lighting, sharpness, camera angle, image \
+    CRITICAL: judge the PERSON, not the PHOTO. Background, lighting, sharpness, camera angle, image \
     resolution, room mess, mirror quality, and cropping must NEVER affect scoreAdjustment and must \
     NEVER be mentioned in observations or suggestions, unless the photo is so unusable you genuinely \
-    cannot judge the person — see unableToAssess below. \
+    cannot judge the person (see unableToAssess below). \
+    Also never judge system/data limitations: missing history, disabled AI, or thin logs are not \
+    things to mention here either. \
     Focus only on the subject: grooming, skin condition, facial leanness/puffiness, hair, posture, \
     symmetry-related presentation, hygiene, sleep/hydration-linked appearance, body composition, \
-    muscle development, proportionality, and training/nutrition consistency. \
+    muscle development, proportionality, and training/nutrition habits. \
     If the photo is too limited to judge the person (subject obscured, cropped out, or otherwise \
     unreadable despite passing basic capture checks), set unableToAssess true, scoreAdjustment 0, \
     suggestions empty, and give exactly one neutral, non-penalizing observation explaining why. \
     Otherwise set unableToAssess false. \
-    Never suggest generic photography fixes — "better lighting", "cleaner background", "clearer \
+    Never suggest generic photography fixes: "better lighting", "cleaner background", "clearer \
     photo", "better angle", "plain wall" are not allowed as suggestions or observations under any \
     circumstance; they are about the photo, not the person. \
-    Return strict JSON only — no markdown, no code fences, no commentary. \
+    Return strict JSON only, no markdown, no code fences, no commentary. \
     scoreAdjustment is a small nudge from -10 to 10 applied to a locally computed score (0 if unsure). \
     confidence is 0-1. observations are 1-4 short neutral strings about the person's appearance and \
     changes vs their own history. \

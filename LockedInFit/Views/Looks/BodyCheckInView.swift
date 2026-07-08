@@ -161,13 +161,8 @@ struct BodyCheckInView: View {
                         Label("Confidence \(Formatters.percent(result.confidence))", systemImage: "gauge.medium")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if result.compositionLimited {
-                            Label("Composition-limited", systemImage: "exclamationmark.circle")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
-                        }
                         if result.leannessGuard {
-                            Label("Leanness is not the limiter; no cut advice given", systemImage: "shield.checkered")
+                            Label("Leanness is not the limiter: no cut advice given", systemImage: "shield.checkered")
                                 .font(.caption2)
                                 .foregroundStyle(.teal)
                         }
@@ -181,7 +176,7 @@ struct BodyCheckInView: View {
                     breakdownRow("Composition", result.composition, 40)
                     breakdownRow("Lean mass proxy", result.leanMass, 15)
                     breakdownRow("Training consistency", result.training, 15)
-                    breakdownRow("Photo coverage", result.photoPosture, 15)
+                    breakdownRow("Posture", result.posture, 15)
                     breakdownRow("Trend vs goal", result.trendDirection, 15)
                 }
                 VStack(alignment: .leading, spacing: 5) {
@@ -195,14 +190,30 @@ struct BodyCheckInView: View {
                 .padding(.top, 6)
             }
 
-            if let ai = viewModel.aiResult, !ai.observations.isEmpty {
-                DashboardCard(title: ai.isUnableToAssess ? "AI Couldn't Assess This Photo" : "AI Observations", systemImage: "sparkles") {
+            if result.compositionLimited || !result.confidenceNotes.isEmpty || (viewModel.aiResult?.isUnableToAssess ?? false) {
+                DashboardCard(title: "Confidence & Tracking Notes", systemImage: "gauge.medium") {
                     VStack(alignment: .leading, spacing: 5) {
-                        if ai.isUnableToAssess {
-                            Text("Your local score above stands on its own — nothing here was penalized for it.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        Text("These affect how much to trust the score above, not the score itself.")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        if viewModel.aiResult?.isUnableToAssess ?? false {
+                            Text("AI couldn't assess this photo. The score above stands on its own; nothing was penalized for it.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
                         }
+                        ForEach(result.confidenceNotes, id: \.self) { line in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•").font(.caption).foregroundStyle(.tertiary)
+                                Text(line).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let ai = viewModel.aiResult, !ai.observations.isEmpty {
+                DashboardCard(title: "AI Observations", systemImage: "sparkles") {
+                    VStack(alignment: .leading, spacing: 5) {
                         ForEach(ai.observations, id: \.self) { line in
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)
@@ -270,7 +281,7 @@ struct BodyCheckInView: View {
     }
 
     /// Days in the last 14 with a protein target hit, out of days with any
-    /// meal logged — connects nutrition consistency into the body-score
+    /// meal logged: connects nutrition consistency into the body-score
     /// narrative. `nil`/`nil` when there's too little logged data to mean anything.
     private var recentProteinAdherence: (hit: Int?, tracked: Int?) {
         guard let target = activeGoals.first?.proteinTarget, target > 0 else { return (nil, nil) }

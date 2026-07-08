@@ -87,7 +87,7 @@ struct RootTabView: View {
 
 /// Trends hub: weekly, weight, goal, body data. The "This Week" summary is
 /// where nutrition, training, appearance, and suggestions converge into one
-/// view — trends isn't just weight charts, it's the whole system's readout.
+/// view: trends isn't just weight charts, it's the whole system's readout.
 struct TrendsHomeView: View {
     @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
@@ -132,7 +132,7 @@ struct TrendsHomeView: View {
             Section("This Week") {
                 summaryRow("Workouts", "\(workoutsThisWeek)", systemImage: "dumbbell")
                 summaryRow("Protein target hit", "\(proteinHitDaysThisWeek)/\(daysElapsedThisWeek) days", systemImage: "fish")
-                summaryRow("Face check-in streak", faceStreak > 0 ? "\(faceStreak)d" : "—", systemImage: "face.smiling")
+                summaryRow("Face check-in streak", faceStreak > 0 ? "\(faceStreak)d" : "N/A", systemImage: "face.smiling")
                 if pendingSuggestionCount > 0 {
                     NavigationLink(destination: AppearanceSuggestionReviewView()) {
                         summaryRow("Pending suggestions", "\(pendingSuggestionCount)", systemImage: "lightbulb")

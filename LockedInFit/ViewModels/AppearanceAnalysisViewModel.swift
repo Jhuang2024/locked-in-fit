@@ -35,7 +35,7 @@ final class AppearanceAnalysisViewModel {
     var aiResult: AppearanceAIResult?
     var providerUsed = ""
     var notes = ""
-    /// Suggestions generated for the pending check-in; reconciled on save —
+    /// Suggestions generated for the pending check-in; reconciled on save:
     /// duplicates of a live suggestion get refreshed in place instead of inserted.
     var draftSuggestions: [AppearanceSuggestion] = []
     /// The unsaved check-in shown on the review screen.
@@ -43,7 +43,7 @@ final class AppearanceAnalysisViewModel {
     /// How many of `draftSuggestions` were actually inserted as new pending
     /// rows by the last `save(into:)` call (vs. deduped into a refresh of an
     /// existing suggestion). Callers should gate "show suggestion review" on
-    /// this, not on `draftSuggestions.isEmpty` — an all-duplicate batch still
+    /// this, not on `draftSuggestions.isEmpty`: an all-duplicate batch still
     /// generates suggestions but has nothing new to review.
     private(set) var insertedSuggestionCount = 0
 
@@ -65,7 +65,7 @@ final class AppearanceAnalysisViewModel {
     /// Score locally, optionally enrich with AI, and build the draft check-in.
     /// `looksComplianceRatio`/`sleepComplianceRatio` connect the score to
     /// actually-logged grooming/sleep checklist behavior (nil when nothing's
-    /// been tracked yet — scored neutrally).
+    /// been tracked yet, scored neutrally).
     func analyzeFace(history: [AppearanceCheckIn],
                      context: SuggestionGenerationService.Context,
                      useAI: Bool,
@@ -164,7 +164,7 @@ final class AppearanceAnalysisViewModel {
         }
         modelContext.insert(draftCheckIn)
 
-        // Only live suggestions can be duplicates — rejected ones are excluded
+        // Only live suggestions can be duplicates: rejected ones are excluded
         // so a dismissed rule can resurface, and there's no need to fetch them.
         let rejectedRaw = AppearanceSuggestionStatus.rejected.rawValue
         let descriptor = FetchDescriptor<AppearanceSuggestion>(predicate: #Predicate { $0.statusRaw != rejectedRaw })
@@ -175,7 +175,7 @@ final class AppearanceAnalysisViewModel {
             modelContext.insert(suggestion)
         }
         for (existingSuggestion, draft) in toRefresh {
-            // Same suggestion as before — refresh its reasoning instead of duplicating it.
+            // Same suggestion as before: refresh its reasoning instead of duplicating it.
             existingSuggestion.explanation = draft.explanation
             existingSuggestion.expectedImpact = draft.expectedImpact
             existingSuggestion.relatedCheckInId = draft.relatedCheckInId
@@ -187,13 +187,13 @@ final class AppearanceAnalysisViewModel {
 
     private func apply(face scores: AppearanceScoringService.FaceScoreResult, to checkIn: AppearanceCheckIn) {
         checkIn.totalScore = scores.total
-        // qualityScore intentionally left at its default (0) — photo
-        // quality no longer contributes to or is displayed as a score component.
+        // qualityScore and trendScore intentionally left at their default (0):
+        // photo quality and check-in consistency no longer contribute to or
+        // are displayed as face-score components.
         checkIn.skinScore = scores.skin
         checkIn.symmetryScore = scores.symmetry
         checkIn.groomingScore = scores.grooming
         checkIn.puffinessScore = scores.puffiness
-        checkIn.trendScore = scores.trend
         checkIn.confidence = scores.confidence
     }
 
@@ -201,9 +201,9 @@ final class AppearanceAnalysisViewModel {
         checkIn.totalScore = scores.total
         checkIn.compositionScore = scores.composition
         checkIn.muscularityScore = scores.leanMass
-        checkIn.postureScore = scores.photoPosture
+        checkIn.postureScore = scores.posture
         checkIn.trendScore = scores.trendDirection
-        // qualityScore intentionally left at its default (0) — see above.
+        // qualityScore intentionally left at its default (0), see above.
         checkIn.confidence = scores.confidence
     }
 

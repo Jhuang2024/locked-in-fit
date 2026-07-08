@@ -1,6 +1,6 @@
 import Foundation
 
-/// Offline heuristic scorer: no network, no AI — just macro-density math plus
+/// Offline heuristic scorer: no network, no AI, just macro-density math plus
 /// a few keyword nudges, so meal logging always shows a real health/satiety
 /// score even without an OpenRouter key. The real OpenRouter service is used
 /// automatically instead whenever a key is configured.

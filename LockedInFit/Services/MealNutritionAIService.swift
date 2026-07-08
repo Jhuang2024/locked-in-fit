@@ -3,7 +3,7 @@ import Foundation
 /// Snapshot of an already-logged meal's nutrition, handed to the AI for
 /// health/satiety scoring. Built straight from the saved MealLog, so scoring
 /// works identically whether the meal came from a photo estimate, a typed
-/// description, a preset, or fully manual entry — by the time this runs, the
+/// description, a preset, or fully manual entry: by the time this runs, the
 /// calories/macros are already final.
 struct MealNutritionAnalysisInput {
     var mealType: MealType

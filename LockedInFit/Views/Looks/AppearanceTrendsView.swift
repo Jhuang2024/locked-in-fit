@@ -141,13 +141,10 @@ struct AppearanceTrendsView: View {
                     LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.puffinessScore),
                              series: .value("Component", "Puffiness"))
                         .foregroundStyle(by: .value("Component", "Puffiness"))
-                    LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.trendScore),
-                             series: .value("Component", "Consistency"))
-                        .foregroundStyle(by: .value("Component", "Consistency"))
                 }
             }
             .id("breakdown-\(windowDays)")
-            .chartYScale(domain: 0.0...25.0)
+            .chartYScale(domain: 0.0...30.0)
         }
     }
 

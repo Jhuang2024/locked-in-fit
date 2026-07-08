@@ -130,7 +130,7 @@ enum NotificationService {
 
     // MARK: - Meal reminders
 
-    /// Fixed, reasonable log-time per meal. Kept simple on purpose — no
+    /// Fixed, reasonable log-time per meal. Kept simple on purpose: no
     /// per-user configuration to avoid cluttering settings.
     private static let mealTimes: [(MealType, hour: Int, minute: Int)] = [
         (.breakfast, 8, 0), (.lunch, 12, 30), (.dinner, 19, 0), (.snack, 15, 30)

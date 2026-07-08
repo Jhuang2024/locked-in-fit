@@ -258,11 +258,6 @@ struct FaceCheckInView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        if result.confidence < 0.5 {
-                            Text("Low confidence — more check-ins, logged grooming/sleep habits, or enabling AI analysis all sharpen this.")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
-                        }
                     }
                     Spacer()
                 }
@@ -270,11 +265,10 @@ struct FaceCheckInView: View {
 
             DashboardCard(title: "Why This Score?", systemImage: "questionmark.circle") {
                 VStack(spacing: 8) {
-                    reviewBreakdownRow("Skin", result.skin, 25)
-                    reviewBreakdownRow("Symmetry", result.symmetry, 20)
-                    reviewBreakdownRow("Grooming", result.grooming, 20)
-                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 20)
-                    reviewBreakdownRow("Consistency", result.trend, 15)
+                    reviewBreakdownRow("Skin", result.skin, 30)
+                    reviewBreakdownRow("Symmetry", result.symmetry, 15)
+                    reviewBreakdownRow("Grooming", result.grooming, 25)
+                    reviewBreakdownRow("Puffiness vs baseline", result.puffiness, 30)
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(result.explanations, id: \.self) { line in
@@ -287,14 +281,35 @@ struct FaceCheckInView: View {
                 .padding(.top, 6)
             }
 
-            if let ai = viewModel.aiResult, !ai.observations.isEmpty {
-                DashboardCard(title: ai.isUnableToAssess ? "AI Couldn't Assess This Photo" : "AI Observations", systemImage: "sparkles") {
+            if !result.confidenceNotes.isEmpty || result.confidence < 0.5 || (viewModel.aiResult?.isUnableToAssess ?? false) {
+                DashboardCard(title: "Confidence & Tracking Notes", systemImage: "gauge.medium") {
                     VStack(alignment: .leading, spacing: 5) {
-                        if ai.isUnableToAssess {
-                            Text("Your local score above stands on its own — nothing here was penalized for it.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        Text("These affect how much to trust the score above, not the score itself.")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        if result.confidence < 0.5 {
+                            Text("Low confidence: more check-ins, logged grooming/sleep habits, or enabling AI analysis all sharpen this.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
                         }
+                        if viewModel.aiResult?.isUnableToAssess ?? false {
+                            Text("AI couldn't assess this photo. The score above stands on its own; nothing was penalized for it.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        ForEach(result.confidenceNotes, id: \.self) { line in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•").font(.caption).foregroundStyle(.tertiary)
+                                Text(line).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let ai = viewModel.aiResult, !ai.observations.isEmpty {
+                DashboardCard(title: "AI Observations", systemImage: "sparkles") {
+                    VStack(alignment: .leading, spacing: 5) {
                         ForEach(ai.observations, id: \.self) { line in
                             HStack(alignment: .top, spacing: 6) {
                                 Text("•").font(.caption).foregroundStyle(.tertiary)
@@ -315,7 +330,7 @@ struct FaceCheckInView: View {
 
             if !viewModel.draftSuggestions.isEmpty {
                 DashboardCard(title: "Suggestions Ready", systemImage: "lightbulb") {
-                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Any that are genuinely new are ready to review after saving — duplicates of ones you already have are merged automatically, and nothing becomes a task without your OK.")
+                    Text("\(viewModel.draftSuggestions.count) suggestions were generated from this check-in. Any that are genuinely new are ready to review after saving. Duplicates of ones you already have are merged automatically, and nothing becomes a task without your OK.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

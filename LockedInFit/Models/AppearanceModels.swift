@@ -5,9 +5,9 @@ import SwiftData
 
 /// One face or body check-in. Scores are explainable component values, not a
 /// claim about objective attractiveness: they reflect composition data,
-/// logged grooming/sleep behavior, consistency, and self-comparison against
-/// the user's own history — never background, lighting, sharpness, camera
-/// angle, or resolution. Raw photos stay on-device via ImageStore.
+/// logged grooming/sleep behavior, and self-comparison against the user's own
+/// history, never background, lighting, sharpness, camera angle, resolution,
+/// or check-in frequency. Raw photos stay on-device via ImageStore.
 @Model
 final class AppearanceCheckIn {
     /// Stable string ID so suggestions can reference a check-in across saves.
@@ -22,10 +22,10 @@ final class AppearanceCheckIn {
     var backPhotoPath: String?
     /// 0–100 overall.
     var totalScore: Double = 0
-    // Component scores. Face uses skin/symmetry/grooming/puffiness/trend;
-    // body uses composition/muscularity/posture/trend. Unused ones stay 0.
+    // Component scores. Face uses skin/symmetry/grooming/puffiness; body uses
+    // composition/muscularity/posture/trend. Unused ones stay 0.
     /// Legacy field from when photo-technical quality contributed to the
-    /// score. No longer populated — kept only so older saved check-ins keep
+    /// score. No longer populated, kept only so older saved check-ins keep
     /// their original historical value.
     var qualityScore: Double = 0
     var compositionScore: Double = 0
@@ -35,8 +35,11 @@ final class AppearanceCheckIn {
     var puffinessScore: Double = 0
     var muscularityScore: Double = 0
     var postureScore: Double = 0
+    /// Body only: trend direction vs the active goal. Not used by face
+    /// scoring, which has no consistency/streak component (how often
+    /// someone checks in isn't a fact about their face).
     var trendScore: Double = 0
-    /// 0–1. Reflects measurement/data confidence — never lowered because of
+    /// 0–1. Reflects measurement/data confidence, never lowered because of
     /// how the person looks, only because there's less to go on.
     var confidence: Double = 0
     var notes: String = ""

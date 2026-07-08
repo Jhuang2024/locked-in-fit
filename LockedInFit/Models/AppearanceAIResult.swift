@@ -9,7 +9,7 @@ struct AppearanceAIResult: Codable {
     /// 0–1 confidence in the observations.
     var confidence: Double
     /// Qualitative, non-judgmental observations about the subject and
-    /// changes vs their own history — never about lighting, background, or
+    /// changes vs their own history, never about lighting, background, or
     /// other photo-technical qualities.
     var observations: [String]
     var suggestions: [AppearanceAISuggestion]
@@ -29,7 +29,7 @@ struct AppearanceAISuggestion: Codable {
     var title: String
     /// Raw AppearanceSuggestionCategory value (skin/grooming/posture/workout/nutrition/sleep/body).
     /// `photo_quality` still parses for backward compatibility but the
-    /// current prompt never asks the model to use it — suggestions must be
+    /// current prompt never asks the model to use it: suggestions must be
     /// about the subject, not the photo.
     var category: String
     var explanation: String

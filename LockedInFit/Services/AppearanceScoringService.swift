@@ -1,13 +1,17 @@
 import Foundation
 
-/// Local, deterministic appearance scoring. Scores judge the subject — never
-/// the photo. Background, lighting, sharpness, camera angle, resolution, and
-/// framing play no part in any component below; a photo either passes
-/// FacePhotoValidator's usability gate (in which case it's scored) or it's
-/// blocked before scoring ever runs. What's scored: self-comparison against
-/// the user's own history, logged grooming/sleep behavior, and body-
-/// composition data — never objective attractiveness, and never protected
-/// traits.
+/// Local, deterministic appearance scoring. Scores judge the subject, never
+/// the photo and never system/data limitations. Background, lighting,
+/// sharpness, camera angle, resolution, framing, missing history, disabled
+/// AI, and thin logs play no part in any score component: a photo either
+/// passes FacePhotoValidator's usability gate (in which case it's scored) or
+/// it's blocked before scoring ever runs, and any component that lacks real
+/// data falls back to a neutral value instead of being penalized. What's
+/// scored: self-comparison against the user's own history, logged
+/// grooming/sleep behavior, and body-composition data, never objective
+/// attractiveness, and never protected traits. Every result carries a
+/// separate `confidenceNotes` list for data-quality/tracking caveats so they
+/// never get mixed into the "why this score" explanations.
 enum AppearanceScoringService {
 
     // MARK: - Face
@@ -15,33 +19,44 @@ enum AppearanceScoringService {
     struct FaceScoreResult {
         /// 0–100.
         var total: Double
-        /// Component points out of their weights: skin/25, symmetry/20,
-        /// grooming/20, puffiness/20, trend/15. None of these are derived
-        /// from photo-technical signals (lighting, sharpness, angle, etc).
+        /// Component points out of their weights: skin/30, symmetry/15,
+        /// grooming/25, puffiness/30. Every point here is about the subject.
+        /// There is no "consistency"/streak component: how often someone
+        /// checks in is an app-engagement fact, not something about their
+        /// face, so it never contributes to the score. `symmetry` is a flat
+        /// neutral value locally (no reliable local signal exists for it), so
+        /// the achievable local total tops out at 95, not 100; AI analysis
+        /// can move the total the rest of the way with a real visual read.
         var skin: Double
         var symmetry: Double
         var grooming: Double
         var puffiness: Double
-        var trend: Double
-        /// 0–1.
+        /// 0–1. How much to trust the number above, never a reason to raise
+        /// or lower it.
         var confidence: Double
-        /// "Why this score?" bullet lines.
+        /// "Why this score?" bullet lines, strictly about the subject:
+        /// what's happening with their skin, grooming, or puffiness.
         var explanations: [String]
+        /// Confidence/data-quality/tracking notes: photo usability, missing
+        /// history, disabled AI, thin logs. Never affects `total`, `skin`,
+        /// `symmetry`, `grooming`, or `puffiness` above; shown in its own
+        /// "Confidence & Tracking Notes" section, not mixed into `explanations`.
+        var confidenceNotes: [String]
     }
 
     /// - Parameters:
     ///   - looksComplianceRatio: fraction of due `.looks`-category checklist
     ///     items completed recently (grooming/skincare habits). `nil` when
-    ///     nothing's been tracked yet — treated as neutral.
+    ///     nothing's been tracked yet; treated as neutral, never as a penalty.
     ///   - sleepComplianceRatio: same, for `.sleep`-category checklist items.
     static func scoreFace(metrics: FacePhotoMetrics,
                           history: [AppearanceCheckIn],
                           looksComplianceRatio: Double? = nil,
-                          sleepComplianceRatio: Double? = nil,
-                          date: Date = .now) -> FaceScoreResult {
+                          sleepComplianceRatio: Double? = nil) -> FaceScoreResult {
         var explanations: [String] = []
+        var confidenceNotes: [String] = []
 
-        // Photo usability is a confidence signal only — it never adds to or
+        // Photo usability is a confidence signal only: it never adds to or
         // subtracts from the subject score below. Photos this rough are
         // already blocked before scoring by FacePhotoValidator; this just
         // measures how much residual noise a borderline-but-usable photo adds.
@@ -49,41 +64,51 @@ enum AppearanceScoringService {
         let exposurePart = 1 - clamp(abs(metrics.meanLuminance - 0.5) / 0.35)
         let anglePart = 1 - clamp(max(metrics.yawDegrees, metrics.rollDegrees) / 30)
         let photoUsability = (sharpnessPart + exposurePart + anglePart) / 3
-
-        // Skin (25): lighting/luminance statistics measure the photo, not the
-        // skin, so they play no part here. Neutral baseline, nudged only by
-        // actual logged skincare and sleep behavior.
-        let skin = 13 + (looksComplianceRatio ?? 0.5) * 8 + (sleepComplianceRatio ?? 0.5) * 4
-        if let looksComplianceRatio, looksComplianceRatio >= 0.7 {
-            explanations.append("Recent skincare/grooming checklist consistency is feeding this component.")
-        } else if let sleepComplianceRatio, sleepComplianceRatio >= 0.7 {
-            explanations.append("Consistent sleep logging is feeding this component — sleep shows up in skin more than any photo setting.")
-        } else {
-            explanations.append("Skin can't be read from photo statistics alone — this stays neutral until skincare or sleep habits are logged, or AI analysis is enabled.")
+        if photoUsability < 0.5 {
+            confidenceNotes.append("Photo sharpness, lighting, or angle limits confidence in this reading, but never lowers the score itself.")
         }
 
-        // Symmetry (20): a single 2D photo can't separate real facial symmetry
+        // Skin (30): lighting/luminance statistics measure the photo, not the
+        // skin, so they play no part here. Neutral baseline, nudged only by
+        // actual logged skincare and sleep behavior; missing data stays
+        // neutral rather than penalizing.
+        let skin = 16 + (looksComplianceRatio ?? 0.5) * 9 + (sleepComplianceRatio ?? 0.5) * 5
+        if let looksComplianceRatio, looksComplianceRatio >= 0.7 {
+            explanations.append("Recent skincare and grooming habits are keeping this steady.")
+        } else if let looksComplianceRatio, looksComplianceRatio < 0.4 {
+            explanations.append("Skincare and grooming habits have lapsed lately, which is holding this back.")
+        } else if let sleepComplianceRatio, sleepComplianceRatio >= 0.7 {
+            explanations.append("Consistent sleep is supporting the skin component.")
+        }
+        if looksComplianceRatio == nil && sleepComplianceRatio == nil {
+            confidenceNotes.append("Skin stays neutral until skincare or sleep habits are logged, or AI analysis is enabled.")
+        }
+
+        // Symmetry (15): a single 2D photo can't separate real facial symmetry
         // from head angle, so no photo metric is allowed to move this. It
         // stays a flat neutral value locally; AI analysis, if enabled, can
         // give the total score a real visual read.
-        let symmetry = 13.0
-        explanations.append("Symmetry isn't reliably measurable from a single local photo — enable AI analysis in Settings for a real visual read.")
+        let symmetry = 10.0
+        confidenceNotes.append("Symmetry stays at a neutral value locally; enable AI analysis in Settings for a real visual read.")
 
-        // Grooming (20): a habit, not a pixel statistic — tied to actual
-        // grooming/looks-checklist follow-through.
-        let grooming = 9 + (looksComplianceRatio ?? 0.5) * 11
-        if let looksComplianceRatio, looksComplianceRatio > 0 {
-            explanations.append(looksComplianceRatio >= 0.7
-                ? "Grooming/looks checklist items are getting done consistently."
-                : "Grooming/looks checklist items are due but incomplete — that's the fastest lever here.")
-        } else {
-            explanations.append("No grooming/looks checklist history yet — approve a suggestion to start tracking this.")
+        // Grooming (25): a habit, not a pixel statistic; tied to actual
+        // grooming/looks-checklist follow-through. Missing data stays
+        // neutral rather than penalizing.
+        let grooming = 11 + (looksComplianceRatio ?? 0.5) * 14
+        if let looksComplianceRatio, looksComplianceRatio >= 0.7 {
+            explanations.append("Grooming habits are being kept up consistently.")
+        } else if let looksComplianceRatio, looksComplianceRatio < 0.4 {
+            explanations.append("Grooming habits have lapsed, which is the fastest lever here.")
+        }
+        if looksComplianceRatio == nil {
+            confidenceNotes.append("No grooming or skincare habit data logged yet; approve a suggestion to start tracking this.")
         }
 
-        // Puffiness/leanness proxy (20): today's face width/height ratio vs the
-        // user's own history — a real subject signal, self-compared so no
-        // single photo's technical quality can skew it. No history → neutral.
-        var puffiness = 15.0
+        // Puffiness/leanness proxy (30): today's face width/height ratio vs the
+        // user's own history, a real subject signal, self-compared so no
+        // single photo's technical quality can skew it. No history → neutral,
+        // never penalized.
+        var puffiness = 22.0
         var puffinessComparable = false
         let priorRatios = history
             .filter { $0.kind == .face && $0.faceWidthHeightRatio > 0 }
@@ -92,32 +117,21 @@ enum AppearanceScoringService {
             let baseline = median(priorRatios)
             let delta = (metrics.widthHeightRatio - baseline) / baseline
             // Wider than personal baseline reads puffier; leaner reads slightly better.
-            puffiness = clamp(1 - max(0, delta) / 0.06) * 5 + 15 * clamp(1 - abs(delta) / 0.10)
-            puffiness = max(5, min(20, puffiness))
+            puffiness = clamp(1 - max(0, delta) / 0.06) * 8 + 22 * clamp(1 - abs(delta) / 0.10)
+            puffiness = max(8, min(30, puffiness))
             puffinessComparable = true
             if delta > 0.03 {
-                explanations.append("Face reads slightly puffier than your recent baseline — salt, sleep, or hydration are the usual drivers.")
+                explanations.append("Face reads puffier than your recent baseline. Salt, sleep, or hydration are the usual drivers.")
             } else if delta < -0.02 {
                 explanations.append("Face reads leaner than your recent baseline.")
             } else {
                 explanations.append("Puffiness is in line with your recent baseline.")
             }
         } else {
-            explanations.append("Puffiness tracking needs a few check-ins to build your personal baseline; neutral for now.")
+            confidenceNotes.append("Puffiness needs 3+ prior check-ins to build a personal baseline; neutral until then, not penalized.")
         }
 
-        // Consistency/streak/trend (15): check-in days in the last 14 — pure behavior.
-        let streak = faceStreak(history: history, endingAt: date)
-        let daysWithCheckIns = Set(history.filter { $0.kind == .face && $0.date > date.daysAgo(14) }
-            .map { $0.date.startOfDay }).count
-        let trend = clamp(Double(daysWithCheckIns + 1) / 10) * 10 + clamp(Double(streak) / 7) * 5
-        if streak >= 3 {
-            explanations.append("\(streak)-day check-in streak; consistency is what makes these scores meaningful.")
-        } else {
-            explanations.append("Check in on more days to raise the consistency component and sharpen comparisons.")
-        }
-
-        // Confidence: how much to trust the number — never used to lower the
+        // Confidence: how much to trust the number, never used to lower the
         // score itself. Reflects measurement usability, history depth, and
         // how much logged-behavior data is backing the skin/grooming components.
         var confidence = 0.4 + photoUsability * 0.25
@@ -126,10 +140,11 @@ enum AppearanceScoringService {
         confidence += (looksComplianceRatio != nil || sleepComplianceRatio != nil) ? 0.1 : 0
         confidence = clamp(confidence)
 
-        let total = min(100, skin + symmetry + grooming + puffiness + trend)
+        let total = min(100, skin + symmetry + grooming + puffiness)
         return FaceScoreResult(total: total, skin: skin, symmetry: symmetry,
-                               grooming: grooming, puffiness: puffiness, trend: trend,
-                               confidence: confidence, explanations: explanations)
+                               grooming: grooming, puffiness: puffiness,
+                               confidence: confidence, explanations: explanations,
+                               confidenceNotes: confidenceNotes)
     }
 
     /// Consecutive days ending today/yesterday with at least one face check-in.
@@ -161,12 +176,12 @@ enum AppearanceScoringService {
         /// Completed, non-template workouts (recent history).
         var workouts: [Workout]
         var weights: [BodyWeightEntry]
-        /// How many of front/side/back are present — a coverage signal, not a
+        /// How many of front/side/back are present: a coverage signal, not a
         /// technical-quality one.
         var photoCount: Int
         /// Days in the last 14 where the protein target was hit, out of days
         /// with any meal logged. `nil` when there isn't enough logged data to
-        /// mean anything. Insight-only — connects nutrition to the composition
+        /// mean anything. Insight-only: connects nutrition to the composition
         /// narrative without folding into the numeric score.
         var recentProteinHitDays: Int?
         var recentProteinTrackedDays: Int?
@@ -174,14 +189,25 @@ enum AppearanceScoringService {
 
     struct BodyScoreResult {
         var total: Double
-        /// Component points: composition/40, leanMass/15, training/15, photoPosture/15, trendDirection/15.
+        /// Component points: composition/40, leanMass/15, training/15, posture/15, trendDirection/15.
+        /// `posture` is a flat neutral value locally (no reliable local
+        /// signal exists for it, same reasoning as face `symmetry`), so the
+        /// achievable local total tops out at 95, not 100.
         var composition: Double
         var leanMass: Double
         var training: Double
-        var photoPosture: Double
+        var posture: Double
         var trendDirection: Double
+        /// 0–1. How much to trust the number above, never a reason to raise
+        /// or lower it.
         var confidence: Double
+        /// "Why this score?" bullet lines, strictly about the subject.
         var explanations: [String]
+        /// Confidence/data-quality/tracking notes: missing body fat, missing
+        /// photos, missing goal/weight-trend data. Never affects the
+        /// components above; shown in its own section, not mixed into
+        /// `explanations`.
+        var confidenceNotes: [String]
         /// True when body fat data is missing and composition scoring is degraded.
         var compositionLimited: Bool
         /// True when leanness is already low; cutting must NOT be suggested.
@@ -190,25 +216,26 @@ enum AppearanceScoringService {
 
     static func scoreBody(inputs: BodyScoreInputs, date: Date = .now) -> BodyScoreResult {
         var explanations: [String] = []
+        var confidenceNotes: [String] = []
         var compositionLimited = false
         var leannessGuard = false
 
         let heightValid = (inputs.heightCm ?? 0) > 120 && (inputs.heightCm ?? 0) < 230
 
         // Body composition (40).
-        var composition = 22.0 // neutral midpoint when data is missing
+        var composition = 22.0 // neutral midpoint when data is missing, never penalized
         if let bf = inputs.latestBodyFatPercent, bf > 2, bf < 60 {
             composition = compositionPoints(bodyFat: bf, sex: inputs.sex)
             let floorBF: Double = inputs.sex == .male ? 8 : 16
             if bf <= floorBF {
                 leannessGuard = true
-                explanations.append("Body fat is already very low. Further cutting is off the table; the lever now is muscle, sleep, and recovery.")
+                explanations.append("Body fat is already very low. Further cutting is off the table: the lever now is muscle, sleep, and recovery.")
             } else {
                 explanations.append("Composition scored from your logged body fat (\(Formatters.trimmed(bf))%).")
             }
         } else {
             compositionLimited = true
-            explanations.append("No body fat data; composition is scored at a neutral value (composition-limited). Log body fat for a real signal.")
+            confidenceNotes.append("No body fat data logged, so composition stays at a neutral value instead of being penalized. Log body fat for a real signal.")
         }
 
         // Low weight-for-height guard (BMI < 18.5) also blocks cut advice.
@@ -221,7 +248,7 @@ enum AppearanceScoringService {
         }
 
         // Lean mass / FFMI proxy (15): needs weight, body fat, and height.
-        var leanMass = 8.0
+        var leanMass = 10.5
         if let weight = inputs.latestWeightKg, let bf = inputs.latestBodyFatPercent,
            heightValid, let height = inputs.heightCm, bf > 2, bf < 60 {
             let heightM = height / 100
@@ -231,25 +258,29 @@ enum AppearanceScoringService {
             let low: Double = inputs.sex == .male ? 16 : 13
             let high: Double = inputs.sex == .male ? 22 : 18
             leanMass = clamp((ffmi - low) / (high - low)) * 15
-            explanations.append("Lean-mass index (FFMI proxy) is \(Formatters.trimmed(ffmi)); this rewards muscle, not just lightness.")
+            explanations.append("Lean-mass index (FFMI proxy) is \(Formatters.trimmed(ffmi)), rewarding muscle, not just lightness.")
         } else {
-            explanations.append("Lean-mass component is neutral: it needs weight, body fat, and height together.")
+            confidenceNotes.append("Lean-mass component is neutral: it needs weight, body fat, and height together.")
         }
 
-        // Training consistency (15): completed sessions in the last 28 days vs ~12.
+        // Training consistency (15): completed sessions in the last 28 days vs
+        // ~12. This is real training behavior, not app-engagement, so an
+        // actual absence of workouts is a genuine (low) signal, not missing data.
         let recentWorkouts = inputs.workouts.filter { $0.completed && !$0.isTemplate && $0.date > date.daysAgo(28) }.count
         let training = clamp(Double(recentWorkouts) / 12) * 15
         explanations.append(recentWorkouts == 0
-            ? "No completed workouts in the last 4 weeks; training consistency is the fastest component to move."
+            ? "No completed workouts in the last 4 weeks: training consistency is the fastest component to move."
             : "\(recentWorkouts) workouts completed in the last 4 weeks.")
 
-        // Body photo/posture coverage proxy (15): how many angles you have —
-        // never how technically good those photos are.
-        let photoPosture = 5 + clamp(Double(inputs.photoCount) / 3) * 10
+        // Posture (15): a single photo can't reliably read posture any more
+        // than it can read facial symmetry, so this stays a flat neutral
+        // value locally regardless of photo count; AI analysis, if enabled,
+        // can give the total score a real visual read.
+        let posture = 10.0
         if inputs.photoCount == 0 {
-            explanations.append("No body photos attached; the visual component is minimal. Front/side/back photos give the full picture.")
+            confidenceNotes.append("No body photos attached, so posture stays neutral. Front/side/back photos plus AI analysis give a real read.")
         } else if inputs.photoCount < 3 {
-            explanations.append("Partial photo set (\(inputs.photoCount)/3). Adding the missing angles improves comparison.")
+            confidenceNotes.append("Partial photo set (\(inputs.photoCount)/3). Adding the missing angles sharpens comparison, but posture already stays neutral either way.")
         }
 
         // Trend direction vs active goal (15).
@@ -270,15 +301,16 @@ enum AppearanceScoringService {
                 explanations.append("Weight trend is moving against your active goal.")
             }
         } else {
-            explanations.append("Trend component is neutral; it needs a weight trend and an active goal.")
+            confidenceNotes.append("Trend component is neutral: it needs a weight trend and an active goal.")
         }
 
-        // Nutrition connection — insight only, doesn't move any component.
+        // Nutrition connection: about the subject's logged behavior, not a
+        // system limitation, so it lives in explanations rather than confidenceNotes.
         if let hit = inputs.recentProteinHitDays, let tracked = inputs.recentProteinTrackedDays, tracked > 0 {
             let ratio = Double(hit) / Double(tracked)
             explanations.append(ratio >= 0.7
-                ? "Protein target hit on \(hit)/\(tracked) recently logged days — nutrition is backing up this composition trend."
-                : "Protein target was only hit on \(hit)/\(tracked) recently logged days — nutrition consistency is the fastest lever on composition.")
+                ? "Protein target hit on \(hit)/\(tracked) recently logged days: nutrition is backing up this composition trend."
+                : "Protein target was only hit on \(hit)/\(tracked) recently logged days: nutrition consistency is the fastest lever on composition.")
         }
 
         var confidence = 0.35
@@ -289,11 +321,12 @@ enum AppearanceScoringService {
         if inputs.recentProteinTrackedDays != nil { confidence += 0.05 }
         confidence = clamp(confidence)
 
-        let total = min(100, composition + leanMass + training + photoPosture + trendDirection)
+        let total = min(100, composition + leanMass + training + posture + trendDirection)
         return BodyScoreResult(total: total, composition: composition, leanMass: leanMass,
-                               training: training, photoPosture: photoPosture,
+                               training: training, posture: posture,
                                trendDirection: trendDirection,
                                confidence: confidence, explanations: explanations,
+                               confidenceNotes: confidenceNotes,
                                compositionLimited: compositionLimited, leannessGuard: leannessGuard)
     }
 
