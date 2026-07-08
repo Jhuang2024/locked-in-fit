@@ -7,6 +7,7 @@ import Charts
 /// data, so it updates the moment a new sleep log is saved.
 struct SleepTrendsView: View {
     @Query(sort: \SleepLog.date) private var logs: [SleepLog]
+    @Query(sort: \NapLog.napStart) private var naps: [NapLog]
 
     @State private var windowDays = 30
 
@@ -16,11 +17,19 @@ struct SleepTrendsView: View {
         windowDays == Self.allTimeWindow ? .distantPast : Date().daysAgo(windowDays).startOfDay
     }
     private var windowedLogs: [SleepLog] { logs.filter { $0.date >= cutoff } }
+    private var windowedNaps: [NapLog] { naps.filter { $0.date >= cutoff } }
     private var scorePoints: [(date: Date, score: Double)] {
         windowedLogs.map { (date: $0.date, score: $0.totalScore) }
     }
     private var durationPoints: [(date: Date, hours: Double)] {
         windowedLogs.map { (date: $0.date, hours: $0.durationHours) }
+    }
+    private var totalNapMinutes: Double { windowedNaps.reduce(0) { $0 + $1.durationMinutes } }
+    private var napDayCount: Int { Set(windowedNaps.map { $0.date }).count }
+    private var avgNapContribution: Double? {
+        let withNaps = windowedLogs.filter { $0.napContributionScore != 0 }
+        guard !withNaps.isEmpty else { return nil }
+        return withNaps.reduce(0.0) { $0 + $1.napContributionScore } / Double(withNaps.count)
     }
 
     var body: some View {
@@ -40,6 +49,7 @@ struct SleepTrendsView: View {
                     breakdownChart
                 }
                 statsSection
+                napSummarySection
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
@@ -131,6 +141,22 @@ struct SleepTrendsView: View {
                     StatChip(label: "Avg score", value: "\(Int(avgScore.rounded()))")
                     StatChip(label: "Avg duration", value: "\(Formatters.trimmed(avgDuration))h")
                     StatChip(label: "Avg wake-ups", value: String(format: "%.1f", avgWakeUps))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var napSummarySection: some View {
+        if !windowedNaps.isEmpty {
+            DashboardCard(title: "Naps", systemImage: "zzz") {
+                HStack {
+                    StatChip(label: "Total nap time", value: Formatters.napDuration(totalNapMinutes))
+                    StatChip(label: "Days napped", value: "\(napDayCount)")
+                    if let avgNapContribution {
+                        StatChip(label: "Avg impact", value: avgNapContribution >= 0 ? "+\(Int(avgNapContribution.rounded()))" : "\(Int(avgNapContribution.rounded()))",
+                                 color: avgNapContribution > 0 ? .green : (avgNapContribution < 0 ? .red : .primary))
+                    }
                 }
             }
         }

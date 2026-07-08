@@ -31,6 +31,13 @@ final class SleepLog {
     var explanations: [String] = []
     /// Actionable bullet lines for improving sleep, computed at log time.
     var suggestions: [String] = []
+    /// This day's nap contribution to totalScore: positive (recovery), negative
+    /// (disruptive/late), or 0. Already included in totalScore, kept separately
+    /// so the detail view can show it as its own line. Recomputed whenever a
+    /// nap for this day is added, edited, or removed (see SleepScoringService.recompute).
+    var napContributionScore: Double = 0
+    /// "How naps affected this score" bullet lines, computed alongside napContributionScore.
+    var napExplanations: [String] = []
     var notes: String = ""
     var sourceRaw: String = EntrySource.manual.rawValue
     var createdAt: Date = Date()
@@ -54,6 +61,46 @@ final class SleepLog {
         self.wakeUps = wakeUps
         self.durationHours = durationHours
         self.totalScore = totalScore
+        self.notes = notes
+        self.sourceRaw = source.rawValue
+        self.createdAt = .now
+    }
+}
+
+// MARK: - NapLog
+
+/// A single nap, stored separately from the night's SleepLog but associated
+/// with the same calendar day (`date` = start of day of `napStart`). A day
+/// can have any number of naps; `SleepScoringService` aggregates them into
+/// that day's SleepLog whenever one is added, edited, or removed.
+@Model
+final class NapLog {
+    var uuid: String = UUID().uuidString
+    /// Calendar day this nap belongs to: start of day of napStart.
+    var date: Date = Date()
+    var napStart: Date = Date()
+    var napEnd: Date = Date()
+    /// Minutes napped, computed once at log time.
+    var durationMinutes: Double = 0
+    var notes: String = ""
+    var sourceRaw: String = EntrySource.manual.rawValue
+    var createdAt: Date = Date()
+
+    var source: EntrySource {
+        get { EntrySource(rawValue: sourceRaw) ?? .manual }
+        set { sourceRaw = newValue.rawValue }
+    }
+
+    init(date: Date,
+         napStart: Date,
+         napEnd: Date,
+         durationMinutes: Double = 0,
+         notes: String = "",
+         source: EntrySource = .manual) {
+        self.date = date
+        self.napStart = napStart
+        self.napEnd = napEnd
+        self.durationMinutes = durationMinutes
         self.notes = notes
         self.sourceRaw = source.rawValue
         self.createdAt = .now

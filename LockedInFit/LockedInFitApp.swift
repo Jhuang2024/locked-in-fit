@@ -15,7 +15,7 @@ struct LockedInFitApp: App {
                 StrengthScore.self, UserSettings.self, HealthScan.self,
                 AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
                 WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
-                SleepLog.self)
+                SleepLog.self, NapLog.self)
         } catch {
             fatalError("Failed to create model container: \(error)")
         }

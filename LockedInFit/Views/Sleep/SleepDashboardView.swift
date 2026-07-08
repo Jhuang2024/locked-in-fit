@@ -6,8 +6,10 @@ import SwiftData
 struct SleepDashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: \NapLog.napStart, order: .reverse) private var naps: [NapLog]
 
     @State private var showLogSheet = false
+    @State private var showNapSheet = false
 
     private var latest: SleepLog? { logs.first }
     private var streak: Int { SleepScoringService.streak(history: logs) }
@@ -16,6 +18,7 @@ struct SleepDashboardView: View {
         guard !recent.isEmpty else { return nil }
         return recent.reduce(0) { $0 + $1.durationHours } / Double(recent.count)
     }
+    private var todayNaps: [NapLog] { naps.filter { $0.date.isToday } }
 
     var body: some View {
         ScrollView {
@@ -23,6 +26,9 @@ struct SleepDashboardView: View {
                 scoreCard
                 statsCard
                 actionButtons
+                if !todayNaps.isEmpty {
+                    todayNapsCard
+                }
                 if logs.isEmpty {
                     explainerCard
                 } else {
@@ -35,6 +41,7 @@ struct SleepDashboardView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Sleep")
         .sheet(isPresented: $showLogSheet) { NavigationStack { SleepLogEntryView() } }
+        .sheet(isPresented: $showNapSheet) { NavigationStack { NapLogEntryView() } }
     }
 
     private var scoreCard: some View {
@@ -89,13 +96,23 @@ struct SleepDashboardView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 8) {
-            Button { showLogSheet = true } label: {
-                Label("Log Sleep", systemImage: "plus.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+            HStack(spacing: 8) {
+                Button { showLogSheet = true } label: {
+                    Label("Log Sleep", systemImage: "plus.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                Button { showNapSheet = true } label: {
+                    Label("Log Nap", systemImage: "zzz")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.bordered)
+                .tint(.mint)
             }
-            .buttonStyle(.borderedProminent)
             NavigationLink(destination: SleepTrendsView()) {
                 Label("Sleep Trends", systemImage: "chart.xyaxis.line")
                     .font(.subheadline.weight(.semibold))
@@ -103,6 +120,50 @@ struct SleepDashboardView: View {
                     .padding(.vertical, 8)
             }
             .buttonStyle(.bordered)
+        }
+    }
+
+    private var todayNapsCard: some View {
+        DashboardCard(title: "Today's Naps", systemImage: "zzz") {
+            VStack(spacing: 10) {
+                ForEach(todayNaps, id: \.persistentModelID) { nap in
+                    napRow(nap)
+                        .contextMenu {
+                            Button(role: .destructive) { deleteNap(nap) } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    private func napRow(_ nap: NapLog) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "zzz")
+                .font(.title3)
+                .foregroundStyle(.mint)
+                .frame(width: 44, height: 44)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(nap.napStart.formatted(date: .omitted, time: .shortened)) – \(nap.napEnd.formatted(date: .omitted, time: .shortened))")
+                    .font(.subheadline.weight(.semibold))
+                Text(Formatters.napDuration(nap.durationMinutes))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    /// Deletes a nap and, if today's overnight log already exists, recomputes
+    /// its score from the remaining naps so the two stay in sync.
+    private func deleteNap(_ nap: NapLog) {
+        let day = nap.date
+        context.delete(nap)
+        if let log = logs.first(where: { $0.date == day }) {
+            let remaining = naps.filter { $0.date == day && $0.uuid != nap.uuid }
+            SleepScoringService.recompute(log, history: logs, naps: remaining)
         }
     }
 
@@ -177,9 +238,13 @@ struct SleepDashboardView: View {
 struct SleepLogDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \SleepLog.date, order: .reverse) private var allLogs: [SleepLog]
+    @Query(sort: \NapLog.napStart) private var allNaps: [NapLog]
     let log: SleepLog
 
     @State private var confirmDelete = false
+
+    private var dayNaps: [NapLog] { allNaps.filter { $0.date == log.date } }
 
     var body: some View {
         ScrollView {
@@ -214,7 +279,14 @@ struct SleepLogDetailView: View {
                         breakdownRow("Consistency", log.consistencyScore, 25)
                         breakdownRow("Interruptions", log.interruptionScore, 20)
                         breakdownRow("Timing", log.timingScore, 15)
+                        if !dayNaps.isEmpty {
+                            napContributionRow(log.napContributionScore)
+                        }
                     }
+                }
+
+                if !dayNaps.isEmpty {
+                    napImpactCard
                 }
 
                 if !log.explanations.isEmpty {
@@ -281,6 +353,83 @@ struct SleepLogDetailView: View {
                 .tint(value / max >= 0.7 ? .green : value / max >= 0.4 ? .orange : .red)
         }
     }
+
+    /// Nap points can be negative, so this doesn't reuse breakdownRow's
+    /// 0...max progress bar; it just states the signed contribution.
+    private func napContributionRow(_ value: Double) -> some View {
+        HStack {
+            Text("Naps")
+                .font(.caption.weight(.medium))
+            Spacer()
+            Text(value == 0 ? "0 pts" : (value > 0 ? "+\(Int(value.rounded())) pts" : "\(Int(value.rounded())) pts"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(value > 0 ? .green : (value < 0 ? .red : .secondary))
+        }
+    }
+
+    private var napImpactCard: some View {
+        DashboardCard(title: "Nap Impact", systemImage: "zzz") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    StatChip(label: "Nap time", value: Formatters.napDuration(dayNaps.reduce(0) { $0 + $1.durationMinutes }))
+                    StatChip(label: "Naps", value: "\(dayNaps.count)")
+                    StatChip(label: "Contribution", value: contributionLabel, color: contributionColor)
+                }
+                if !log.napExplanations.isEmpty {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(log.napExplanations, id: \.self) { line in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•").font(.caption).foregroundStyle(.tertiary)
+                                Text(line).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                VStack(spacing: 8) {
+                    ForEach(dayNaps, id: \.persistentModelID) { nap in
+                        napDetailRow(nap)
+                            .contextMenu {
+                                Button(role: .destructive) { deleteNap(nap) } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    private func napDetailRow(_ nap: NapLog) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "zzz")
+                .font(.subheadline)
+                .foregroundStyle(.mint)
+                .frame(width: 32, height: 32)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            Text("\(nap.napStart.formatted(date: .omitted, time: .shortened)) – \(nap.napEnd.formatted(date: .omitted, time: .shortened))")
+                .font(.caption)
+            Spacer()
+            Text(Formatters.napDuration(nap.durationMinutes))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var contributionLabel: String {
+        let points = log.napContributionScore
+        return points == 0 ? "0" : (points > 0 ? "+\(Int(points.rounded()))" : "\(Int(points.rounded()))")
+    }
+    private var contributionColor: Color {
+        log.napContributionScore > 0 ? .green : (log.napContributionScore < 0 ? .red : .primary)
+    }
+
+    /// Deletes a nap and recomputes this log's score from the remaining
+    /// same-day naps, so the day's score and this view never drift apart.
+    private func deleteNap(_ nap: NapLog) {
+        context.delete(nap)
+        let remaining = dayNaps.filter { $0.uuid != nap.uuid }
+        SleepScoringService.recompute(log, history: allLogs, naps: remaining)
+    }
 }
 
 // MARK: - Sleep log entry
@@ -289,6 +438,7 @@ struct SleepLogEntryView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: \NapLog.napStart) private var naps: [NapLog]
 
     @State private var sleepStart: Date = Calendar.current.date(
         bySettingHour: 23, minute: 0, second: 0, of: Date().daysAgo(1)) ?? Date().daysAgo(1)
@@ -335,17 +485,74 @@ struct SleepLogEntryView: View {
 
     private func save() {
         let hours = durationHours
+        let day = sleepStart.startOfDay
+        let sameDayNaps = naps.filter { $0.date == day }
         let result = SleepScoringService.score(sleepStart: sleepStart, sleepEnd: sleepEnd, wakeUps: wakeUps,
-                                               history: logs, date: sleepStart)
-        let log = SleepLog(date: sleepStart.startOfDay, sleepStart: sleepStart, sleepEnd: sleepEnd,
-                           wakeUps: wakeUps, durationHours: hours, totalScore: result.total, notes: notes)
-        log.durationScore = result.duration
-        log.consistencyScore = result.consistency
-        log.interruptionScore = result.interruptions
-        log.timingScore = result.timing
-        log.explanations = result.explanations
-        log.suggestions = result.suggestions
+                                               history: logs, naps: sameDayNaps, date: sleepStart)
+        let log = SleepLog(date: day, sleepStart: sleepStart, sleepEnd: sleepEnd,
+                           wakeUps: wakeUps, durationHours: hours, notes: notes)
+        SleepScoringService.apply(result, to: log)
         context.insert(log)
+        dismiss()
+    }
+}
+
+// MARK: - Nap log entry
+
+struct NapLogEntryView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: \NapLog.napStart) private var naps: [NapLog]
+
+    @State private var napStart: Date = Calendar.current.date(bySettingHour: 13, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var napEnd: Date = Calendar.current.date(bySettingHour: 13, minute: 20, second: 0, of: Date()) ?? Date()
+    @State private var notes: String = ""
+
+    private var durationMinutes: Double {
+        max(0, napEnd.timeIntervalSince(napStart) / 60)
+    }
+
+    var body: some View {
+        Form {
+            Section("Nap Time") {
+                DatePicker("Started", selection: $napStart, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("Ended", selection: $napEnd, displayedComponents: [.date, .hourAndMinute])
+                HStack {
+                    Text("Duration")
+                    Spacer()
+                    Text(Formatters.napDuration(durationMinutes))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section("Notes") {
+                TextField("Optional: where, why, how you felt…", text: $notes, axis: .vertical)
+            }
+        }
+        .navigationTitle("Log Nap")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { save() }.disabled(durationMinutes <= 0)
+            }
+        }
+        .keyboardDoneToolbar()
+    }
+
+    /// Naps are stored separately from overnight sleep but tagged with the
+    /// same calendar day; if that day already has an overnight log, its
+    /// score is recomputed immediately so this nap counts right away.
+    private func save() {
+        let day = napStart.startOfDay
+        let nap = NapLog(date: day, napStart: napStart, napEnd: napEnd, durationMinutes: durationMinutes, notes: notes)
+        context.insert(nap)
+        if let log = logs.first(where: { $0.date == day }) {
+            let sameDayNaps = naps.filter { $0.date == day } + [nap]
+            SleepScoringService.recompute(log, history: logs, naps: sameDayNaps)
+        }
         dismiss()
     }
 }

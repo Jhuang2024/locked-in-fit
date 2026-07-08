@@ -33,6 +33,14 @@ enum Formatters {
     static func mediumDate(_ date: Date) -> String {
         date.formatted(date: .abbreviated, time: .omitted)
     }
+
+    /// "22m" under an hour, "1h 20m" (or "1h" with no remainder) at or above.
+    static func napDuration(_ minutes: Double) -> String {
+        let total = Int(minutes.rounded())
+        guard total >= 60 else { return "\(total)m" }
+        let hours = total / 60, mins = total % 60
+        return mins == 0 ? "\(hours)h" : "\(hours)h \(mins)m"
+    }
 }
 
 extension Date {
