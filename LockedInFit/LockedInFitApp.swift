@@ -8,7 +8,7 @@ struct LockedInFitApp: App {
     init() {
         // Byte-for-byte safety net, before SwiftData gets a chance to open
         // (and possibly migrate) the store. See PersistenceGuard.
-        PersistenceGuard.runPreLaunchChecks()
+        PerfLog.measure("launch.persistenceGuard") { PersistenceGuard.runPreLaunchChecks() }
 
         // Migration policy: this list only ever grows additively (new
         // @Model types, or a new property on an existing one with a default
@@ -20,23 +20,43 @@ struct LockedInFitApp: App {
         // exist because a signing/App Group change once wiped local data
         // without any of this in place).
         do {
-            container = try ModelContainer(for:
-                MealLog.self, FoodItem.self, FoodPreset.self,
-                BodyWeightEntry.self, BodyFatEntry.self, MeasurementEntry.self,
-                ProgressPhoto.self, StepEntry.self, ActiveEnergyEntry.self, Goal.self,
-                Workout.self, Exercise.self, WorkoutSet.self,
-                StrengthScore.self, UserSettings.self, HealthScan.self,
-                AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
-                WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
-                SleepLog.self, NapLog.self)
+            container = try PerfLog.measure("launch.modelContainer") {
+                try ModelContainer(for:
+                    MealLog.self, FoodItem.self, FoodPreset.self,
+                    BodyWeightEntry.self, BodyFatEntry.self, MeasurementEntry.self,
+                    ProgressPhoto.self, StepEntry.self, ActiveEnergyEntry.self, Goal.self,
+                    Workout.self, Exercise.self, WorkoutSet.self,
+                    StrengthScore.self, UserSettings.self, HealthScan.self,
+                    AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
+                    WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
+                    SleepLog.self, NapLog.self)
+            }
         } catch {
             fatalError("Failed to create model container: \(error)")
         }
-        SeedDataService.seedIfNeeded(context: container.mainContext)
-        SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
-        SleepScoringService.repairAll(
-            logs: (try? container.mainContext.fetch(FetchDescriptor<SleepLog>())) ?? [],
-            naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
+        PerfLog.measure("launch.seed") {
+            SeedDataService.seedIfNeeded(context: container.mainContext)
+            SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
+        }
+        // Sleep score repair used to run synchronously here, fetching every
+        // SleepLog/NapLog and recomputing every log's score against every
+        // other log (an O(n^2 log n) scan) on container.mainContext, on the
+        // main thread, unconditionally, on every single launch. For anyone
+        // with more than a small amount of sleep history that's a real,
+        // unbounded main-thread stall at exactly the moment the app is
+        // trying to show its first frame — a very plausible cause of "opens
+        // frozen, resets after 20-30s" that had nothing to do with backups
+        // or HealthKit. It now runs on SleepRepairActor, a @ModelActor with
+        // its own background-safe context, off the main thread entirely;
+        // the UI shows today's data immediately and picks up repaired
+        // scores via SwiftData's normal change notifications once it
+        // finishes, same as before just no longer blocking.
+        let repairContainer = container
+        Task.detached(priority: .utility) {
+            await PerfLog.measureAsync("sleep.repairAll") {
+                await SleepRepairActor(modelContainer: repairContainer).repairAll()
+            }
+        }
         HealthKitManager.shared.configureAutoSync(container: container)
     }
 

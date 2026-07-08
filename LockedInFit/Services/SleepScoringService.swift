@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Local, deterministic sleep scoring: duration, consistency vs. the user's
 /// own recent bedtime history, interruptions, bedtime timing, and same-day
@@ -361,5 +362,21 @@ enum SleepScoringService {
     private static func napStartHour(_ date: Date) -> Double {
         let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
         return Double(comps.hour ?? 0) + Double(comps.minute ?? 0) / 60
+    }
+}
+
+/// Runs `SleepScoringService.repairAll` on its own background-safe
+/// `ModelContext`, so the launch-time self-heal never touches
+/// `container.mainContext` or the main thread. Writes are saved on this
+/// actor's context; SwiftData's normal cross-context change notifications
+/// bring the main context's `@Query`-observed views up to date once this
+/// finishes, exactly as if the repair had run inline, just not blocking.
+@ModelActor
+actor SleepRepairActor {
+    func repairAll() {
+        guard let logs = try? modelContext.fetch(FetchDescriptor<SleepLog>()), !logs.isEmpty else { return }
+        let naps = (try? modelContext.fetch(FetchDescriptor<NapLog>())) ?? []
+        SleepScoringService.repairAll(logs: logs, naps: naps)
+        try? modelContext.save()
     }
 }
