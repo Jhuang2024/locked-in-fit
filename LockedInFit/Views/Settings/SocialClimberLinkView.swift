@@ -7,18 +7,20 @@ import SwiftData
 /// "linking" just means both apps sit in the same App Group container, so
 /// this screen is status plus a kill switch, backed entirely by
 /// CrossAppIntegrationManager / SharedContextStore.
+///
+/// This screen is also the one place that kicks off App Group container
+/// resolution for a fresh install (see AppGroupContainerCache): opening it
+/// starts the timed background lookup, the status row stays live while the
+/// check runs, and Check Again clears a slow/interrupted-attempt suspension.
 struct SocialClimberLinkView: View {
     @Query private var settingsList: [UserSettings]
 
     private var settings: UserSettings? { settingsList.first }
 
-    /// All three cached and refreshed once (on appear), not recomputed from
-    /// the view body: reading the App Group container and the shared JSON
-    /// file involves real I/O (including an OS call that can be slow when
-    /// the entitlement isn't cleanly provisioned), and the body re-evaluates
-    /// on things as small as the toggle switching, so computing these inline
-    /// meant redoing that I/O, redundantly, on every render.
-    @State private var appGroupAvailable = false
+    /// Cached and refreshed by `refresh()`, not recomputed from the view
+    /// body: reading the shared JSON file is real I/O and the body
+    /// re-evaluates on things as small as the toggle switching.
+    @State private var lookupState: AppGroupLookupState = .notStarted
     @State private var socialClimberContext: SocialClimberPublicContext?
     @State private var socialClimberIsFresh = false
 
@@ -32,19 +34,30 @@ struct SocialClimberLinkView: View {
         }
         .navigationTitle("Social Climber")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            PerfLog.event("nav.socialClimber.appear")
-            // The only place in the app that kicks off App Group container
-            // resolution. Everything else treats "unresolved" as the normal
-            // unavailable state, so a broken/slow entitlement can never
-            // poison launch or navigation elsewhere.
+        .onAppear { PerfLog.event("nav.socialClimber.appear") }
+        .task {
             AppGroupContainerLocator.beginResolvingContainer()
-            PerfLog.measure("socialClimber.refresh") { refresh() }
+            await pollWhileChecking()
         }
     }
 
+    /// Keeps the status row live while the background lookup runs (cheap
+    /// lock reads once a second), then settles on the final state. Bounded
+    /// so a pathologically slow lookup can't keep this task alive forever;
+    /// cancelled automatically when the screen disappears.
+    private func pollWhileChecking() async {
+        refresh()
+        for _ in 0..<40 {
+            guard lookupState == .checking || lookupState == .notStarted else { return }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            refresh()
+        }
+        refresh()
+    }
+
     private func refresh() {
-        appGroupAvailable = AppGroupContainerLocator().containerURL != nil
+        lookupState = AppGroupContainerLocator.lookupState
         let fetched = SharedContextStore.readSocialClimberContext()
         socialClimberContext = fetched
         if let fetched, fetched.schemaVersion >= SocialClimberPublicContext.expectedSchemaVersion {
@@ -65,11 +78,11 @@ struct SocialClimberLinkView: View {
     }
 
     private var statusSection: some View {
-        Section("Status") {
+        Section {
             HStack {
                 Text("App Group")
                 Spacer()
-                statusText(appGroupAvailable, on: "Available", off: "Not available on this build")
+                appGroupStatusText
             }
             HStack {
                 Text("Social Climber")
@@ -79,6 +92,39 @@ struct SocialClimberLinkView: View {
             if let context = socialClimberContext {
                 LabeledContent("Last updated", value: Formatters.mediumDate(context.updatedAt))
             }
+            if lookupState == .unavailable || lookupState == .disabled {
+                Button {
+                    AppGroupContainerLocator.retryContainerLookup()
+                    Task { await pollWhileChecking() }
+                } label: {
+                    Label("Check Again", systemImage: "arrow.clockwise")
+                }
+            }
+        } header: {
+            Text("Status")
+        } footer: {
+            if lookupState == .unavailable || lookupState == .disabled {
+                Text("If this stays unavailable, both apps need the same App Group (\(AppGroupContainerLocator.appGroupIdentifier)) enabled under Signing & Capabilities in Xcode, with valid provisioning for each. The console logs how long the check took (appGroup.lookup.finished).")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var appGroupStatusText: some View {
+        switch lookupState {
+        case .available:
+            Text("Available").font(.caption).foregroundStyle(.green)
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text("Checking…").font(.caption).foregroundStyle(.secondary)
+            }
+        case .notStarted:
+            Text("Checking…").font(.caption).foregroundStyle(.secondary)
+        case .unavailable:
+            Text("Not available on this build").font(.caption).foregroundStyle(.secondary)
+        case .disabled:
+            Text("Suspended after a slow check").font(.caption).foregroundStyle(.orange)
         }
     }
 
