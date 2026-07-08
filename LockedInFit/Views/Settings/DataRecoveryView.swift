@@ -14,8 +14,7 @@ struct DataRecoveryView: View {
     @State private var showImporter = false
     @State private var resultMessage: String?
     @State private var confirmStartFresh = false
-
-    private var latestBackup: BackupService.BackupInfo? { BackupService.latestBackup() }
+    @State private var latestBackup: BackupService.BackupInfo?
 
     var body: some View {
         NavigationStack {
@@ -72,6 +71,7 @@ struct DataRecoveryView: View {
             }
             .navigationTitle("Data Recovery")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { latestBackup = BackupService.latestBackup() }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 switch result {
                 case .success(let url):

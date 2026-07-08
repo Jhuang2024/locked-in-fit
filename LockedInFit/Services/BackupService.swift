@@ -28,6 +28,18 @@ enum BackupService {
         case failed(Error)
     }
 
+    /// Tiny per-backup record kept in `index.json`, so listing backups never
+    /// has to decode a backup's full (potentially large, months-of-history)
+    /// snapshot content just to read its date and record count. Decoding
+    /// full snapshot content on every list call was expensive enough to
+    /// stall the main thread, especially for backups made back when there
+    /// was more data logged than there is now.
+    private struct IndexEntry: Codable {
+        var filename: String
+        var date: Date
+        var recordCount: Int
+    }
+
     /// Application Support/Backups. Distinct from the live store's directory
     /// (Application Support root) and from the App Group container.
     static var backupsDirectory: URL {
@@ -37,6 +49,8 @@ enum BackupService {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+
+    private static var indexURL: URL { backupsDirectory.appendingPathComponent("index.json") }
 
     private static var pendingBackup: DispatchWorkItem?
 
@@ -59,8 +73,8 @@ enum BackupService {
     @discardableResult
     static func backupNow(context: ModelContext) -> URL? {
         guard let snapshot = try? ExportImportService.makeSnapshot(context: context) else { return nil }
-        let existing = listBackups()
-        if snapshot.totalRecordCount == 0, existing.contains(where: { $0.recordCount > 0 }) {
+        let existingIndex = readIndex()
+        if snapshot.totalRecordCount == 0, existingIndex.contains(where: { $0.recordCount > 0 }) {
             return nil
         }
 
@@ -79,17 +93,36 @@ enum BackupService {
             try? FileManager.default.removeItem(at: temp)
             return nil
         }
+
+        var updatedIndex = existingIndex
+        updatedIndex.append(IndexEntry(filename: filename, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount))
+        writeIndex(updatedIndex)
         rotate()
         return destination
     }
 
-    /// All local backups, newest first.
+    /// All local backups, newest first. Reads the small index file rather
+    /// than decoding every backup's full content; falls back to a one-time
+    /// full decode only if the index is missing (e.g. backups made before
+    /// this index existed), then persists an index so that only happens once.
     static func listBackups() -> [BackupInfo] {
+        let indexed = readIndex()
+        if !indexed.isEmpty {
+            return indexed
+                .filter { FileManager.default.fileExists(atPath: backupsDirectory.appendingPathComponent($0.filename).path) }
+                .map { BackupInfo(url: backupsDirectory.appendingPathComponent($0.filename), date: $0.date, recordCount: $0.recordCount) }
+                .sorted { $0.date > $1.date }
+        }
+
         let files = (try? FileManager.default.contentsOfDirectory(at: backupsDirectory, includingPropertiesForKeys: nil)) ?? []
-        return files
-            .filter { $0.pathExtension == "json" }
-            .compactMap(decodeInfo)
+        let decoded = files
+            .filter { $0.pathExtension == "json" && $0.lastPathComponent != "index.json" }
+            .compactMap(decodeInfoFromFullFile)
             .sorted { $0.date > $1.date }
+        if !decoded.isEmpty {
+            writeIndex(decoded.map { IndexEntry(filename: $0.url.lastPathComponent, date: $0.date, recordCount: $0.recordCount) })
+        }
+        return decoded
     }
 
     static func latestBackup() -> BackupInfo? { listBackups().first }
@@ -108,17 +141,34 @@ enum BackupService {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Index helpers
 
-    private static func rotate() {
-        let files = listBackups()
-        guard files.count > maxBackupsKept else { return }
-        for stale in files.dropFirst(maxBackupsKept) {
-            try? FileManager.default.removeItem(at: stale.url)
-        }
+    private static func readIndex() -> [IndexEntry] {
+        guard let data = try? Data(contentsOf: indexURL) else { return [] }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return (try? decoder.decode([IndexEntry].self, from: data)) ?? []
     }
 
-    private static func decodeInfo(at url: URL) -> BackupInfo? {
+    private static func writeIndex(_ entries: [IndexEntry]) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(entries) else { return }
+        try? data.write(to: indexURL, options: .atomic)
+    }
+
+    private static func rotate() {
+        let sorted = readIndex().sorted { $0.date > $1.date }
+        guard sorted.count > maxBackupsKept else { return }
+        for stale in sorted.suffix(from: maxBackupsKept) {
+            try? FileManager.default.removeItem(at: backupsDirectory.appendingPathComponent(stale.filename))
+        }
+        writeIndex(Array(sorted.prefix(maxBackupsKept)))
+    }
+
+    /// Only used for the one-time migration of backups that predate the
+    /// index file; never called on the normal listing path.
+    private static func decodeInfoFromFullFile(_ url: URL) -> BackupInfo? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
