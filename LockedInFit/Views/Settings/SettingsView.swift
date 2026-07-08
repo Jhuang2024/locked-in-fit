@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var showImporter = false
     @State private var importResult: String?
     @State private var weightInput = ""
+    @State private var backupResult: String?
+    @State private var confirmRestore = false
 
     private var latestWeight: BodyWeightEntry? { weights.last }
 
@@ -43,6 +45,11 @@ struct SettingsView: View {
                 NavigationLink(destination: SocialClimberLinkView()) {
                     Label("Social Climber", systemImage: "person.2.wave.2")
                 }
+                #if DEBUG
+                NavigationLink(destination: DiagnosticsView()) {
+                    Label("Diagnostics", systemImage: "wrench.and.screwdriver")
+                }
+                #endif
             }
 
             Section("Data") {
@@ -67,6 +74,8 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            backupSection
 
             Section {
                 LabeledContent("Storage", value: "On-device only")
@@ -94,6 +103,9 @@ struct SettingsView: View {
             case .failure(let error):
                 importResult = "Import failed: \(error.localizedDescription)"
             }
+        }
+        .confirmationDialog("Restore from the latest local backup?", isPresented: $confirmRestore, titleVisibility: .visible) {
+            Button("Restore") { performRestore() }
         }
         .onAppear {
             if settingsList.isEmpty {
@@ -236,6 +248,62 @@ struct SettingsView: View {
             Text("Nutrition Limits")
         } footer: {
             Text("Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.")
+        }
+    }
+
+    /// Local backups, separate from Export/Import above: those hand you a
+    /// file to manage yourself, these are automatic snapshots LockedInFit
+    /// keeps (and rotates) on-device so a bad migration or in-app mistake
+    /// isn't the end of your data. They live inside the app's own sandbox,
+    /// so they don't protect against a full uninstall; Export JSON, saved
+    /// somewhere outside the app, is what survives that.
+    private var backupSection: some View {
+        Section {
+            Button {
+                if BackupService.backupNow(context: context) != nil {
+                    backupResult = "Backup saved just now."
+                } else {
+                    backupResult = "Nothing to back up, or backup skipped to protect existing history."
+                }
+            } label: {
+                Label("Backup Now", systemImage: "externaldrive.badge.checkmark")
+            }
+            if let latestBackup = BackupService.latestBackup() {
+                Button {
+                    confirmRestore = true
+                } label: {
+                    Label("Restore From Backup", systemImage: "clock.arrow.circlepath")
+                }
+                LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
+                LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
+            } else {
+                Text("No backups yet. Backups are also taken automatically, at most once a day.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let backupResult {
+                Text(backupResult)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Local Backups")
+        } footer: {
+            Text("Backups are separate from the export file above and live only on this device (up to the last \(BackupService.maxBackupsKept)). Restoring merges the backup's records back in without deleting anything currently on the device.")
+        }
+    }
+
+    private func performRestore() {
+        guard let latestBackup = BackupService.latestBackup() else { return }
+        let currentCount = DataLossGuard.currentRecordCount(context: context)
+        switch BackupService.restore(from: latestBackup, context: context, currentRecordCount: currentCount) {
+        case .restored(let count):
+            backupResult = "Restored \(count) records from the \(Formatters.mediumDate(latestBackup.date)) backup."
+            DataLossGuard.acknowledge(context: context)
+        case .emptyBackupSkipped:
+            backupResult = "That backup is empty; nothing to restore."
+        case .failed(let error):
+            backupResult = "Restore failed: \(error.localizedDescription)"
         }
     }
 }

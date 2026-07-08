@@ -6,6 +6,19 @@ struct LockedInFitApp: App {
     let container: ModelContainer
 
     init() {
+        // Byte-for-byte safety net, before SwiftData gets a chance to open
+        // (and possibly migrate) the store. See PersistenceGuard.
+        PersistenceGuard.runPreLaunchChecks()
+
+        // Migration policy: this list only ever grows additively (new
+        // @Model types, or a new property on an existing one with a default
+        // value) so SwiftData's automatic lightweight migration applies.
+        // Never remove/rename a persisted type or property, and never add a
+        // ModelConfiguration with a destructive migration option, without an
+        // explicit, user-confirmed migration path first (see
+        // PersistenceGuard, BackupService, and DataLossGuard, all of which
+        // exist because a signing/App Group change once wiped local data
+        // without any of this in place).
         do {
             container = try ModelContainer(for:
                 MealLog.self, FoodItem.self, FoodPreset.self,
@@ -38,6 +51,7 @@ struct LockedInFitApp: App {
 struct RootTabView: View {
     private enum Tab: Hashable { case today, log, train, looks, trends }
 
+    @Environment(\.modelContext) private var context
     @State private var selection: Tab = .today
     // Each tab owns its own navigation stack so tabs never share nested state.
     @State private var todayPath = NavigationPath()
@@ -45,6 +59,10 @@ struct RootTabView: View {
     @State private var trainPath = NavigationPath()
     @State private var looksPath = NavigationPath()
     @State private var trendsPath = NavigationPath()
+    /// nil until the first-launch data-loss check has run, so the normal tab
+    /// UI never flashes before that check has a chance to redirect to
+    /// recovery. See DataLossGuard.
+    @State private var dataLossDetected: Bool?
 
     /// Tapping any bottom tab (whether re-tapping the current one or switching
     /// to another) resets that tab to its root screen.
@@ -68,6 +86,25 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        Group {
+            switch dataLossDetected {
+            case .some(true):
+                DataRecoveryView(onResolved: { dataLossDetected = false })
+            case .some(false):
+                mainTabs
+            case .none:
+                Color.clear
+            }
+        }
+        .onAppear {
+            guard dataLossDetected == nil else { return }
+            let lostData = DataLossGuard.checkForSuddenDataLoss(context: context)
+            dataLossDetected = lostData
+            if !lostData { runDailyAutoBackupIfDue() }
+        }
+    }
+
+    private var mainTabs: some View {
         TabView(selection: selectionBinding) {
             NavigationStack(path: $todayPath) { DashboardView() }
                 .tabItem { Label("Today", systemImage: "square.grid.2x2") }
@@ -85,6 +122,18 @@ struct RootTabView: View {
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
                 .tag(Tab.trends)
         }
+    }
+
+    /// Automatic backup safety net beyond the pre-migration one in
+    /// PersistenceGuard: at most once a day, so normal use never pays the
+    /// cost of building a full snapshot on every launch.
+    private func runDailyAutoBackupIfDue() {
+        let key = "LockedInFit.lastAutoBackupDay"
+        let today = Date().startOfDay
+        let last = UserDefaults.standard.object(forKey: key) as? Date
+        guard last == nil || last! < today else { return }
+        UserDefaults.standard.set(today, forKey: key)
+        BackupService.backupNow(context: context)
     }
 }
 
