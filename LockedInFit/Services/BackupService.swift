@@ -15,9 +15,12 @@ import SwiftData
 /// scheduling state can't race even though calls come from the main thread
 /// (view code) and background tasks concurrently.
 ///
-/// Automatic backups only ever run after an actual data mutation is
-/// reported via `scheduleBackupSoon`; nothing here runs on launch, on
-/// backgrounding, or as a side effect of routine notification refreshes.
+/// Automatic (throttled) backups run after an actual data mutation is
+/// reported via `scheduleBackupSoon`; nothing here runs on launch or as a
+/// side effect of routine notification refreshes. Backgrounding is the one
+/// deliberate exception — see `backupOnBackgrounding` — since it's the
+/// moment right before an app update, which is exactly the event these
+/// backups exist to survive.
 ///
 /// Important boundary to be honest about: these backups live inside this
 /// app's own sandbox, so they protect against in-app mistakes (a bad
@@ -118,13 +121,16 @@ enum BackupService {
     /// The actual work: fetch, encode, write, rotate. Called only from
     /// `BackupActor`'s isolated context, so it always runs off the main
     /// thread. Not private so `BackupActor` (a separate type) can call it.
-    static func performBackup(context: ModelContext) -> URL? {
+    /// Second tuple element is false for the dedupe no-op path (an existing
+    /// backup's URL handed back, nothing written) — callers use that to
+    /// decide whether the throttle clock should reset.
+    static func performBackup(context: ModelContext) -> (url: URL?, wrote: Bool) {
         guard let snapshot = PerfLog.measure("backup.snapshot", { try? ExportImportService.makeSnapshot(context: context) }) else {
-            return nil
+            return (nil, false)
         }
         let existingIndex = readIndex()
         if snapshot.totalRecordCount == 0, existingIndex.contains(where: { $0.recordCount > 0 }) {
-            return nil
+            return (nil, false)
         }
 
         // Content dedupe: backups now also fire on every app backgrounding,
@@ -137,13 +143,13 @@ enum BackupService {
         if let hash, hash == UserDefaults.standard.string(forKey: lastBackupHashKey),
            let newest = existingIndex.max(by: { $0.date < $1.date }) {
             PerfLog.event("backup.unchanged")
-            return backupsDirectory.appendingPathComponent(newest.filename)
+            return (backupsDirectory.appendingPathComponent(newest.filename), false)
         }
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
-        guard let data = PerfLog.measure("backup.encode", { try? encoder.encode(snapshot) }) else { return nil }
+        guard let data = PerfLog.measure("backup.encode", { try? encoder.encode(snapshot) }) else { return (nil, false) }
 
         let filename = "backup-\(fileStamp(snapshot.exportedAt)).json"
         let destination = backupsDirectory.appendingPathComponent(filename)
@@ -158,7 +164,7 @@ enum BackupService {
                 return false
             }
         }
-        guard written else { return nil }
+        guard written else { return (nil, false) }
 
         var updatedIndex = existingIndex
         updatedIndex.append(IndexEntry(filename: filename, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount))
@@ -168,7 +174,7 @@ enum BackupService {
         if let hash {
             UserDefaults.standard.set(hash, forKey: lastBackupHashKey)
         }
-        return destination
+        return (destination, true)
     }
 
     /// SHA-256 of the snapshot with `exportedAt` normalized away, so two
@@ -405,9 +411,15 @@ private actor BackupCoordinator {
         PerfLog.event("backup.started")
         let actor = backupActor ?? BackupActor(modelContainer: container)
         backupActor = actor
-        let url = await actor.backupNow()
+        let (url, wroteNewBackup) = await actor.backupNow()
         PerfLog.event("backup.finished")
-        if url != nil {
+        // Only a real write resets the throttle window. A dedupe no-op
+        // (content unchanged since the last backup) still returns the
+        // existing file's URL for callers that just want "a backup exists",
+        // but must NOT push the throttle clock forward — otherwise a
+        // no-change backup (e.g. from routine backgrounding) could delay
+        // capturing a genuine edit that lands moments later.
+        if wroteNewBackup {
             UserDefaults.standard.set(Date(), forKey: BackupService.lastAutomaticBackupKey)
         }
         return url
@@ -420,7 +432,7 @@ private actor BackupCoordinator {
 /// main context; nothing here ever touches `container.mainContext`.
 @ModelActor
 actor BackupActor {
-    func backupNow() -> URL? {
+    func backupNow() -> (url: URL?, wrote: Bool) {
         BackupService.performBackup(context: modelContext)
     }
 }
