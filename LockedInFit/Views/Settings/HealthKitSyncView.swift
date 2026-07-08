@@ -22,7 +22,7 @@ struct HealthKitSyncView: View {
                             ProgressView().controlSize(.small)
                         }
                     }
-                    Text("Refreshes every second while the app is open, and instantly in the background whenever new Health data arrives.")
+                    Text("Refreshes about once a minute while the app is open, and instantly in the background whenever new Health data arrives.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 

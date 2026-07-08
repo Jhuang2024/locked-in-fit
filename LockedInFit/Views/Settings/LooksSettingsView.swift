@@ -84,6 +84,7 @@ struct LooksSettingsView: View {
         }
         .navigationTitle("Looks & Calendar")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { PerfLog.event("nav.looksSettings.appear") }
         .confirmationDialog("Delete all Looks data and photos?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete Everything", role: .destructive) { deleteAllLooksData() }
         }

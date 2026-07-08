@@ -32,7 +32,10 @@ struct SocialClimberLinkView: View {
         }
         .navigationTitle("Social Climber")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { refresh() }
+        .onAppear {
+            PerfLog.event("nav.socialClimber.appear")
+            PerfLog.measure("socialClimber.refresh") { refresh() }
+        }
     }
 
     private func refresh() {

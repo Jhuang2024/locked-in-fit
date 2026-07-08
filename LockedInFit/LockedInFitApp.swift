@@ -6,6 +6,11 @@ struct LockedInFitApp: App {
     let container: ModelContainer
 
     init() {
+        // From here on, any main-thread stall longer than a second gets
+        // logged from a background watchdog while it's happening, even if
+        // the stalled call itself was never instrumented and never returns.
+        MainThreadHangDetector.shared.start()
+
         // Byte-for-byte safety net, before SwiftData gets a chance to open
         // (and possibly migrate) the store. See PersistenceGuard.
         PerfLog.measure("launch.persistenceGuard") { PersistenceGuard.runPreLaunchChecks() }

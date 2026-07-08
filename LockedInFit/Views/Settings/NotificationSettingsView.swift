@@ -41,6 +41,7 @@ struct NotificationSettingsView: View {
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { PerfLog.event("nav.notifications.appear") }
         .task { await refreshStatus() }
     }
 

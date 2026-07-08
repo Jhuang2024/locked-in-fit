@@ -97,6 +97,7 @@ struct AISettingsView: View {
         }
         .navigationTitle("AI Analysis")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { PerfLog.event("nav.aiSettings.appear") }
     }
 
     private func testConnection() async {

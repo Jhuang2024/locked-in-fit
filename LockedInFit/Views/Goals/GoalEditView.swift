@@ -68,7 +68,10 @@ struct GoalEditView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             }
-            .onAppear { load() }
+            .onAppear {
+                PerfLog.event("nav.goalEdit.appear")
+                PerfLog.measure("goalEdit.load") { load() }
+            }
         }
     }
 
