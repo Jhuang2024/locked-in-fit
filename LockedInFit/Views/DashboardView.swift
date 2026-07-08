@@ -166,6 +166,7 @@ struct DashboardView: View {
                 header
                 quickActions
                 checklistCard
+                socialReadinessCardIfPresent
                 calorieCard
                 macroCard
                 activityCard
@@ -184,6 +185,21 @@ struct DashboardView: View {
     private var goalSnippetIfPresent: some View {
         if let goal {
             goalSnippet(goal)
+        }
+    }
+
+    /// Fresh (non-stale) Social Climber event context, reduced to what the
+    /// dashboard and checklist need. Reading is a cheap local file check and
+    /// nil the vast majority of the time (no App Group, no Social Climber,
+    /// or no notable event), so it's safe to recompute on each render.
+    private var socialReadiness: CrossAppIntegrationManager.SocialReadiness? {
+        CrossAppIntegrationManager.socialReadiness(from: CrossAppIntegrationManager.readSocialContext())
+    }
+
+    @ViewBuilder
+    private var socialReadinessCardIfPresent: some View {
+        if let socialReadiness {
+            SocialReadinessCard(readiness: socialReadiness)
         }
     }
 
@@ -218,6 +234,60 @@ struct DashboardView: View {
             openCount: openChecklistItemsExcludingSleep.count)
 
         await evaluateNotificationEvents(settings: settings)
+        syncCrossAppContext()
+    }
+
+    /// Optional cross-app bridge: publishes a small public snapshot for
+    /// Social Climber to read, and turns any fresh Social Climber event
+    /// context into ordinary checklist items owned by LockedInFit. Entirely
+    /// a no-op if the shared App Group container isn't available or Social
+    /// Climber's context is missing/stale/corrupt — see
+    /// CrossAppIntegrationManager.
+    private func syncCrossAppContext() {
+        CrossAppIntegrationManager.publish(crossAppPublishInput)
+        guard let socialReadiness else { return }
+        EventAwareChecklistService.generateItems(
+            readiness: socialReadiness,
+            workoutPlannedToday: workoutPlannedToday,
+            existing: checklistItems,
+            context: context)
+    }
+
+    private var workoutPlannedToday: Bool {
+        !sessionsDueToday.isEmpty || dueChecklistItemsToday.contains { $0.category == .workout }
+    }
+
+    private var crossAppPublishInput: CrossAppIntegrationManager.PublishInput {
+        let dueToday = DailyChecklistService.dueItems(checklistItems)
+        let dueIncomplete = dueToday.filter { !DailyChecklistService.isCompleted($0) }
+        let importantTasks = dueIncomplete.map { item in
+            CrossAppIntegrationManager.ImportantTaskInput(
+                id: item.uuid,
+                title: item.title,
+                category: Self.publicTaskCategory(for: item.category),
+                overdue: item.recurrence == .none && item.dueDate.startOfDay < Date().startOfDay)
+        }
+        let completionRatio = dueToday.isEmpty ? 1.0
+            : Double(dueToday.count - dueIncomplete.count) / Double(dueToday.count)
+        return CrossAppIntegrationManager.PublishInput(
+            sleepScore: latestSleepLog?.totalScore,
+            workoutPlannedToday: workoutPlannedToday,
+            workoutCompletedToday: viewModel.completedWorkoutsToday > 0,
+            nutritionEatenCalories: viewModel.calories.eaten,
+            nutritionTargetCalories: viewModel.calories.adjustedTarget,
+            hasLoggedFoodToday: !todayMeals.isEmpty,
+            dailyChecklistCompletion: completionRatio,
+            importantTasks: importantTasks)
+    }
+
+    private static func publicTaskCategory(for category: ChecklistCategory) -> LockedInFitPublicContext.HealthTaskCategory {
+        switch category {
+        case .sleep: return .sleep
+        case .nutrition: return .meal
+        case .workout: return .workout
+        case .looks, .body, .face: return .appearance
+        case .manual: return .general
+        }
     }
 
     /// Shared with the checklist's dietary-watch banner below, so the push

@@ -114,6 +114,10 @@ enum ChecklistSource: String, Codable, CaseIterable {
     case appearanceSuggestion = "appearance_suggestion"
     case workoutSchedule = "workout_schedule"
     case system
+    /// Generated from an upcoming Social Climber event (see
+    /// EventAwareChecklistService). Still an ordinary, LockedInFit-owned
+    /// checklist item; this only marks where the suggestion came from.
+    case socialClimberEvent = "social_climber_event"
 
     var label: String {
         switch self {
@@ -121,6 +125,7 @@ enum ChecklistSource: String, Codable, CaseIterable {
         case .appearanceSuggestion: return "Appearance suggestion"
         case .workoutSchedule: return "Workout schedule"
         case .system: return "System"
+        case .socialClimberEvent: return "Upcoming event"
         }
     }
 }
