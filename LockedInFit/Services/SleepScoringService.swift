@@ -277,11 +277,6 @@ enum SleepScoringService {
         if naps.count >= 3 {
             lines.append("Multiple naps today can signal fragmented sleep, so extra naps count for less.")
         }
-        if weightedSum > napBonusCap {
-            lines.append("Nap contribution was capped at +\(Int(napBonusCap)) points to keep overnight sleep as the main driver of your score.")
-        } else if weightedSum < napPenaltyCap {
-            lines.append("Nap penalty was capped at \(Int(napPenaltyCap)) points.")
-        }
         if finalPoints == 0 {
             lines.append("Naps had no net effect on today's score.")
         } else if finalPoints > 0 {

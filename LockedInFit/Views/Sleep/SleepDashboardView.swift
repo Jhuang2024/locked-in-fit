@@ -280,7 +280,7 @@ struct SleepLogDetailView: View {
                         breakdownRow("Interruptions", log.interruptionScore, 20)
                         breakdownRow("Timing", log.timingScore, 15)
                         if !dayNaps.isEmpty {
-                            napContributionRow(log.napContributionScore)
+                            napImpactRow(log.napContributionScore)
                         }
                     }
                 }
@@ -354,16 +354,36 @@ struct SleepLogDetailView: View {
         }
     }
 
-    /// Nap points can be negative, so this doesn't reuse breakdownRow's
-    /// 0...max progress bar; it just states the signed contribution.
-    private func napContributionRow(_ value: Double) -> some View {
-        HStack {
-            Text("Naps")
-                .font(.caption.weight(.medium))
-            Spacer()
-            Text(value == 0 ? "0 pts" : (value > 0 ? "+\(Int(value.rounded())) pts" : "\(Int(value.rounded())) pts"))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(value > 0 ? .green : (value < 0 ? .red : .secondary))
+    /// Nap points can run negative or positive, so this doesn't reuse
+    /// breakdownRow's 0...max bar; it draws a bar diverging from a zero mark
+    /// at SleepScoringService's penalty/bonus caps, filled toward the value.
+    private func napImpactRow(_ value: Double) -> some View {
+        let minValue = SleepScoringService.napPenaltyCap
+        let maxValue = SleepScoringService.napBonusCap
+        let range = maxValue - minValue
+        let zeroFraction = (0 - minValue) / range
+        let valueFraction = (min(maxValue, max(minValue, value)) - minValue) / range
+        return VStack(spacing: 3) {
+            HStack {
+                Text("Naps")
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text(value == 0 ? "0 pts" : (value > 0 ? "+\(Int(value.rounded())) pts" : "\(Int(value.rounded())) pts"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(value > 0 ? .green : (value < 0 ? .red : .secondary))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.tertiarySystemFill))
+                        .frame(height: 6)
+                    Capsule()
+                        .fill(value > 0 ? Color.green : (value < 0 ? Color.red : Color.clear))
+                        .frame(width: max(2, abs(valueFraction - zeroFraction) * geo.size.width), height: 6)
+                        .offset(x: min(valueFraction, zeroFraction) * geo.size.width)
+                }
+            }
+            .frame(height: 6)
         }
     }
 
@@ -550,7 +570,11 @@ struct NapLogEntryView: View {
         let nap = NapLog(date: day, napStart: napStart, napEnd: napEnd, durationMinutes: durationMinutes, notes: notes)
         context.insert(nap)
         if let log = logs.first(where: { $0.date == day }) {
-            let sameDayNaps = naps.filter { $0.date == day } + [nap]
+            // `naps` may already reflect the just-inserted nap (SwiftData's
+            // @Query can update as soon as context.insert runs), so exclude
+            // it by uuid before appending rather than assuming it's absent —
+            // otherwise this nap gets counted twice.
+            let sameDayNaps = naps.filter { $0.date == day && $0.uuid != nap.uuid } + [nap]
             SleepScoringService.recompute(log, history: logs, naps: sameDayNaps)
         }
         dismiss()
