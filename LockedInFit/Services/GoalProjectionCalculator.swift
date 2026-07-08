@@ -14,10 +14,7 @@ struct GoalProjection {
 
 enum GoalProjectionCalculator {
 
-    static func project(goal: Goal,
-                        weightEntries: [BodyWeightEntry],
-                        maintenance: Double,
-                        settings: UserSettings) -> GoalProjection {
+    static func project(goal: Goal, weightEntries: [BodyWeightEntry]) -> GoalProjection {
         let trendKg = WeightTrendCalculator.currentTrendKg(entries: weightEntries)
         let rate = WeightTrendCalculator.weeklyRate(entries: weightEntries)
 
@@ -69,19 +66,21 @@ enum GoalProjectionCalculator {
             }
         }
 
-        let calories = NutritionCalculator.calorieTarget(maintenance: maintenance, weeklyChangeKg: goal.weeklyWeightChangeTarget)
-        let protein = NutritionCalculator.proteinTarget(weightKg: trendKg ?? goal.targetWeightKg, phase: goal.phase)
-        let steps = goal.phase == .cut ? max(goal.stepTarget, 9000) : goal.stepTarget
-
+        // These are the actual targets saved from the Goal form (Settings →
+        // Goal), never recomputed here: recalculating them from the current
+        // maintenance estimate silently showed different numbers than what
+        // was entered and saved. NutritionCalculator's formulas already ran
+        // once, in GoalEditView's "Auto-fill from maintenance estimate", and
+        // their result is what got saved onto the goal.
         return GoalProjection(
             currentTrendKg: trendKg,
             weeklyRateKg: rate,
             projectedFinishDate: finish,
             paceWarning: warning,
             adherenceScore: adherence,
-            recommendedCalories: calories.rounded(),
-            recommendedProtein: protein,
-            recommendedSteps: steps
+            recommendedCalories: goal.calorieTarget,
+            recommendedProtein: goal.proteinTarget,
+            recommendedSteps: goal.stepTarget
         )
     }
 }

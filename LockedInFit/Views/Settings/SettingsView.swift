@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query(sort: \MealLog.date) private var meals: [MealLog]
     @Query(sort: \StepEntry.date) private var steps: [StepEntry]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
 
     @State private var exportURL: URL?
     @State private var showImporter = false
@@ -28,6 +29,8 @@ struct SettingsView: View {
                 energySection(settings)
                 nutritionSection(settings)
             }
+
+            goalSection
 
             Section("Integrations") {
                 NavigationLink(destination: NotificationSettingsView()) {
@@ -248,6 +251,23 @@ struct SettingsView: View {
             Text("Nutrition Limits")
         } footer: {
             Text("Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.")
+        }
+    }
+
+    /// Goal setup lives here now, not in Trends: the Goal Dashboard under
+    /// Trends is read-only, a progress readout, not a place to change
+    /// targets. This is the one place phase, target weight, and daily
+    /// calorie/protein/step targets get set.
+    private var goalSection: some View {
+        Section("Goal") {
+            NavigationLink(destination: GoalEditView(goal: activeGoals.first)) {
+                Label(activeGoals.isEmpty ? "Set Up Goal" : "Edit Goal", systemImage: "target")
+            }
+            if let goal = activeGoals.first {
+                LabeledContent("Phase", value: goal.phase.label)
+                LabeledContent("Target weight", value: Formatters.kg(goal.targetWeightKg))
+                LabeledContent("Daily calories", value: Formatters.kcal(goal.calorieTarget))
+            }
         }
     }
 

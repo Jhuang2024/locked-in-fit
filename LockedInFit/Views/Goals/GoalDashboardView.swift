@@ -12,8 +12,6 @@ struct GoalDashboardView: View {
     @Query private var settingsList: [UserSettings]
     @Query private var suggestions: [AppearanceSuggestion]
 
-    @State private var showEdit = false
-
     var body: some View {
         Group {
             if let goal = activeGoals.first, let settings = settingsList.first {
@@ -22,9 +20,7 @@ struct GoalDashboardView: View {
                 VStack(spacing: 16) {
                     Spacer()
                     EmptyStateView(systemImage: "target", title: "No active goal",
-                                   message: "Set a goal phase to get calorie, protein, and step recommendations.")
-                    Button("Set Up Goal") { showEdit = true }
-                        .buttonStyle(.borderedProminent)
+                                   message: "Set up a goal in Settings → Goal to get calorie, protein, and step recommendations here.")
                     Spacer()
                 }
                 .padding()
@@ -32,17 +28,11 @@ struct GoalDashboardView: View {
             }
         }
         .navigationTitle("Goal")
-        .toolbar {
-            Button(activeGoals.isEmpty ? "New" : "Edit") { showEdit = true }
-        }
-        .sheet(isPresented: $showEdit) {
-            GoalEditView(goal: activeGoals.first)
-        }
     }
 
     private func content(goal: Goal, settings: UserSettings) -> some View {
         let maintenance = Analytics.estimateMaintenance(settings: settings, weights: weights, meals: meals, steps: steps)
-        let projection = GoalProjectionCalculator.project(goal: goal, weightEntries: weights, maintenance: maintenance, settings: settings)
+        let projection = GoalProjectionCalculator.project(goal: goal, weightEntries: weights)
 
         return ScrollView {
             VStack(spacing: 14) {
