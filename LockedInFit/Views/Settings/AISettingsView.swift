@@ -14,6 +14,7 @@ struct AISettingsView: View {
     private var settings: UserSettings? { settingsList.first }
 
     var body: some View {
+        let _ = PerfLog.tick("AISettingsView.body")
         Form {
             Section {
                 if let settings {

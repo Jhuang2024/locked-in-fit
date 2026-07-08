@@ -38,6 +38,7 @@ struct SettingsView: View {
     private var latestWeight: BodyWeightEntry? { weights.last }
 
     var body: some View {
+        let _ = PerfLog.tick("SettingsView.body")
         Form {
             if let settings = settingsList.first {
                 brandSection

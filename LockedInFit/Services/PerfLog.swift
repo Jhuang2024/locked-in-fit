@@ -43,6 +43,27 @@ enum PerfLog {
         return result
     }
 
+    private static let tickLock = NSLock()
+    nonisolated(unsafe) private static var tickCounts: [String: Int] = [:]
+
+    /// Render-loop detector. Call from a view body (`let _ = PerfLog.tick("X.body")`)
+    /// or a Binding getter. Bodies and getters normally evaluate a handful of
+    /// times per interaction; if SwiftUI is stuck in an update feedback loop,
+    /// whichever body/getter is cycling reaches hundreds of evaluations per
+    /// second and this logs a fault every 100th call — so a frozen app names
+    /// the looping view in the console, no debugger required.
+    @discardableResult
+    static func tick(_ name: String) -> Int {
+        tickLock.lock()
+        let count = (tickCounts[name] ?? 0) + 1
+        tickCounts[name] = count
+        tickLock.unlock()
+        if count % 100 == 0 {
+            logger.fault("RENDER LOOP? [\(name, privacy: .public)] evaluated \(count) times")
+        }
+        return count
+    }
+
     private static func report(_ name: String, start: DispatchTime, isMain: Bool) {
         let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
         let elapsedText = String(format: "%.1f", elapsedMs)

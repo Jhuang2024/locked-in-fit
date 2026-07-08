@@ -23,6 +23,7 @@ struct SocialClimberLinkView: View {
     @State private var socialClimberIsFresh = false
 
     var body: some View {
+        let _ = PerfLog.tick("SocialClimberLinkView.body")
         Form {
             if let settings {
                 linkSection(settings)

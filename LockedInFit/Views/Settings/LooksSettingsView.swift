@@ -31,6 +31,7 @@ struct LooksSettingsView: View {
     }
 
     var body: some View {
+        let _ = PerfLog.tick("LooksSettingsView.body")
         Form {
             if let settings {
                 faceReminderSection(settings)

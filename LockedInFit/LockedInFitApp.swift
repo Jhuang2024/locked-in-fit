@@ -98,7 +98,10 @@ struct RootTabView: View {
     /// to another) resets that tab to its root screen.
     private var selectionBinding: Binding<Tab> {
         Binding(
-            get: { selection },
+            get: {
+                PerfLog.tick("RootTabView.tabSelection.get")
+                return selection
+            },
             set: { newValue in
                 resetPath(for: newValue)
                 selection = newValue
@@ -116,6 +119,7 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        let _ = PerfLog.tick("RootTabView.body")
         Group {
             switch dataLossDetected {
             case .some(true):
@@ -210,6 +214,7 @@ struct TrendsHomeView: View {
     private var pendingSuggestionCount: Int { suggestions.filter { $0.status == .pending }.count }
 
     var body: some View {
+        let _ = PerfLog.tick("TrendsHomeView.body")
         List {
             Section("This Week") {
                 summaryRow("Workouts", "\(workoutsThisWeek)", systemImage: "dumbbell")

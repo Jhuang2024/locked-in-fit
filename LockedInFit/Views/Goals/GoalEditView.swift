@@ -33,6 +33,7 @@ struct GoalEditView: View {
     }
 
     var body: some View {
+        let _ = PerfLog.tick("GoalEditView.body")
         NavigationStack {
             Form {
                 Section("Phase") {
