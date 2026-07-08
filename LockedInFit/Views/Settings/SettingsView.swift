@@ -3,13 +3,23 @@ import SwiftData
 import UniformTypeIdentifiers
 import UIKit
 
+// Shared, file-scope fetch descriptors: never rebuilt per view init, so
+// SwiftUI's attribute-graph equality check on the @Query configurations is
+// trivially stable. See the matching comment in DashboardView.swift — a
+// debugger pause showed the Settings freeze livelocked in exactly that
+// comparison (Array<SortDescriptor>.== under AGGraphSetOutputValue).
+private let settingsWeights = FetchDescriptor<BodyWeightEntry>(sortBy: [SortDescriptor(\BodyWeightEntry.date)])
+private let settingsMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date)])
+private let settingsSteps = FetchDescriptor<StepEntry>(sortBy: [SortDescriptor(\StepEntry.date)])
+private let settingsActiveGoals = FetchDescriptor<Goal>(predicate: #Predicate<Goal> { $0.active })
+
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
-    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
-    @Query(sort: \MealLog.date) private var meals: [MealLog]
-    @Query(sort: \StepEntry.date) private var steps: [StepEntry]
-    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
+    @Query(settingsWeights) private var weights: [BodyWeightEntry]
+    @Query(settingsMeals) private var meals: [MealLog]
+    @Query(settingsSteps) private var steps: [StepEntry]
+    @Query(settingsActiveGoals) private var activeGoals: [Goal]
 
     @State private var exportURL: URL?
     @State private var showImporter = false

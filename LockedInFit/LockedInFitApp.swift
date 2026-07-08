@@ -159,15 +159,23 @@ struct RootTabView: View {
     }
 }
 
+// Shared, file-scope fetch descriptors; see the comment in
+// DashboardView.swift for why these must never be rebuilt per view init.
+private let trendsActiveGoals = FetchDescriptor<Goal>(predicate: #Predicate<Goal> { $0.active })
+private let trendsMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date, order: .reverse)])
+private let trendsCompletedWorkouts = FetchDescriptor<Workout>(
+    predicate: #Predicate<Workout> { $0.completed && !$0.isTemplate },
+    sortBy: [SortDescriptor(\Workout.date, order: .reverse)])
+private let trendsAppearanceCheckIns = FetchDescriptor<AppearanceCheckIn>(sortBy: [SortDescriptor(\AppearanceCheckIn.date, order: .reverse)])
+
 /// Trends hub: weekly, weight, goal, body data. The "This Week" summary is
 /// where nutrition, training, appearance, and suggestions converge into one
 /// view: trends isn't just weight charts, it's the whole system's readout.
 struct TrendsHomeView: View {
-    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
-    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
-    @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
-    private var completedWorkouts: [Workout]
-    @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query(trendsActiveGoals) private var activeGoals: [Goal]
+    @Query(trendsMeals) private var meals: [MealLog]
+    @Query(trendsCompletedWorkouts) private var completedWorkouts: [Workout]
+    @Query(trendsAppearanceCheckIns) private var appearanceCheckIns: [AppearanceCheckIn]
     @Query private var suggestions: [AppearanceSuggestion]
 
     private var goal: Goal? { activeGoals.first }

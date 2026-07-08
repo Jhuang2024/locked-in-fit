@@ -1,12 +1,18 @@
 import SwiftUI
 import SwiftData
 
+// Shared, file-scope fetch descriptors; see the comment in
+// DashboardView.swift for why these must never be rebuilt per view init.
+private let goalEditWeights = FetchDescriptor<BodyWeightEntry>(sortBy: [SortDescriptor(\BodyWeightEntry.date)])
+private let goalEditMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date)])
+private let goalEditSteps = FetchDescriptor<StepEntry>(sortBy: [SortDescriptor(\StepEntry.date)])
+
 struct GoalEditView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
-    @Query(sort: \MealLog.date) private var meals: [MealLog]
-    @Query(sort: \StepEntry.date) private var steps: [StepEntry]
+    @Query(goalEditWeights) private var weights: [BodyWeightEntry]
+    @Query(goalEditMeals) private var meals: [MealLog]
+    @Query(goalEditSteps) private var steps: [StepEntry]
     @Query private var settingsList: [UserSettings]
 
     let goal: Goal?

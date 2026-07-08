@@ -2,6 +2,11 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
+// Shared, file-scope fetch descriptors; see the comment in
+// DashboardView.swift for why these must never be rebuilt per view init.
+private let notificationsMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date, order: .reverse)])
+private let notificationsCheckIns = FetchDescriptor<AppearanceCheckIn>(sortBy: [SortDescriptor(\AppearanceCheckIn.date, order: .reverse)])
+
 /// Single control surface for every notification category: what fires,
 /// whether it's on, and a quick status/next-reminder readout. Detailed
 /// scheduling (time of day, body-photo frequency, workout lead time) stays
@@ -9,8 +14,8 @@ import UserNotifications
 struct NotificationSettingsView: View {
     @Query private var settingsList: [UserSettings]
     @Query private var checklistItems: [DailyChecklistItem]
-    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
-    @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query(notificationsMeals) private var meals: [MealLog]
+    @Query(notificationsCheckIns) private var appearanceCheckIns: [AppearanceCheckIn]
     @Query private var workoutSchedules: [WorkoutSchedule]
 
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined

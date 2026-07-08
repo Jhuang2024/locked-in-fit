@@ -2,25 +2,48 @@ import SwiftUI
 import SwiftData
 import Charts
 
+// Fetch descriptors are built ONCE at file scope and shared by the @Query
+// properties below, never rebuilt per view init. This is load-bearing: a
+// debugger pause during the long-standing "Settings freezes" bug showed the
+// main thread livelocked inside an AttributeGraph update comparing @Query
+// configurations (Array<SortDescriptor>.== -> AnySortComparator.==, each
+// comparison instantiating generic metadata). Inline `sort:`/`filter:`
+// arguments create fresh descriptor/key-path/comparator instances on every
+// view re-init, forcing SwiftUI to deep-compare them on every graph update;
+// one shared instance per descriptor makes that comparison trivially stable.
+// The same pattern applies in every view on the affected navigation chain.
+private let dashboardActiveGoals = FetchDescriptor<Goal>(predicate: #Predicate<Goal> { $0.active })
+private let dashboardMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date, order: .reverse)])
+private let dashboardWeights = FetchDescriptor<BodyWeightEntry>(sortBy: [SortDescriptor(\BodyWeightEntry.date)])
+private let dashboardBodyFats = FetchDescriptor<BodyFatEntry>(sortBy: [SortDescriptor(\BodyFatEntry.date)])
+private let dashboardSteps = FetchDescriptor<StepEntry>(sortBy: [SortDescriptor(\StepEntry.date, order: .reverse)])
+private let dashboardActiveEnergy = FetchDescriptor<ActiveEnergyEntry>(sortBy: [SortDescriptor(\ActiveEnergyEntry.date, order: .reverse)])
+private let dashboardCompletedWorkouts = FetchDescriptor<Workout>(
+    predicate: #Predicate<Workout> { $0.completed && !$0.isTemplate },
+    sortBy: [SortDescriptor(\Workout.date, order: .reverse)])
+private let dashboardAllWorkouts = FetchDescriptor<Workout>(
+    predicate: #Predicate<Workout> { !$0.isTemplate },
+    sortBy: [SortDescriptor(\Workout.date, order: .reverse)])
+private let dashboardAppearanceCheckIns = FetchDescriptor<AppearanceCheckIn>(sortBy: [SortDescriptor(\AppearanceCheckIn.date, order: .reverse)])
+private let dashboardSleepLogs = FetchDescriptor<SleepLog>(sortBy: [SortDescriptor(\SleepLog.date, order: .reverse)])
+
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
-    @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
-    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
-    @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
-    @Query(sort: \BodyFatEntry.date) private var bodyFats: [BodyFatEntry]
-    @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
-    @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
-    @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }, sort: \Workout.date, order: .reverse)
-    private var completedWorkouts: [Workout]
-    @Query(filter: #Predicate<Workout> { !$0.isTemplate }, sort: \Workout.date, order: .reverse)
-    private var allWorkouts: [Workout]
+    @Query(dashboardActiveGoals) private var activeGoals: [Goal]
+    @Query(dashboardMeals) private var meals: [MealLog]
+    @Query(dashboardWeights) private var weights: [BodyWeightEntry]
+    @Query(dashboardBodyFats) private var bodyFats: [BodyFatEntry]
+    @Query(dashboardSteps) private var steps: [StepEntry]
+    @Query(dashboardActiveEnergy) private var activeEnergy: [ActiveEnergyEntry]
+    @Query(dashboardCompletedWorkouts) private var completedWorkouts: [Workout]
+    @Query(dashboardAllWorkouts) private var allWorkouts: [Workout]
     @Query private var strengthScores: [StrengthScore]
-    @Query(sort: \AppearanceCheckIn.date, order: .reverse) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query(dashboardAppearanceCheckIns) private var appearanceCheckIns: [AppearanceCheckIn]
     @Query private var appearanceSuggestions: [AppearanceSuggestion]
     @Query private var checklistItems: [DailyChecklistItem]
     @Query private var workoutSchedules: [WorkoutSchedule]
-    @Query(sort: \SleepLog.date, order: .reverse) private var sleepLogs: [SleepLog]
+    @Query(dashboardSleepLogs) private var sleepLogs: [SleepLog]
 
     @State private var showAddMeal = false
     @State private var showPhotoAnalysis = false
