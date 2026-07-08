@@ -25,7 +25,7 @@ import SwiftData
 /// survives an uninstall is a file saved outside the app (Settings →
 /// Export JSON, shared to Files/iCloud Drive/AirDrop).
 enum BackupService {
-    static let maxBackupsKept = 5
+    static let maxBackupsKept = 10
     /// Automatic backups never run more often than this, no matter how many
     /// changes happen in between. Only the explicit "Backup Now" button
     /// bypasses it.
@@ -33,9 +33,20 @@ enum BackupService {
     fileprivate static let lastAutomaticBackupKey = "LockedInFit.lastAutomaticBackupDate"
 
     struct BackupInfo: Identifiable {
+        enum Location {
+            /// Application Support/Backups inside this app's sandbox: fast
+            /// and private, but dies with the sandbox when a signing change
+            /// makes an update replace the app container.
+            case local
+            /// The shared App Group container, which survives app
+            /// updates/reinstalls; see the mirror functions below.
+            case sharedContainer
+        }
+
         let url: URL
         let date: Date
         let recordCount: Int
+        var location: Location = .local
         var id: URL { url }
     }
 
@@ -124,6 +135,7 @@ enum BackupService {
         updatedIndex.append(IndexEntry(filename: filename, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount))
         writeIndex(updatedIndex)
         rotate()
+        mirrorToAppGroup(data: data, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount)
         return destination
     }
 
@@ -186,13 +198,90 @@ enum BackupService {
         try? data.write(to: indexURL, options: .atomic)
     }
 
+    /// Keeps the newest `maxBackupsKept` backups — but NEVER rotates out the
+    /// most complete one. After an accidental wipe (an update replacing the
+    /// app container), the app starts taking fresh automatic backups of the
+    /// nearly-empty post-wipe state; a plain newest-N policy let those push
+    /// the one copy of the real data off the end of the list.
     private static func rotate() {
         let sorted = readIndex().sorted { $0.date > $1.date }
         guard sorted.count > maxBackupsKept else { return }
-        for stale in sorted.suffix(from: maxBackupsKept) {
-            try? FileManager.default.removeItem(at: backupsDirectory.appendingPathComponent(stale.filename))
+        let bestFilename = sorted.max(by: { $0.recordCount < $1.recordCount })?.filename
+        var kept: [IndexEntry] = []
+        for (index, entry) in sorted.enumerated() {
+            if index < maxBackupsKept || entry.filename == bestFilename {
+                kept.append(entry)
+            } else {
+                try? FileManager.default.removeItem(at: backupsDirectory.appendingPathComponent(entry.filename))
+            }
         }
-        writeIndex(Array(sorted.prefix(maxBackupsKept)))
+        writeIndex(kept)
+    }
+
+    // MARK: - App Group mirrors (survive app updates/reinstalls)
+
+    /// Local backups die with the sandbox when a signing/identity change
+    /// makes an app update replace the container — exactly the event backups
+    /// exist for. So every backup is also mirrored into the shared App Group
+    /// container (when available), which has its own lifecycle and survives
+    /// updates: "latest" always tracks the newest backup, and "best" only
+    /// ever advances to a backup with at least as many records, so a
+    /// post-wipe rebuild can never overwrite the most complete copy.
+    private struct MirrorMeta: Codable {
+        var date: Date
+        var recordCount: Int
+    }
+
+    private static var appGroupBackupsDirectory: URL? {
+        guard let container = AppGroupContainerLocator().containerURL else { return nil }
+        let dir = container.appendingPathComponent("LockedInFitBackups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    private static func mirrorToAppGroup(data: Data, date: Date, recordCount: Int) {
+        guard let dir = appGroupBackupsDirectory else { return }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let meta = try? encoder.encode(MirrorMeta(date: date, recordCount: recordCount)) else { return }
+
+        writeMirror(named: "backup-latest", data: data, meta: meta, in: dir)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let bestCount = (try? Data(contentsOf: dir.appendingPathComponent("backup-best.meta.json")))
+            .flatMap { try? decoder.decode(MirrorMeta.self, from: $0) }?
+            .recordCount ?? -1
+        if recordCount >= bestCount {
+            writeMirror(named: "backup-best", data: data, meta: meta, in: dir)
+        }
+    }
+
+    private static func writeMirror(named name: String, data: Data, meta: Data, in dir: URL) {
+        try? data.write(to: dir.appendingPathComponent(name + ".json"), options: .atomic)
+        try? meta.write(to: dir.appendingPathComponent(name + ".meta.json"), options: .atomic)
+    }
+
+    /// The App Group mirror backups, for the restore pickers. Empty when the
+    /// shared container is unavailable or no mirror has been written yet.
+    static func appGroupMirrorBackups() -> [BackupInfo] {
+        guard let dir = appGroupBackupsDirectory else { return [] }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        var output: [BackupInfo] = []
+        for name in ["backup-best", "backup-latest"] {
+            let file = dir.appendingPathComponent(name + ".json")
+            guard FileManager.default.fileExists(atPath: file.path),
+                  let metaData = try? Data(contentsOf: dir.appendingPathComponent(name + ".meta.json")),
+                  let meta = try? decoder.decode(MirrorMeta.self, from: metaData) else { continue }
+            output.append(BackupInfo(url: file, date: meta.date, recordCount: meta.recordCount,
+                                     location: .sharedContainer))
+        }
+        // best and latest are often the same snapshot; no point listing twice.
+        if output.count == 2, output[0].date == output[1].date, output[0].recordCount == output[1].recordCount {
+            output.removeLast()
+        }
+        return output
     }
 
     /// Only used for the one-time migration of backups that predate the

@@ -14,7 +14,10 @@ struct DataRecoveryView: View {
     @State private var showImporter = false
     @State private var resultMessage: String?
     @State private var confirmStartFresh = false
-    @State private var latestBackup: BackupService.BackupInfo?
+    /// Every available backup — the local rotation plus the App Group
+    /// mirrors that survive reinstalls — sorted most-complete first, since
+    /// after a wipe the newest backup is usually of the post-wipe state.
+    @State private var backups: [BackupService.BackupInfo] = []
 
     var body: some View {
         NavigationStack {
@@ -28,20 +31,30 @@ struct DataRecoveryView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Restore from local backup") {
-                    if let latestBackup {
-                        Text("Backup from \(Formatters.mediumDate(latestBackup.date)), \(latestBackup.recordCount) records.")
+                Section {
+                    if backups.isEmpty {
+                        Text("No backup is available on this device or in the shared container.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Button {
-                            restore(from: latestBackup)
-                        } label: {
-                            Label("Restore This Backup", systemImage: "clock.arrow.circlepath")
-                        }
                     } else {
-                        Text("No local backup is available on this device.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        ForEach(backups) { backup in
+                            Button {
+                                restore(from: backup)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Label("Restore \(backup.recordCount) records", systemImage: "clock.arrow.circlepath")
+                                    Text("\(Formatters.mediumDate(backup.date))\(backup.location == .sharedContainer ? " · shared container" : "")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Restore from a backup")
+                } footer: {
+                    if backups.count > 1 {
+                        Text("Sorted most-complete first. Pick the entry with the most records from before the data loss — not necessarily the newest one.")
                     }
                 }
 
@@ -71,7 +84,13 @@ struct DataRecoveryView: View {
             }
             .navigationTitle("Data Recovery")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { latestBackup = BackupService.latestBackup() }
+            .onAppear {
+                backups = (BackupService.listBackups() + BackupService.appGroupMirrorBackups())
+                    .sorted {
+                        if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
+                        return $0.date > $1.date
+                    }
+            }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 switch result {
                 case .success(let url):

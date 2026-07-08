@@ -193,6 +193,7 @@ struct DashboardView: View {
                 case .looksSettings: LooksSettingsView()
                 case .socialClimber: SocialClimberLinkView()
                 case .googleCalendar: GoogleCalendarConnectView()
+                case .backups: BackupRestoreListView()
                 case .diagnostics:
                     #if DEBUG
                     DiagnosticsView()

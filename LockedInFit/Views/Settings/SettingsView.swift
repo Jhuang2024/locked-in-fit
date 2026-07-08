@@ -25,6 +25,7 @@ enum SettingsRoute: Hashable {
     case looksSettings
     case socialClimber
     case googleCalendar
+    case backups
     case diagnostics
 }
 
@@ -51,7 +52,6 @@ struct SettingsView: View {
     @State private var importResult: String?
     @State private var weightInput = ""
     @State private var backupResult: String?
-    @State private var confirmRestore = false
     @State private var isBackingUp = false
     /// Cached instead of calling BackupService.latestBackup() directly from
     /// the view body: that call decodes every backup file's full JSON
@@ -149,9 +149,6 @@ struct SettingsView: View {
             case .failure(let error):
                 importResult = "Import failed: \(error.localizedDescription)"
             }
-        }
-        .confirmationDialog("Restore from the latest local backup?", isPresented: $confirmRestore, titleVisibility: .visible) {
-            Button("Restore") { performRestore() }
         }
         .onChange(of: settingsList) { _, _ in
             BackupService.scheduleBackupSoon(container: context.container)
@@ -349,12 +346,10 @@ struct SettingsView: View {
                 }
             }
             .disabled(isBackingUp)
+            NavigationLink(value: SettingsRoute.backups) {
+                Label("Restore From Backup", systemImage: "clock.arrow.circlepath")
+            }
             if let latestBackup = cachedLatestBackup {
-                Button {
-                    confirmRestore = true
-                } label: {
-                    Label("Restore From Backup", systemImage: "clock.arrow.circlepath")
-                }
                 LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
                 LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
             } else {
@@ -370,21 +365,7 @@ struct SettingsView: View {
         } header: {
             Text("Local Backups")
         } footer: {
-            Text("Backups are separate from the export file above and live only on this device (up to the last \(BackupService.maxBackupsKept)). Restoring merges the backup's records back in without deleting anything currently on the device.")
-        }
-    }
-
-    private func performRestore() {
-        guard let latestBackup = cachedLatestBackup else { return }
-        let currentCount = DataLossGuard.currentRecordCount(context: context)
-        switch BackupService.restore(from: latestBackup, context: context, currentRecordCount: currentCount) {
-        case .restored(let count):
-            backupResult = "Restored \(count) records from the \(Formatters.mediumDate(latestBackup.date)) backup."
-            DataLossGuard.acknowledge(context: context)
-        case .emptyBackupSkipped:
-            backupResult = "That backup is empty; nothing to restore."
-        case .failed(let error):
-            backupResult = "Restore failed: \(error.localizedDescription)"
+            Text("Backups are separate from the export file above: up to \(BackupService.maxBackupsKept) rotate on this device, the most complete one is never rotated out, and each backup is also mirrored to the shared App Group container so it survives app updates. Restoring merges records back in without deleting anything.")
         }
     }
 }
