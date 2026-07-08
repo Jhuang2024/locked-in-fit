@@ -17,7 +17,15 @@ struct AppGroupContainerLocator: SharedContainerLocating {
     /// their App Group capability.
     static let appGroupIdentifier = "group.com.jerry.personalOS"
 
-    var containerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier)
-    }
+    /// Computed once per process and cached: `containerURL(forSecurityApplicationGroupIdentifier:)`
+    /// talks to the sandbox/container subsystem and can be surprisingly slow,
+    /// especially when the entitlement isn't cleanly provisioned (exactly the
+    /// ambiguous state this app's App Group has been in). The container's
+    /// location can't change while the app is running, so repeating this
+    /// call from every SwiftUI view body re-render (several call sites did)
+    /// was turning an occasional slow syscall into a per-render stall.
+    static let cachedContainerURL: URL? = FileManager.default.containerURL(
+        forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+
+    var containerURL: URL? { Self.cachedContainerURL }
 }

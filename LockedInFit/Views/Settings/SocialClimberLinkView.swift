@@ -11,9 +11,16 @@ struct SocialClimberLinkView: View {
     @Query private var settingsList: [UserSettings]
 
     private var settings: UserSettings? { settingsList.first }
-    private var appGroupAvailable: Bool { AppGroupContainerLocator().containerURL != nil }
-    private var socialClimberContext: SocialClimberPublicContext? { SharedContextStore.readSocialClimberContext() }
-    private var socialClimberIsFresh: Bool { CrossAppIntegrationManager.readSocialContext() != nil }
+
+    /// All three cached and refreshed once (on appear), not recomputed from
+    /// the view body: reading the App Group container and the shared JSON
+    /// file involves real I/O (including an OS call that can be slow when
+    /// the entitlement isn't cleanly provisioned), and the body re-evaluates
+    /// on things as small as the toggle switching, so computing these inline
+    /// meant redoing that I/O, redundantly, on every render.
+    @State private var appGroupAvailable = false
+    @State private var socialClimberContext: SocialClimberPublicContext?
+    @State private var socialClimberIsFresh = false
 
     var body: some View {
         Form {
@@ -25,6 +32,19 @@ struct SocialClimberLinkView: View {
         }
         .navigationTitle("Social Climber")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { refresh() }
+    }
+
+    private func refresh() {
+        appGroupAvailable = AppGroupContainerLocator().containerURL != nil
+        let fetched = SharedContextStore.readSocialClimberContext()
+        socialClimberContext = fetched
+        if let fetched, fetched.schemaVersion >= SocialClimberPublicContext.expectedSchemaVersion {
+            let age = Date().timeIntervalSince(fetched.updatedAt)
+            socialClimberIsFresh = age >= 0 && age <= CrossAppIntegrationManager.staleAfter
+        } else {
+            socialClimberIsFresh = false
+        }
     }
 
     private func linkSection(_ settings: UserSettings) -> some View {
