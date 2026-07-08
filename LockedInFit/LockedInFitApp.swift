@@ -43,24 +43,21 @@ struct LockedInFitApp: App {
             SeedDataService.seedIfNeeded(context: container.mainContext)
             SeedDataService.clearEmptyWorkoutsIfNeeded(context: container.mainContext)
         }
-        // Sleep score repair used to run synchronously here, fetching every
-        // SleepLog/NapLog and recomputing every log's score against every
-        // other log (an O(n^2 log n) scan) on container.mainContext, on the
-        // main thread, unconditionally, on every single launch. For anyone
-        // with more than a small amount of sleep history that's a real,
-        // unbounded main-thread stall at exactly the moment the app is
-        // trying to show its first frame — a very plausible cause of "opens
-        // frozen, resets after 20-30s" that had nothing to do with backups
-        // or HealthKit. It now runs on SleepRepairActor, a @ModelActor with
-        // its own background-safe context, off the main thread entirely;
-        // the UI shows today's data immediately and picks up repaired
-        // scores via SwiftData's normal change notifications once it
-        // finishes, same as before just no longer blocking.
-        let repairContainer = container
-        Task.detached(priority: .utility) {
-            await PerfLog.measureAsync("sleep.repairAll") {
-                await SleepRepairActor(modelContainer: repairContainer).repairAll()
-            }
+        // Sleep score repair runs synchronously on the main context, and
+        // that's deliberate. A version briefly ran it on a background
+        // @ModelActor context, but background-context WRITES are the one
+        // SwiftData pattern this app has actually seen deadlock in the
+        // wild (the main thread's next store access hangs permanently
+        // right after a background save — confirmed twice by the hang
+        // watchdog before all cross-context writes were removed). The
+        // PerfLog line proves this costs single-digit-to-low-double-digit
+        // milliseconds at launch; if sleep history ever grows enough for
+        // this to show up as a SLOW MAIN THREAD fault in the log, bound
+        // the repair, don't move it off-main.
+        PerfLog.measure("launch.sleepRepair") {
+            SleepScoringService.repairAll(
+                logs: (try? container.mainContext.fetch(FetchDescriptor<SleepLog>())) ?? [],
+                naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
         }
         HealthKitManager.shared.configureAutoSync(container: container)
     }

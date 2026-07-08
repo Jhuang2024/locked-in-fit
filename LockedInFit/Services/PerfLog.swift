@@ -28,13 +28,18 @@ enum PerfLog {
     }
 
     /// Same as `measure`, for work that awaits (e.g. hopping onto a
-    /// background actor).
+    /// background actor). No thread attribution: `Thread.isMainThread` is
+    /// unavailable in async contexts (execution can hop threads across
+    /// awaits, so the answer would be meaningless anyway); wall-clock time
+    /// is what matters for a span like this, and the hang detector below
+    /// covers main-thread responsiveness independently.
     @discardableResult
     static func measureAsync<T>(_ name: String, _ work: () async throws -> T) async rethrows -> T {
-        let isMain = Thread.isMainThread
         let start = DispatchTime.now()
         let result = try await work()
-        report(name, start: start, isMain: isMain)
+        let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
+        let elapsedText = String(format: "%.1f", elapsedMs)
+        logger.notice("[\(name, privacy: .public)] \(elapsedText, privacy: .public) ms (async)")
         return result
     }
 
