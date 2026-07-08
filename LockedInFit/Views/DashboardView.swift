@@ -243,6 +243,10 @@ struct DashboardView: View {
 
         await evaluateNotificationEvents(settings: settings)
         syncCrossAppContext()
+        // Debounced: this runs after meals, workouts, checklist items, steps,
+        // or appearance check-ins change (see the onChange triggers below),
+        // but the actual backup only fires once activity settles.
+        BackupService.scheduleBackupSoon(context: context)
     }
 
     /// Optional cross-app bridge: publishes a small public snapshot for

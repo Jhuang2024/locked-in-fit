@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct LockedInFitApp: App {
     let container: ModelContainer
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Byte-for-byte safety net, before SwiftData gets a chance to open
@@ -45,6 +46,15 @@ struct LockedInFitApp: App {
             RootTabView()
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, newPhase in
+            // Catch-all: whatever changed during this session (including
+            // edits no other trigger covers, e.g. Settings or Goal) gets
+            // backed up the moment the user leaves, not just the specific
+            // changes DashboardView watches for.
+            if newPhase == .background {
+                BackupService.backupNow(context: container.mainContext)
+            }
+        }
     }
 }
 
@@ -100,7 +110,7 @@ struct RootTabView: View {
             guard dataLossDetected == nil else { return }
             let lostData = DataLossGuard.checkForSuddenDataLoss(context: context)
             dataLossDetected = lostData
-            if !lostData { runDailyAutoBackupIfDue() }
+            if !lostData { BackupService.scheduleBackupSoon(context: context) }
         }
     }
 
@@ -122,18 +132,6 @@ struct RootTabView: View {
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
                 .tag(Tab.trends)
         }
-    }
-
-    /// Automatic backup safety net beyond the pre-migration one in
-    /// PersistenceGuard: at most once a day, so normal use never pays the
-    /// cost of building a full snapshot on every launch.
-    private func runDailyAutoBackupIfDue() {
-        let key = "LockedInFit.lastAutoBackupDay"
-        let today = Date().startOfDay
-        let last = UserDefaults.standard.object(forKey: key) as? Date
-        guard last == nil || last! < today else { return }
-        UserDefaults.standard.set(today, forKey: key)
-        BackupService.backupNow(context: context)
     }
 }
 

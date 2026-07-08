@@ -38,6 +38,20 @@ enum BackupService {
         return dir
     }
 
+    private static var pendingBackup: DispatchWorkItem?
+
+    /// Coalesces rapid, repeated changes (typing in a field, logging several
+    /// sets back to back) into a single backup once things go quiet, instead
+    /// of rebuilding and re-encoding a full snapshot on every keystroke.
+    /// Call this from anywhere the user just changed something; the actual
+    /// work only runs once, `after` seconds since the *last* call.
+    static func scheduleBackupSoon(context: ModelContext, after seconds: Double = 2.5) {
+        pendingBackup?.cancel()
+        let work = DispatchWorkItem { backupNow(context: context) }
+        pendingBackup = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
     /// Builds a fresh snapshot and writes it as a new timestamped backup.
     /// Refuses to write an empty snapshot when a non-empty backup already
     /// exists, so a transient empty read never buries good history (req: never

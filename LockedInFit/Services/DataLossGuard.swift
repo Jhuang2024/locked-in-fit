@@ -11,9 +11,25 @@ enum DataLossGuard {
     private static let lastKnownRecordCountKey = "LockedInFit.lastKnownRecordCount"
 
     /// Total records across the same categories `Snapshot.totalRecordCount`
-    /// counts, so this and the backup "is this empty" check always agree.
+    /// counts, using `fetchCount` rather than fetching and DTO-converting
+    /// every row. This runs on every launch, so it has to stay cheap
+    /// regardless of how much history the user has: building a full
+    /// `ExportImportService.makeSnapshot` here (as an earlier version did)
+    /// meant fetching and converting every row across every table
+    /// synchronously on the main thread before the app could even show its
+    /// first screen, which for a real amount of data is exactly the kind of
+    /// long main-thread stall that gets an app killed by the launch
+    /// watchdog. `fetchCount` never materializes the rows at all.
     static func currentRecordCount(context: ModelContext) -> Int {
-        (try? ExportImportService.makeSnapshot(context: context))?.totalRecordCount ?? 0
+        func count<T: PersistentModel>(_ type: T.Type) -> Int {
+            (try? context.fetchCount(FetchDescriptor<T>())) ?? 0
+        }
+        return count(MealLog.self) + count(FoodPreset.self) + count(BodyWeightEntry.self)
+            + count(BodyFatEntry.self) + count(MeasurementEntry.self) + count(StepEntry.self)
+            + count(ActiveEnergyEntry.self) + count(Goal.self) + count(Workout.self)
+            + count(ProgressPhoto.self) + count(DailyChecklistItem.self) + count(SleepLog.self)
+            + count(NapLog.self) + count(StrengthScore.self) + count(AppearanceCheckIn.self)
+            + count(AppearanceSuggestion.self) + count(WorkoutSchedule.self) + count(HealthScan.self)
     }
 
     /// Compares today's count against the last-known count. Only updates the
