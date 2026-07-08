@@ -31,12 +31,13 @@ protocol ExerciseAIService {
     func analyzeExercise(description: String, context: ExerciseAnalysisContext) async throws -> ExerciseEstimate
 }
 
-/// Offline mock so the flow works without a key or network: reuses the same
-/// deterministic local parser that used to run inline in the Add Exercise
-/// search field, now serving as the offline fallback for the dedicated
-/// Describe Exercise screen.
-struct MockExerciseAIService: ExerciseAIService {
-    let providerName = "Mock (offline)"
+/// Deterministic local parser (the same one that used to run inline in the
+/// Add Exercise search field), serving as the no-key fallback for the
+/// Describe Exercise screen. This is NOT a mock: it parses the real
+/// description with the real exercise library and labels its output
+/// honestly, so it survives the removal of the fabricating mocks.
+struct OfflineExerciseParserService: ExerciseAIService {
+    let providerName = "Offline parser"
 
     func analyzeExercise(description: String, context: ExerciseAnalysisContext) async throws -> ExerciseEstimate {
         try await Task.sleep(for: .seconds(0.6))
@@ -58,18 +59,12 @@ struct MockExerciseAIService: ExerciseAIService {
 }
 
 extension AIServiceFactory {
-    /// Picks the exercise-description analyzer. Same mode/key/model source as meal and workout analysis.
+    /// Exercise-description analyzer: OpenRouter when a key exists,
+    /// otherwise the honest local parser (real parsing, not fabrication).
     static func makeExerciseAnalyzer(settings: UserSettings?) -> ExerciseAIService {
-        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-        switch mode {
-        case .mock:
-            return MockExerciseAIService()
-        case .openRouter:
-            guard KeychainService.openRouterAPIKey != nil else {
-                return MockExerciseAIService() // no valid key → automatic mock fallback
-            }
-            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
-            return OpenRouterExerciseAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
+        guard KeychainService.openRouterAPIKey != nil else {
+            return OfflineExerciseParserService()
         }
+        return OpenRouterExerciseAIService(modelName: modelName(settings: settings))
     }
 }

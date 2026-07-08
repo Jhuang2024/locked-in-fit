@@ -3,7 +3,7 @@ import SwiftData
 import PhotosUI
 import UIKit
 
-/// Photo → AI/mock product analysis → editable review → save.
+/// Photo → AI product analysis → editable review → save.
 /// A scan is a lookup, not a meal log; saving one never touches daily calorie totals.
 struct HealthScanCaptureView: View {
     @Environment(\.modelContext) private var context
@@ -101,20 +101,14 @@ struct HealthScanCaptureView: View {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .font(.callout)
                             .foregroundStyle(.red)
-                        HStack {
-                            Button("Retry") {
-                                Task { await runAnalysis(forceMock: false) }
-                            }
-                            .buttonStyle(.bordered)
-                            Button("Use mock estimate") {
-                                Task { await runAnalysis(forceMock: true) }
-                            }
-                            .buttonStyle(.bordered)
+                        Button("Retry") {
+                            Task { await runAnalysis() }
                         }
+                        .buttonStyle(.bordered)
                     }
                 default:
                     Button {
-                        Task { await runAnalysis(forceMock: false) }
+                        Task { await runAnalysis() }
                     } label: {
                         Label("Scan Product", systemImage: "sparkles")
                             .frame(maxWidth: .infinity)
@@ -123,11 +117,10 @@ struct HealthScanCaptureView: View {
                     .disabled(model.image == nil && model.productDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             } footer: {
-                let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-                if mode == .openRouter && KeychainService.openRouterAPIKey != nil {
-                    Text("Using OpenRouter (\(settings?.aiModelName ?? "")). Nothing is saved until you review the result.")
+                if KeychainService.openRouterAPIKey != nil {
+                    Text("Using OpenRouter (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the result.")
                 } else {
-                    Text("Mock mode: realistic offline estimates. Add an OpenRouter key in Settings → AI Analysis for real product scanning.")
+                    Text("No OpenRouter API key saved. Add one in Settings → AI Analysis to scan products.")
                 }
             }
         }
@@ -149,8 +142,8 @@ struct HealthScanCaptureView: View {
         }
     }
 
-    private func runAnalysis(forceMock: Bool) async {
-        await model.analyze(settings: settings, forceMock: forceMock)
+    private func runAnalysis() async {
+        await model.analyze(settings: settings)
         if case .reviewing = model.phase {
             draft = model.makeDraft()
         }

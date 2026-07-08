@@ -68,6 +68,12 @@ final class UserSettings {
     var sodiumLimitMg: Double = 2300
     // AI settings metadata. The API key itself lives in the Keychain only.
     var aiModelName: String = "openai/gpt-4o-mini"
+    /// LEGACY, no longer consulted: providers used to be gated on this mode
+    /// string, which defaulted to "mock" and silently reset on every
+    /// container wipe even when a key survived in the Keychain — sending all
+    /// AI analysis to fabricated mock data. Providers now key purely off
+    /// whether an OpenRouter key exists. Kept because persisted properties
+    /// are never removed (additive-only migration policy).
     var aiModeRaw: String = "mock"
     var hasStoredAPIKey: Bool = false
     var seededSampleData: Bool = false

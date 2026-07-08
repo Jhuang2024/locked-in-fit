@@ -23,10 +23,10 @@ final class MealAnalysisViewModel {
     var estimate: MealEstimate?
     var providerUsed = ""
 
-    func analyze(settings: UserSettings?, forceMock: Bool = false) async {
+    func analyze(settings: UserSettings?) async {
         guard !images.isEmpty else { return }
         phase = .analyzing
-        let service: FoodAIService = forceMock ? MockFoodAIService() : AIServiceFactory.make(settings: settings)
+        let service: FoodAIService = AIServiceFactory.make(settings: settings)
         providerUsed = service.providerName
         do {
             let context = MealAnalysisContext(mealType: mealType,

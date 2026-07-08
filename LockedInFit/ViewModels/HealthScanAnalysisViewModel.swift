@@ -18,11 +18,11 @@ final class HealthScanAnalysisViewModel {
     var estimate: HealthScanEstimate?
     var providerUsed = ""
 
-    func analyze(settings: UserSettings?, forceMock: Bool = false) async {
+    func analyze(settings: UserSettings?) async {
         let text = productDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         guard image != nil || !text.isEmpty else { return }
         phase = .analyzing
-        let service: HealthScanAIService = forceMock ? MockHealthScanAIService() : AIServiceFactory.makeHealthScan(settings: settings)
+        let service: HealthScanAIService = AIServiceFactory.makeHealthScan(settings: settings)
         providerUsed = service.providerName
         do {
             if let image {

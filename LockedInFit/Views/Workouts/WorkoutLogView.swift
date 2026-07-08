@@ -189,8 +189,8 @@ struct WorkoutLogView: View {
 
     /// Calculates calories burned from what was actually logged (exercises,
     /// sets, reps, weight, duration) via AI, instead of a user-typed
-    /// description. Falls back to the duration/type/RPE heuristic if the AI
-    /// call fails (e.g. offline with no mock, or a network error).
+    /// description. Falls back to the local duration/type/RPE heuristic if
+    /// the AI call fails (no key saved, offline, or a network error).
     private func estimateCaloriesFromWorkout() async {
         estimating = true
         estimateError = nil
@@ -339,7 +339,7 @@ struct ExercisePickerView: View {
 }
 
 /// Describes a custom exercise in natural language and uses AI (OpenRouter,
-/// or the offline mock parser when no key is configured) to turn it into a
+/// or the offline parser when no key is configured) to turn it into a
 /// structured ExerciseDraft, previewed here before it's added to the workout.
 /// A separate feature from the library picker above, not folded into its
 /// search field.

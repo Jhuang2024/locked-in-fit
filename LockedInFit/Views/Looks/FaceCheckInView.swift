@@ -24,7 +24,7 @@ struct FaceCheckInView: View {
 
     private var settings: UserSettings? { settingsList.first }
     private var usesOpenRouter: Bool {
-        AIMode(rawValue: settings?.aiModeRaw ?? "mock") == .openRouter && KeychainService.openRouterAPIKey != nil
+        KeychainService.openRouterAPIKey != nil
     }
 
     private var suggestionContext: SuggestionGenerationService.Context {

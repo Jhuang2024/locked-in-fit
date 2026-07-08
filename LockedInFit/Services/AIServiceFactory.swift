@@ -1,56 +1,35 @@
 import Foundation
 
-enum AIMode: String, CaseIterable, Identifiable {
-    case mock
-    case openRouter = "open_router"
-
-    var id: String { rawValue }
-    var label: String { self == .mock ? "Mock (offline)" : "OpenRouter" }
-}
-
-/// Picks the meal-analysis provider. Falls back to mock when no valid key exists.
+/// Builds the OpenRouter-backed AI providers. There is no mode toggle and no
+/// mock fallback anymore: analysis always goes to OpenRouter with the user's
+/// key, and a missing key surfaces as a clear error at the call site instead
+/// of silently producing fabricated numbers.
+///
+/// History: providers used to be gated on a persisted `aiModeRaw` setting
+/// that defaulted to "mock" — so every time the app's container was replaced
+/// (the recurring signing-churn data wipes), the mode silently reset to mock
+/// even though the OpenRouter key survived in the Keychain, and every
+/// analysis in the app quietly returned fake data. Deleting the mode (and
+/// the mocks) removes that entire failure class. `aiModeRaw` remains on
+/// UserSettings as an unused legacy field per the additive-only migration
+/// policy.
 enum AIServiceFactory {
+    static let defaultModelName = "openai/gpt-4o-mini"
+
+    static func modelName(settings: UserSettings?) -> String {
+        let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
+        return model.isEmpty ? defaultModelName : model
+    }
+
     static func make(settings: UserSettings?) -> FoodAIService {
-        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-        switch mode {
-        case .mock:
-            return MockFoodAIService()
-        case .openRouter:
-            guard KeychainService.openRouterAPIKey != nil else {
-                return MockFoodAIService() // no valid key → automatic mock fallback
-            }
-            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
-            return OpenRouterFoodAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
-        }
+        OpenRouterFoodAIService(modelName: modelName(settings: settings))
     }
 
-    /// Picks the health-scan (product label) provider. Same mode/key/model as meal analysis.
     static func makeHealthScan(settings: UserSettings?) -> HealthScanAIService {
-        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-        switch mode {
-        case .mock:
-            return MockHealthScanAIService()
-        case .openRouter:
-            guard KeychainService.openRouterAPIKey != nil else {
-                return MockHealthScanAIService() // no valid key → automatic mock fallback
-            }
-            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
-            return OpenRouterHealthScanAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
-        }
+        OpenRouterHealthScanAIService(modelName: modelName(settings: settings))
     }
 
-    /// Picks the meal health/satiety scoring provider. Same mode/key/model source as meal analysis.
     static func makeMealNutritionAnalysis(settings: UserSettings?) -> MealNutritionAIService {
-        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-        switch mode {
-        case .mock:
-            return MockMealNutritionAIService()
-        case .openRouter:
-            guard KeychainService.openRouterAPIKey != nil else {
-                return MockMealNutritionAIService() // no valid key → automatic mock fallback
-            }
-            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
-            return OpenRouterMealNutritionAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
-        }
+        OpenRouterMealNutritionAIService(modelName: modelName(settings: settings))
     }
 }

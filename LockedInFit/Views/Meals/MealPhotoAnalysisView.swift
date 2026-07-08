@@ -3,7 +3,7 @@ import SwiftData
 import PhotosUI
 import UIKit
 
-/// Photo → AI/mock estimate → editable review → save.
+/// Photo(s) → AI estimate → editable review → save.
 struct MealPhotoAnalysisView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -88,20 +88,14 @@ struct MealPhotoAnalysisView: View {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .font(.callout)
                             .foregroundStyle(.red)
-                        HStack {
-                            Button("Retry") {
-                                Task { await runAnalysis(forceMock: false) }
-                            }
-                            .buttonStyle(.bordered)
-                            Button("Use mock estimate") {
-                                Task { await runAnalysis(forceMock: true) }
-                            }
-                            .buttonStyle(.bordered)
+                        Button("Retry") {
+                            Task { await runAnalysis() }
                         }
+                        .buttonStyle(.bordered)
                     }
                 default:
                     Button {
-                        Task { await runAnalysis(forceMock: false) }
+                        Task { await runAnalysis() }
                     } label: {
                         Label(model.images.count > 1 ? "Analyze \(model.images.count) Photos" : "Analyze Photo",
                               systemImage: "sparkles")
@@ -111,11 +105,10 @@ struct MealPhotoAnalysisView: View {
                     .disabled(model.images.isEmpty)
                 }
             } footer: {
-                let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-                if mode == .openRouter && KeychainService.openRouterAPIKey != nil {
-                    Text("Using OpenRouter (\(settings?.aiModelName ?? "")). Nothing is saved until you review the estimate.")
+                if KeychainService.openRouterAPIKey != nil {
+                    Text("Using OpenRouter (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the estimate.")
                 } else {
-                    Text("Mock mode: realistic offline estimates. Add an OpenRouter key in Settings → AI Analysis for real photo analysis.")
+                    Text("No OpenRouter API key saved. Add one in Settings → AI Analysis to analyze meal photos.")
                 }
             }
         }
@@ -179,8 +172,8 @@ struct MealPhotoAnalysisView: View {
         .listRowBackground(Color.clear)
     }
 
-    private func runAnalysis(forceMock: Bool) async {
-        await model.analyze(settings: settings, forceMock: forceMock)
+    private func runAnalysis() async {
+        await model.analyze(settings: settings)
         if case .reviewing = model.phase {
             draft = model.makeDraft()
         }

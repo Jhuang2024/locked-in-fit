@@ -11,56 +11,10 @@ protocol AppearanceAIService {
     func analyzeBody(images: [UIImage], context: String) async throws -> AppearanceAIResult
 }
 
-/// Offline mock so the whole flow works without a key or network.
-struct MockAppearanceAIService: AppearanceAIService {
-    let providerName = "Mock (offline)"
-
-    func analyzeFace(image: UIImage, context: String) async throws -> AppearanceAIResult {
-        try await Task.sleep(for: .seconds(1.0))
-        return AppearanceAIResult(
-            scoreAdjustment: 0,
-            confidence: 0.5,
-            observations: [
-                "[Mock] Face reads consistent with your recent check-ins.",
-                "[Mock] No major changes since your last check-in."
-            ],
-            suggestions: [
-                AppearanceAISuggestion(
-                    title: "Add a 2-minute morning skincare routine",
-                    category: "skin",
-                    explanation: "Consistent basic skincare is the highest-evidence lever available for skin appearance.",
-                    expectedImpact: "Steadier skin component over time.",
-                    durationType: "short_term",
-                    destination: "checklist",
-                    priority: 3)
-            ],
-            unableToAssess: false)
-    }
-
-    func analyzeBody(images: [UIImage], context: String) async throws -> AppearanceAIResult {
-        try await Task.sleep(for: .seconds(1.0))
-        return AppearanceAIResult(
-            scoreAdjustment: 0,
-            confidence: 0.5,
-            observations: ["[Mock] Composition reads consistent with your recent history."],
-            suggestions: [],
-            unableToAssess: false)
-    }
-}
-
 extension AIServiceFactory {
-    /// Picks the appearance analyzer. Same mode/key/model source as meal analysis.
+    /// Appearance analysis is opt-in and only offered by the check-in views
+    /// when an OpenRouter key exists; no mock, no fabricated observations.
     static func makeAppearance(settings: UserSettings?) -> AppearanceAIService {
-        let mode = AIMode(rawValue: settings?.aiModeRaw ?? "mock") ?? .mock
-        switch mode {
-        case .mock:
-            return MockAppearanceAIService()
-        case .openRouter:
-            guard KeychainService.openRouterAPIKey != nil else {
-                return MockAppearanceAIService() // no valid key → automatic mock fallback
-            }
-            let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""
-            return OpenRouterAppearanceAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
-        }
+        OpenRouterAppearanceAIService(modelName: modelName(settings: settings))
     }
 }

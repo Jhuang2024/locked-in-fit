@@ -22,7 +22,7 @@ struct BodyCheckInView: View {
 
     private var settings: UserSettings? { settingsList.first }
     private var usesOpenRouter: Bool {
-        AIMode(rawValue: settings?.aiModeRaw ?? "mock") == .openRouter && KeychainService.openRouterAPIKey != nil
+        KeychainService.openRouterAPIKey != nil
     }
     private var heightLooksDefault: Bool {
         let height = settings?.heightCm ?? 0
