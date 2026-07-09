@@ -513,28 +513,26 @@ struct SleepLogEntryView: View {
     }
 
     private func save() {
+        // Always inserts a new log, on purpose — never overwrites an
+        // existing one for the same calendar night. An earlier version of
+        // this matched by night and updated in place, which sounds like a
+        // convenience but is actually a silent, unconfirmed overwrite: it
+        // destroyed a just-restored night's real data the moment a new log
+        // happened to land on the same calendar day (e.g. an early-morning
+        // entry). This app's rule is that nothing gets deleted or replaced
+        // without the user seeing it happen — see distinctNights, which
+        // instead makes "latest"/average/count correct at display time
+        // without ever mutating the store, and Recent Logs' manual delete
+        // for genuinely resolving a duplicate.
         let hours = durationHours
         let day = sleepStart.startOfDay
         let sameDayNaps = naps.filter { $0.date == day }
         let result = SleepScoringService.score(sleepStart: sleepStart, sleepEnd: sleepEnd, wakeUps: wakeUps,
                                                history: logs, naps: sameDayNaps, date: sleepStart)
-        // Logging sleep again for a night that already has an entry corrects
-        // it in place, rather than inserting a second log for the same
-        // night — which left it ambiguous (and, in practice, wrong) which
-        // one the dashboard's "latest" queries would show.
-        if let existing = logs.first(where: { $0.date == day }) {
-            existing.sleepStart = sleepStart
-            existing.sleepEnd = sleepEnd
-            existing.wakeUps = wakeUps
-            existing.durationHours = hours
-            existing.notes = notes
-            SleepScoringService.apply(result, to: existing)
-        } else {
-            let log = SleepLog(date: day, sleepStart: sleepStart, sleepEnd: sleepEnd,
-                               wakeUps: wakeUps, durationHours: hours, notes: notes)
-            SleepScoringService.apply(result, to: log)
-            context.insert(log)
-        }
+        let log = SleepLog(date: day, sleepStart: sleepStart, sleepEnd: sleepEnd,
+                           wakeUps: wakeUps, durationHours: hours, notes: notes)
+        SleepScoringService.apply(result, to: log)
+        context.insert(log)
         dismiss()
     }
 }
