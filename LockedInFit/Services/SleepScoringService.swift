@@ -51,6 +51,21 @@ enum SleepScoringService {
         return interval / 3600
     }
 
+    /// The calendar night an overnight sleep session belongs to. A very
+    /// late bedtime — after midnight through the small hours — still reads
+    /// as last night's sleep, not the start of a new day: going to bed at
+    /// 2am is going to bed late, not beginning a fresh day at 2am. 4:00am
+    /// is the cutoff; `sleepStart` at or before 4:00am counts as the
+    /// previous calendar day. This is what `SleepLog.date` (and the
+    /// consistency-history comparison below) should always be derived
+    /// from, not a plain `.startOfDay` on the raw timestamp.
+    static func nightDate(for sleepStart: Date) -> Date {
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: sleepStart)
+        let minutesSinceMidnight = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+        let day = sleepStart.startOfDay
+        return minutesSinceMidnight <= 4 * 60 ? day.daysAgo(1) : day
+    }
+
     /// - Parameters:
     ///   - naps: this same calendar day's naps (see NapLog.date).
     ///   - date: the night this log belongs to (defaults to now); used only
@@ -81,7 +96,7 @@ enum SleepScoringService {
         // last up-to-7 prior nights. Needs 3+ prior nights to be meaningful.
         let startMinutes = minutesSinceMidnight(sleepStart)
         let priorMinutes = history
-            .filter { $0.date < date.startOfDay }
+            .filter { $0.date < nightDate(for: date) }
             .sorted { $0.date < $1.date }
             .suffix(7)
             .map { minutesSinceMidnight($0.sleepStart) }
@@ -157,8 +172,17 @@ enum SleepScoringService {
     /// current naps. Idempotent, so it's safe to run on every launch — logs
     /// whose stored score/explanations were computed under a past scoring
     /// bug self-heal here instead of needing a one-off data migration.
+    /// Also re-derives `date` from `sleepStart` via `nightDate(for:)` first
+    /// (before matching naps, so a corrected date pulls the right day's
+    /// naps too) — a log from before the 4am night-boundary rule existed,
+    /// e.g. a very late bedtime that used to file under the wrong day,
+    /// corrects itself here the same way a stale score does. Reassigning
+    /// `date` never deletes anything; if it now lands on the same night as
+    /// another log, that's a normal duplicate-night case Recent Logs
+    /// already handles (see distinctNights, manual delete).
     static func repairAll(logs: [SleepLog], naps: [NapLog]) {
         for log in logs {
+            log.date = nightDate(for: log.sleepStart)
             let dayNaps = naps.filter { $0.date == log.date }
             recompute(log, history: logs, naps: dayNaps)
         }

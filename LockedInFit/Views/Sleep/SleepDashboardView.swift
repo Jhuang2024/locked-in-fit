@@ -525,7 +525,7 @@ struct SleepLogEntryView: View {
         // without ever mutating the store, and Recent Logs' manual delete
         // for genuinely resolving a duplicate.
         let hours = durationHours
-        let day = sleepStart.startOfDay
+        let day = SleepScoringService.nightDate(for: sleepStart)
         let sameDayNaps = naps.filter { $0.date == day }
         let result = SleepScoringService.score(sleepStart: sleepStart, sleepEnd: sleepEnd, wakeUps: wakeUps,
                                                history: logs, naps: sameDayNaps, date: sleepStart)
