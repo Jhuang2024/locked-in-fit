@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Everything needed to add one exercise to a workout, whether it came from a
 /// library pick or a free-text description. The single currency of the unified
@@ -12,12 +13,46 @@ struct ExerciseDraft {
     var reps: Int
     /// kg, matching WorkoutSet storage. For dumbbell work this is per hand.
     var weightKg: Double
+    /// Seconds, for timed work (movementPattern == .conditioning).
+    var durationSeconds: Double = 0
+    /// Meters, for distance-based conditioning work.
+    var distanceMeters: Double = 0
+    var restSeconds: Int = 90
+    var targetRPE: Double = 8
     /// True when the draft is (or exactly matched) a built-in library exercise.
     var matchedLibrary: Bool
+    /// True when the draft matched a saved exercise preset by name — its
+    /// saved prescription was used instead of a generic default or a fresh
+    /// AI estimate for this exercise. See ExercisePresetSyncService.
+    var matchedPreset: Bool = false
     var notes: String = ""
 
-    static func from(library exercise: LibraryExercise) -> ExerciseDraft {
-        ExerciseDraft(name: exercise.name,
+    /// A saved preset's own numbers win over both the generic library
+    /// default (1 set × 8 reps, no weight) and a fresh AI estimate for the
+    /// same exercise name — a prescription you've already logged before is
+    /// more trustworthy than a guess.
+    static func from(preset: ExercisePreset) -> ExerciseDraft {
+        ExerciseDraft(name: preset.name,
+                     muscleGroups: preset.muscleGroups,
+                     movementPattern: preset.movementPattern,
+                     equipment: preset.equipment,
+                     setCount: preset.setCount,
+                     reps: preset.reps,
+                     weightKg: preset.weightKg,
+                     durationSeconds: preset.durationSeconds,
+                     distanceMeters: preset.distanceMeters,
+                     restSeconds: preset.restSeconds,
+                     targetRPE: preset.targetRPE,
+                     matchedLibrary: false,
+                     matchedPreset: true,
+                     notes: preset.notes)
+    }
+
+    static func from(library exercise: LibraryExercise, presets: [ExercisePreset] = []) -> ExerciseDraft {
+        if let preset = ExercisePresetSyncService.matchingPreset(named: exercise.name, in: presets) {
+            return .from(preset: preset)
+        }
+        return ExerciseDraft(name: exercise.name,
                       muscleGroups: exercise.muscles,
                       movementPattern: exercise.pattern,
                       equipment: exercise.equipment,
@@ -38,7 +73,12 @@ struct ExerciseDraft {
     /// From an AI (or mock) ExerciseEstimate: maps its raw enum strings back
     /// with safe fallbacks, and re-checks the library so a name the model
     /// phrased slightly differently still resolves to the canonical entry.
-    static func from(estimate: ExerciseEstimate) -> ExerciseDraft {
+    /// A saved preset matching the estimated name takes priority over both
+    /// of those, per `from(preset:)`.
+    static func from(estimate: ExerciseEstimate, presets: [ExercisePreset] = []) -> ExerciseDraft {
+        if let preset = ExercisePresetSyncService.matchingPreset(named: estimate.name, in: presets) {
+            return .from(preset: preset)
+        }
         let pattern = MovementPattern(rawValue: estimate.movementPattern) ?? .horizontalPush
         let equipment = Equipment(rawValue: estimate.equipment) ?? .dumbbell
         let muscles = estimate.muscleGroups.compactMap { MuscleGroup(rawValue: $0) }

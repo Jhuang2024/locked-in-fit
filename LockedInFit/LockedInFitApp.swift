@@ -37,7 +37,7 @@ struct LockedInFitApp: App {
                     MealLog.self, FoodItem.self, FoodPreset.self,
                     BodyWeightEntry.self, BodyFatEntry.self, MeasurementEntry.self,
                     ProgressPhoto.self, StepEntry.self, ActiveEnergyEntry.self, Goal.self,
-                    Workout.self, Exercise.self, WorkoutSet.self,
+                    Workout.self, Exercise.self, WorkoutSet.self, ExercisePreset.self,
                     StrengthScore.self, UserSettings.self, HealthScan.self,
                     AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
                     WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,

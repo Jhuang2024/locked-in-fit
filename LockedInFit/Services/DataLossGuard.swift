@@ -67,6 +67,7 @@ enum DataLossGuard {
         return count(MealLog.self) + count(FoodPreset.self) + count(BodyWeightEntry.self)
             + count(BodyFatEntry.self) + count(MeasurementEntry.self) + count(StepEntry.self)
             + count(ActiveEnergyEntry.self) + count(Goal.self) + count(Workout.self)
+            + count(ExercisePreset.self)
             + count(ProgressPhoto.self) + count(DailyChecklistItem.self) + count(SleepLog.self)
             + count(NapLog.self) + count(StrengthScore.self) + count(AppearanceCheckIn.self)
             + count(AppearanceSuggestion.self) + count(WorkoutSchedule.self) + count(HealthScan.self)

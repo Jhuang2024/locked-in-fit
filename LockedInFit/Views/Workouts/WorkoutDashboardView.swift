@@ -13,6 +13,9 @@ struct WorkoutDashboardView: View {
     @State private var showGenerator = false
     @State private var showScheduleGenerator = false
     @State private var activeWorkout: Workout?
+    /// True when `activeWorkout` was just created via createBlankWorkout()
+    /// and hasn't been saved yet — see WorkoutLogView's Cancel/Save toolbar.
+    @State private var activeWorkoutIsDraft = false
 
     private var history: [Workout] { workouts.filter { !$0.isTemplate } }
     private var templates: [Workout] { workouts.filter(\.isTemplate) }
@@ -171,10 +174,17 @@ struct WorkoutDashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Training")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink(destination: ExercisePresetsView()) {
+                    Image(systemName: "list.bullet.clipboard")
+                }
+            }
+        }
         .sheet(isPresented: $showGenerator) { WorkoutGeneratorView() }
         .sheet(isPresented: $showScheduleGenerator) { WorkoutScheduleGeneratorView() }
         .sheet(item: $activeWorkout) { workout in
-            NavigationStack { WorkoutLogView(workout: workout) }
+            NavigationStack { WorkoutLogView(workout: workout, isDraft: activeWorkoutIsDraft) }
         }
     }
 
@@ -228,14 +238,17 @@ struct WorkoutDashboardView: View {
     }
 
     private func startSession(_ session: WorkoutScheduleSession) {
+        activeWorkoutIsDraft = false
         activeWorkout = WorkoutScheduleGeneratorService.workout(
             for: session, existingWorkouts: history, context: context)
     }
 
     private func createBlankWorkout() {
-        let workout = Workout(date: .now, title: "Workout", type: .custom)
-        context.insert(workout)
-        activeWorkout = workout
+        // Not inserted here — only Save/Finish in WorkoutLogView commits a
+        // blank workout to the store, so backing out via Cancel never
+        // leaves a stray entry in history.
+        activeWorkoutIsDraft = true
+        activeWorkout = Workout(date: .now, title: "Workout", type: .custom)
     }
 
     private func startFromTemplate(_ template: Workout) {

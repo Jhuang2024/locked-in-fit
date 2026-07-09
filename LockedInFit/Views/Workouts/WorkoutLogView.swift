@@ -4,16 +4,24 @@ import SwiftData
 /// Log sets for a workout; finishing recomputes strength scores and celebrates PRs.
 struct WorkoutLogView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query private var strengthScores: [StrengthScore]
     @Query(filter: #Predicate<Workout> { !$0.isTemplate }) private var allWorkouts: [Workout]
     @Query private var settingsList: [UserSettings]
+    @Query(sort: \ExercisePreset.name) private var exercisePresets: [ExercisePreset]
 
     @Bindable var workout: Workout
     /// `.log` drives a live logging session (with a Finish button); `.edit`
     /// reuses the same form to amend an already-completed workout, with saving
     /// handled by the presenting editor instead.
     var mode: Mode = .log
+    /// True for a freshly created workout that hasn't been inserted into the
+    /// model context yet (a blank workout just started) — gates the
+    /// Cancel/Save toolbar so starting one and backing out never leaves a
+    /// stray entry in history. Seeds `isDraft`'s @State via the custom init
+    /// below so Save/Finish can flip it off after committing the workout.
+    @State private var isDraft: Bool
     @State private var prMessages: [String] = []
     @State private var showPRCelebration = false
     @State private var showAddExercise = false
@@ -25,6 +33,12 @@ struct WorkoutLogView: View {
     private var settings: UserSettings? { settingsList.first }
 
     enum Mode { case log, edit }
+
+    init(workout: Workout, mode: Mode = .log, isDraft: Bool = false) {
+        self.workout = workout
+        self.mode = mode
+        self._isDraft = State(initialValue: isDraft)
+    }
 
     var body: some View {
         Form {
@@ -116,13 +130,23 @@ struct WorkoutLogView: View {
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDoneToolbar()
+        .toolbar {
+            if isDraft {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { saveDraft() }
+                }
+            }
+        }
         .sheet(isPresented: $showAddExercise) {
-            ExercisePickerView { draft in
+            ExercisePickerView(presets: exercisePresets) { draft in
                 addExercise(from: draft)
             }
         }
         .sheet(isPresented: $showDescribeExercise) {
-            DescribeExerciseView { draft in
+            DescribeExerciseView(presets: exercisePresets) { draft in
                 addExercise(from: draft)
             }
         }
@@ -140,29 +164,61 @@ struct WorkoutLogView: View {
                                 movementPattern: draft.movementPattern,
                                 equipment: draft.equipment,
                                 order: workout.exerciseList.count,
+                                restSeconds: draft.restSeconds,
+                                targetRPE: draft.targetRPE,
                                 notes: draft.notes)
         for index in 0..<max(1, draft.setCount) {
-            exercise.sets?.append(WorkoutSet(order: index, reps: draft.reps, weight: draft.weightKg))
+            exercise.sets?.append(WorkoutSet(order: index, reps: draft.reps, weight: draft.weightKg,
+                                             duration: draft.durationSeconds, distance: draft.distanceMeters))
         }
         workout.exercises?.append(exercise)
     }
 
+    /// Commits a blank/new workout to history and closes the sheet — the
+    /// explicit, opt-in counterpart to Cancel. Never called for a workout
+    /// that's already saved (isDraft false), since the toolbar buttons only
+    /// show while it's still a draft.
+    private func saveDraft() {
+        context.insert(workout)
+        ExercisePresetSyncService.addMissingPresets(for: workout.exerciseList, existingPresets: exercisePresets, context: context)
+        isDraft = false
+        dismiss()
+    }
+
     /// Removes the exercise (and, via its cascade delete rule, its sets) from
-    /// this workout entirely.
+    /// this workout entirely. While the workout is still an unsaved draft,
+    /// the exercise was never inserted into the context in the first place
+    /// (see addExercise/saveDraft), so detaching it from the array alone is
+    /// enough — calling context.delete on an object the context never
+    /// tracked has nothing meaningful to do.
     private func deleteExercise(_ exercise: Exercise) {
         workout.exercises?.removeAll { $0.persistentModelID == exercise.persistentModelID }
+        guard !isDraft else { return }
         context.delete(exercise)
     }
 
     private func finishWorkout() async {
+        // Finishing unambiguously means "keep this workout" — commits a
+        // still-draft workout instead of requiring a separate Save tap first.
+        if isDraft {
+            context.insert(workout)
+            isDraft = false
+        }
         workout.completed = true
         if workout.caloriesBurned <= 0 {
             await estimateCaloriesFromWorkout()
         }
         detectPRs()
         let bodyweight = weights.last?.weightKg ?? 75
-        StrengthScoreCalculator.recompute(workouts: allWorkouts, bodyWeightKg: bodyweight,
+        // allWorkouts is a @Query result that may not have caught up yet if
+        // `workout` was only just inserted above in this same call — build
+        // the list explicitly so today's session is never silently excluded
+        // from its own strength-score recompute.
+        let workoutsForScoring = allWorkouts.contains { $0.persistentModelID == workout.persistentModelID }
+            ? allWorkouts : allWorkouts + [workout]
+        StrengthScoreCalculator.recompute(workouts: workoutsForScoring, bodyWeightKg: bodyweight,
                                           existing: strengthScores, context: context)
+        ExercisePresetSyncService.addMissingPresets(for: workout.exerciseList, existingPresets: exercisePresets, context: context)
     }
 
     /// Compare each exercise's best e1RM today vs all previous history.
@@ -303,6 +359,7 @@ private struct ExerciseSectionView: View {
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
+    var presets: [ExercisePreset] = []
     let onAdd: (ExerciseDraft) -> Void
 
     private var filtered: [LibraryExercise] {
@@ -315,7 +372,7 @@ struct ExercisePickerView: View {
         NavigationStack {
             List(filtered) { exercise in
                 Button {
-                    onAdd(.from(library: exercise))
+                    onAdd(.from(library: exercise, presets: presets))
                     dismiss()
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -324,6 +381,11 @@ struct ExercisePickerView: View {
                         Text("\(exercise.pattern.label) · \(exercise.equipment.label)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if let preset = ExercisePresetSyncService.matchingPreset(named: exercise.name, in: presets) {
+                            Text("Saved: \(ExerciseDraft.from(preset: preset).prescriptionSummary)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
@@ -350,6 +412,7 @@ struct DescribeExerciseView: View {
     @State private var analyzing = false
     @State private var analyzeError: String?
     @State private var draft: ExerciseDraft?
+    var presets: [ExercisePreset] = []
     let onAdd: (ExerciseDraft) -> Void
 
     private var settings: UserSettings? { settingsList.first }
@@ -393,7 +456,9 @@ struct DescribeExerciseView: View {
                             Text("\(draft.prescriptionSummary) · \(draft.movementPattern.label) · \(draft.equipment.label)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text(draft.matchedLibrary
+                            Text(draft.matchedPreset
+                                 ? "Matched to your saved preset"
+                                 : draft.matchedLibrary
                                  ? "Matched to the exercise library"
                                  : "Will be saved as a custom exercise")
                                 .font(.caption2)
@@ -433,7 +498,7 @@ struct DescribeExerciseView: View {
                 let service = AIServiceFactory.makeExerciseAnalyzer(settings: settings)
                 let analysisContext = ExerciseAnalysisContext(units: settings?.units ?? .metric)
                 let estimate = try await service.analyzeExercise(description: text, context: analysisContext)
-                draft = .from(estimate: estimate)
+                draft = .from(estimate: estimate, presets: presets)
             } catch {
                 analyzeError = error.localizedDescription
             }

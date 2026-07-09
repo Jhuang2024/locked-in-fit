@@ -129,6 +129,71 @@ final class WorkoutSet {
     }
 }
 
+/// A saved exercise, analogous to FoodPreset: everything usually logged for
+/// a pre-existing exercise (its classification plus a typical prescription),
+/// so re-adding the same exercise later — by picking it or describing it —
+/// doesn't require re-entering or re-estimating the same numbers. Built
+/// automatically from what's actually logged (see ExercisePresetSyncService)
+/// as well as manually from the Exercise Presets screen.
+@Model
+final class ExercisePreset {
+    var name: String = ""
+    var muscleGroupsRaw: [String] = []
+    var movementPatternRaw: String = MovementPattern.horizontalPush.rawValue
+    var equipmentRaw: String = Equipment.barbell.rawValue
+    var restSeconds: Int = 90
+    var targetRPE: Double = 8
+    var notes: String = ""
+    /// Typical prescription applied when this preset is added to a workout.
+    var setCount: Int = 3
+    var reps: Int = 8
+    /// kg
+    var weightKg: Double = 0
+    /// Seconds, for timed work (movementPattern == .conditioning).
+    var durationSeconds: Double = 0
+    /// Meters, for distance-based conditioning work.
+    var distanceMeters: Double = 0
+
+    var movementPattern: MovementPattern {
+        get { MovementPattern(rawValue: movementPatternRaw) ?? .horizontalPush }
+        set { movementPatternRaw = newValue.rawValue }
+    }
+    var equipment: Equipment {
+        get { Equipment(rawValue: equipmentRaw) ?? .barbell }
+        set { equipmentRaw = newValue.rawValue }
+    }
+    var muscleGroups: [MuscleGroup] {
+        get { muscleGroupsRaw.compactMap { MuscleGroup(rawValue: $0) } }
+        set { muscleGroupsRaw = newValue.map(\.rawValue) }
+    }
+
+    init(name: String,
+         muscleGroups: [MuscleGroup] = [],
+         movementPattern: MovementPattern,
+         equipment: Equipment,
+         restSeconds: Int = 90,
+         targetRPE: Double = 8,
+         notes: String = "",
+         setCount: Int = 3,
+         reps: Int = 8,
+         weightKg: Double = 0,
+         durationSeconds: Double = 0,
+         distanceMeters: Double = 0) {
+        self.name = name
+        self.muscleGroupsRaw = muscleGroups.map(\.rawValue)
+        self.movementPatternRaw = movementPattern.rawValue
+        self.equipmentRaw = equipment.rawValue
+        self.restSeconds = restSeconds
+        self.targetRPE = targetRPE
+        self.notes = notes
+        self.setCount = setCount
+        self.reps = reps
+        self.weightKg = weightKg
+        self.durationSeconds = durationSeconds
+        self.distanceMeters = distanceMeters
+    }
+}
+
 @Model
 final class StrengthScore {
     var movementRaw: String = MovementPattern.squat.rawValue

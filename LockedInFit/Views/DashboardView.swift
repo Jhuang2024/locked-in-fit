@@ -51,6 +51,9 @@ struct DashboardView: View {
     @State private var newWeight = ""
     @State private var healthKit = HealthKitManager.shared
     @State private var activeWorkout: Workout?
+    /// True when `activeWorkout` was just created via createBlankWorkout()
+    /// and hasn't been saved yet — see WorkoutLogView's Cancel/Save toolbar.
+    @State private var activeWorkoutIsDraft = false
     @State private var actionTick = 0
     @State private var showCalorieDetails = false
 
@@ -140,7 +143,7 @@ struct DashboardView: View {
             .sheet(isPresented: $showAddMeal) { AddMealView() }
             .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
             .sheet(item: $activeWorkout) { workout in
-                NavigationStack { WorkoutLogView(workout: workout) }
+                NavigationStack { WorkoutLogView(workout: workout, isDraft: activeWorkoutIsDraft) }
             }
             .alert("Log Weigh-In", isPresented: $showLogWeight) {
                 TextField("Weight (kg)", text: $newWeight)
@@ -665,6 +668,7 @@ struct DashboardView: View {
             completedWorkouts: completedWorkouts,
             onStartSession: { session in
                 actionTick += 1
+                activeWorkoutIsDraft = false
                 activeWorkout = WorkoutScheduleGeneratorService.workout(
                     for: session, existingWorkouts: allWorkouts, context: context)
             },
@@ -794,8 +798,10 @@ struct DashboardView: View {
     }
 
     private func createBlankWorkout() {
-        let workout = Workout(date: .now, title: "Workout", type: .custom)
-        context.insert(workout)
-        activeWorkout = workout
+        // Not inserted here — only Save/Finish in WorkoutLogView commits a
+        // blank workout to the store, so backing out via Cancel never
+        // leaves a stray entry in history.
+        activeWorkoutIsDraft = true
+        activeWorkout = Workout(date: .now, title: "Workout", type: .custom)
     }
 }

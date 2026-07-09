@@ -22,6 +22,7 @@ enum ExportImportService {
         var activeEnergy: [ActiveEnergyDTO] = []
         var goals: [GoalDTO] = []
         var workouts: [WorkoutDTO] = []
+        var exercisePresets: [ExercisePresetDTO] = []
         var progressPhotos: [ProgressPhotoDTO] = []
         var checklistItems: [ChecklistItemDTO] = []
         var sleepLogs: [SleepLogDTO] = []
@@ -37,7 +38,7 @@ enum ExportImportService {
 
         private enum CodingKeys: String, CodingKey {
             case exportedAt, meals, presets, weights, bodyFats, measurements, steps, activeEnergy,
-                 goals, workouts, progressPhotos, checklistItems, sleepLogs, napLogs, strengthScores,
+                 goals, workouts, exercisePresets, progressPhotos, checklistItems, sleepLogs, napLogs, strengthScores,
                  appearanceCheckIns, appearanceSuggestions, workoutSchedules, healthScans, userSettings
         }
 
@@ -53,6 +54,7 @@ enum ExportImportService {
             activeEnergy = (try? c.decode([ActiveEnergyDTO].self, forKey: .activeEnergy)) ?? []
             goals = (try? c.decode([GoalDTO].self, forKey: .goals)) ?? []
             workouts = (try? c.decode([WorkoutDTO].self, forKey: .workouts)) ?? []
+            exercisePresets = (try? c.decode([ExercisePresetDTO].self, forKey: .exercisePresets)) ?? []
             progressPhotos = (try? c.decode([ProgressPhotoDTO].self, forKey: .progressPhotos)) ?? []
             checklistItems = (try? c.decode([ChecklistItemDTO].self, forKey: .checklistItems)) ?? []
             sleepLogs = (try? c.decode([SleepLogDTO].self, forKey: .sleepLogs)) ?? []
@@ -70,7 +72,8 @@ enum ExportImportService {
         /// allowed to overwrite or rotate out a non-empty backup.
         var totalRecordCount: Int {
             meals.count + presets.count + weights.count + bodyFats.count + measurements.count
-                + steps.count + activeEnergy.count + goals.count + workouts.count + progressPhotos.count
+                + steps.count + activeEnergy.count + goals.count + workouts.count + exercisePresets.count
+                + progressPhotos.count
                 + checklistItems.count + sleepLogs.count + napLogs.count + strengthScores.count
                 + appearanceCheckIns.count + appearanceSuggestions.count + workoutSchedules.count
                 + healthScans.count
@@ -128,6 +131,13 @@ enum ExportImportService {
             var order: Int; var reps: Int; var weight: Double; var duration: Double
             var distance: Double; var rpe: Double; var completed: Bool
         }
+    }
+
+    struct ExercisePresetDTO: Codable {
+        var name: String; var pattern: String; var equipment: String; var muscles: [String]
+        var restSeconds: Int; var targetRPE: Double; var notes: String
+        var setCount: Int; var reps: Int; var weightKg: Double
+        var durationSeconds: Double; var distanceMeters: Double
     }
 
     struct ActiveEnergyDTO: Codable { var date: Date; var calories: Double; var source: String }
@@ -379,6 +389,12 @@ enum ExportImportService {
                                  })
                        })
         }
+        snapshot.exercisePresets = try context.fetch(FetchDescriptor<ExercisePreset>()).map {
+            ExercisePresetDTO(name: $0.name, pattern: $0.movementPatternRaw, equipment: $0.equipmentRaw,
+                              muscles: $0.muscleGroupsRaw, restSeconds: $0.restSeconds, targetRPE: $0.targetRPE,
+                              notes: $0.notes, setCount: $0.setCount, reps: $0.reps, weightKg: $0.weightKg,
+                              durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters)
+        }
         return snapshot
     }
 
@@ -570,6 +586,23 @@ enum ExportImportService {
                 workout.exercises?.append(exercise)
             }
             context.insert(workout); count += 1
+        }
+        var existingExercisePresetNames = Set((try? context.fetch(FetchDescriptor<ExercisePreset>()))?.map {
+            $0.name.lowercased()
+        } ?? [])
+        for p in snapshot.exercisePresets {
+            let key = p.name.lowercased()
+            guard !key.isEmpty, !existingExercisePresetNames.contains(key) else { continue }
+            existingExercisePresetNames.insert(key)
+            context.insert(ExercisePreset(
+                name: p.name,
+                muscleGroups: p.muscles.compactMap { MuscleGroup(rawValue: $0) },
+                movementPattern: MovementPattern(rawValue: p.pattern) ?? .horizontalPush,
+                equipment: Equipment(rawValue: p.equipment) ?? .barbell,
+                restSeconds: p.restSeconds, targetRPE: p.targetRPE, notes: p.notes,
+                setCount: p.setCount, reps: p.reps, weightKg: p.weightKg,
+                durationSeconds: p.durationSeconds, distanceMeters: p.distanceMeters))
+            count += 1
         }
         var existingActiveEnergySignatures = Set((try? context.fetch(FetchDescriptor<ActiveEnergyEntry>()))?.map {
             "\(sec($0.date))|\($0.sourceRaw)"
