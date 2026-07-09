@@ -146,7 +146,15 @@ enum BackupService {
     /// Second tuple element is false for the dedupe no-op path (an existing
     /// backup's URL handed back, nothing written) — callers use that to
     /// decide whether the throttle clock should reset.
-    static func performBackup(context: ModelContext) -> (url: URL?, wrote: Bool) {
+    ///
+    /// `forceFreshTimestamp` only matters on the dedupe path: when true, the
+    /// existing (content-identical) backup's index entry is bumped to now
+    /// instead of left untouched. Only the explicit manual "Backup Now" tap
+    /// sets this — the user asked for a backup right now and expects to see
+    /// that confirmed, whereas an automatic/background trigger with nothing
+    /// new to capture should stay silent so "Latest backup" keeps meaning
+    /// "when data was last actually captured," not "when the app last woke up."
+    static func performBackup(context: ModelContext, forceFreshTimestamp: Bool = false) -> (url: URL?, wrote: Bool) {
         guard let snapshot = PerfLog.measure("backup.snapshot", { try? ExportImportService.makeSnapshot(context: context) }) else {
             return (nil, false)
         }
@@ -165,6 +173,11 @@ enum BackupService {
         if let hash, hash == UserDefaults.standard.string(forKey: lastBackupHashKey),
            let newest = existingIndex.max(by: { $0.date < $1.date }) {
             PerfLog.event("backup.unchanged")
+            if forceFreshTimestamp, let index = existingIndex.firstIndex(where: { $0.filename == newest.filename }) {
+                var updatedIndex = existingIndex
+                updatedIndex[index].date = .now
+                writeIndex(updatedIndex)
+            }
             return (backupsDirectory.appendingPathComponent(newest.filename), false)
         }
 
@@ -459,17 +472,21 @@ private actor BackupCoordinator {
 
     func backupManually(container: ModelContainer) async -> URL? {
         guard !isRunning else { return nil }
-        return await runBackup(container: container)
+        // The user explicitly asked for a backup right now; even when
+        // there's nothing new to capture, the existing backup's timestamp
+        // should be bumped so "Latest backup" confirms the tap did
+        // something instead of silently reusing a stale date.
+        return await runBackup(container: container, forceFreshTimestamp: true)
     }
 
     @discardableResult
-    private func runBackup(container: ModelContainer) async -> URL? {
+    private func runBackup(container: ModelContainer, forceFreshTimestamp: Bool = false) async -> URL? {
         isRunning = true
         defer { isRunning = false }
         PerfLog.event("backup.started")
         let actor = backupActor ?? BackupActor(modelContainer: container)
         backupActor = actor
-        let (url, wroteNewBackup) = await actor.backupNow()
+        let (url, wroteNewBackup) = await actor.backupNow(forceFreshTimestamp: forceFreshTimestamp)
         PerfLog.event("backup.finished")
         // Only a real write resets the throttle window. A dedupe no-op
         // (content unchanged since the last backup) still returns the
@@ -490,8 +507,8 @@ private actor BackupCoordinator {
 /// main context; nothing here ever touches `container.mainContext`.
 @ModelActor
 actor BackupActor {
-    func backupNow() -> (url: URL?, wrote: Bool) {
-        BackupService.performBackup(context: modelContext)
+    func backupNow(forceFreshTimestamp: Bool = false) -> (url: URL?, wrote: Bool) {
+        BackupService.performBackup(context: modelContext, forceFreshTimestamp: forceFreshTimestamp)
     }
 }
 
