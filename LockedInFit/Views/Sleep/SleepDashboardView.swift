@@ -28,6 +28,9 @@ struct SleepDashboardView: View {
         guard !recent.isEmpty else { return nil }
         return recent.reduce(0) { $0 + $1.durationHours } / Double(recent.count)
     }
+    private var averageTimes: (bedtime: String?, wake: String?) {
+        SleepScoringService.averageTimes(for: Array(distinctLogs.prefix(7)))
+    }
     private var todayNaps: [NapLog] { naps.filter { $0.date.isToday } }
 
     var body: some View {
@@ -35,6 +38,9 @@ struct SleepDashboardView: View {
             VStack(spacing: 14) {
                 scoreCard
                 statsCard
+                if !logs.isEmpty {
+                    sleepTimesCard
+                }
                 actionButtons
                 if !todayNaps.isEmpty {
                     todayNapsCard
@@ -101,6 +107,12 @@ struct SleepDashboardView: View {
                 StatChip(label: "Avg 7-night", value: avgDurationHours.map { "\(Formatters.trimmed($0))h" } ?? "N/A")
                 StatChip(label: "Logs", value: "\(distinctLogs.count)")
             }
+        }
+    }
+
+    private var sleepTimesCard: some View {
+        DashboardCard(title: "Sleep Times", systemImage: "clock") {
+            SleepTimesTable(bedtime: averageTimes.bedtime, wake: averageTimes.wake)
         }
     }
 

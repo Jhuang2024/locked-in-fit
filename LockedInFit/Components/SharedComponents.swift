@@ -359,6 +359,42 @@ struct StatChip: View {
     }
 }
 
+// MARK: - SleepTimesTable
+
+/// Two-row table of average bedtime/wake time (see
+/// SleepScoringService.averageTimes), shared by the Today dashboard, the
+/// Sleep page, and Sleep Trends so all three read the same values the same
+/// way. Missing values show as "N/A" rather than hiding the row, so the
+/// table's shape doesn't shift as data fills in.
+struct SleepTimesTable: View {
+    let bedtime: String?
+    let wake: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            row(label: "Avg Bedtime", value: bedtime, icon: "moon.fill")
+            Divider().padding(.leading, 30)
+            row(label: "Avg Wake Time", value: wake, icon: "sun.max.fill")
+        }
+    }
+
+    private func row(label: String, value: String?, icon: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+            Text(label)
+                .font(.subheadline)
+            Spacer()
+            Text(value ?? "N/A")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(value == nil ? .secondary : .primary)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
 // MARK: - SectionLabel
 
 /// Small caps section label for use above groups of cards or list sections,

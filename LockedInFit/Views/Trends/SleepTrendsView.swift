@@ -92,13 +92,8 @@ struct SleepTrendsView: View {
             ChartCard(title: "Sleep Duration", subtitle: "Hours asleep per night · 7–9h is the target range") {
                 Chart {
                     ForEach(Array(durationPoints.enumerated()), id: \.offset) { _, point in
-                        LineMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
+                        BarMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
                             .foregroundStyle(.teal)
-                            .lineStyle(StrokeStyle(lineWidth: 2.5))
-                            .interpolationMethod(.monotone)
-                        PointMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
-                            .foregroundStyle(Color.teal.opacity(0.5))
-                            .symbolSize(24)
                     }
                 }
                 .id("duration-\(windowDays)")
@@ -142,6 +137,10 @@ struct SleepTrendsView: View {
                     StatChip(label: "Avg duration", value: "\(Formatters.trimmed(avgDuration))h")
                     StatChip(label: "Avg wake-ups", value: String(format: "%.1f", avgWakeUps))
                 }
+            }
+            let times = SleepScoringService.averageTimes(for: windowedLogs)
+            DashboardCard(title: "Sleep Times", systemImage: "clock") {
+                SleepTimesTable(bedtime: times.bedtime, wake: times.wake)
             }
         }
     }

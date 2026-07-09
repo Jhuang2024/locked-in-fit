@@ -223,6 +223,51 @@ enum SleepScoringService {
         return streak
     }
 
+    // MARK: - Average bedtime / wake time
+
+    /// Average bedtime and wake time across `logs`, formatted for display
+    /// ("11:24 PM"). `nil` when `logs` is empty. Shared by the Today
+    /// dashboard, the Sleep page, and Sleep Trends so all three always
+    /// agree; each screen decides its own window (e.g. the last 7 logs, or
+    /// a Trends time window) before calling this.
+    static func averageTimes(for logs: [SleepLog]) -> (bedtime: String?, wake: String?) {
+        let bedMinutes = logs.map { minutesSinceMidnight($0.sleepStart) }
+        let wakeMinutes = logs.map { minutesSinceMidnight($0.sleepEnd) }
+        return (circularMeanMinutes(bedMinutes).map(timeString(fromMinutesSinceMidnight:)),
+                circularMeanMinutes(wakeMinutes).map(timeString(fromMinutesSinceMidnight:)))
+    }
+
+    /// Circular mean of times-of-day (minutes since midnight, 0..<1440).
+    /// A plain arithmetic mean breaks across the midnight boundary — 11pm
+    /// (1380) and 1am (60) should average to ~midnight, not noon — so each
+    /// time is treated as an angle around a 24-hour clock and averaged as a
+    /// vector, the standard way to average clock times. `nil` for an empty
+    /// input.
+    private static func circularMeanMinutes(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        var sumSin = 0.0, sumCos = 0.0
+        for minutes in values {
+            let angle = minutes / 1440 * 2 * .pi
+            sumSin += sin(angle)
+            sumCos += cos(angle)
+        }
+        let meanAngle = atan2(sumSin / Double(values.count), sumCos / Double(values.count))
+        let normalized = meanAngle < 0 ? meanAngle + 2 * .pi : meanAngle
+        return normalized / (2 * .pi) * 1440
+    }
+
+    /// "11:24 PM" from minutes since midnight (0..<1440) — for a circular
+    /// mean, which has no real calendar date of its own to format from.
+    private static func timeString(fromMinutesSinceMidnight minutes: Double) -> String {
+        let wrapped = minutes.truncatingRemainder(dividingBy: 1440)
+        let normalized = wrapped < 0 ? wrapped + 1440 : wrapped
+        var comps = DateComponents()
+        comps.hour = Int(normalized) / 60
+        comps.minute = Int(normalized) % 60
+        let date = Calendar.current.date(from: comps) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
     // MARK: - Component formulas
 
     /// 0-40. Single peak at 9h (the top of the 7-9h "ideal" range), tapering

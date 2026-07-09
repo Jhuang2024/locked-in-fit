@@ -131,6 +131,10 @@ struct DashboardView: View {
     }
     private var latestSleepLog: SleepLog? { sleepLogs.first }
     private var sleepStreak: Int { SleepScoringService.streak(history: sleepLogs) }
+    private var sleepAverageTimes: (bedtime: String?, wake: String?) {
+        let distinct = SleepScoringService.distinctNights(sleepLogs)
+        return SleepScoringService.averageTimes(for: Array(distinct.prefix(7)))
+    }
 
     private var maintenance: Double {
         guard let settings else { return 2400 }
@@ -730,6 +734,8 @@ struct DashboardView: View {
                     Text("Log your bedtime and wake time to start tracking your sleep score.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } else {
+                    SleepTimesTable(bedtime: sleepAverageTimes.bedtime, wake: sleepAverageTimes.wake)
                 }
             }
         }
