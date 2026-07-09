@@ -252,7 +252,7 @@ enum BackupService {
         }
     }
 
-    /// The backup Settings' summary/"Latest backup" stat should show. Not
+    /// The backup Settings' "Most complete backup" stat shows. Not
     /// `latestBackup()` (local-only, newest-only): a "Backup Now" tap right
     /// before an update can be followed by a few more entries, then a
     /// backgrounding-triggered backup that captures them and mirrors to the
@@ -260,6 +260,19 @@ enum BackupService {
     /// only the mirror survives, and a local-only "latest" stat would show a
     /// smaller, staler count than what's actually safely backed up.
     static func mostCompleteBackup() -> BackupInfo? { allKnownBackups().first }
+
+    /// Every backup this device knows about (local + App Group mirrors),
+    /// sorted purely by recency rather than completeness. Settings shows
+    /// this as "Latest backup": `mostCompleteBackup()` is sorted by record
+    /// count first, so after a stretch of record-count churn (a wipe, a
+    /// partial restore) an older, larger backup can permanently outrank
+    /// every backup taken since — making a "Backup Now" tap look like it
+    /// did nothing, when a fresh backup genuinely was written. This is the
+    /// literal answer to "when did a backup last happen," independent of
+    /// how complete that backup was.
+    static func mostRecentBackup() -> BackupInfo? {
+        (listBackups() + appGroupMirrorBackups()).max { $0.date < $1.date }
+    }
 
     /// Restores a backup into `context`. Import is always additive (never
     /// deletes existing rows), so the only real guard needed is refusing to

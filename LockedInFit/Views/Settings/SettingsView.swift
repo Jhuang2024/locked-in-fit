@@ -65,6 +65,11 @@ struct SettingsView: View {
     /// sandbox is then replaced, only that mirror survives — a newest-LOCAL
     /// stat would under-report what's actually safely backed up.
     @State private var cachedLatestBackup: BackupService.BackupInfo?
+    /// The literal most recent backup by time, shown separately from
+    /// cachedLatestBackup (which is actually the *most complete* one, by
+    /// record count) — see BackupService.mostRecentBackup for why those
+    /// two can disagree and both need their own row.
+    @State private var cachedMostRecentBackup: BackupService.BackupInfo?
     /// Loaded once on appear, same reasoning as cachedLatestBackup above.
     /// Surfaces DataLossGuard's persisted incident log here — not gated to
     /// DEBUG — specifically so a data-loss event is visible from inside the
@@ -178,6 +183,7 @@ struct SettingsView: View {
                 weightInput = String(format: "%.1f", latestWeight.weightKg)
             }
             cachedLatestBackup = BackupService.mostCompleteBackup()
+            cachedMostRecentBackup = BackupService.mostRecentBackup()
             dataLossIncidents = DataLossGuard.recentIncidents()
         }
         .onDisappear {
@@ -350,6 +356,7 @@ struct SettingsView: View {
                     let saved = await BackupService.backupNowManually(container: context.container) != nil
                     backupResult = saved ? "Backup saved just now." : "Nothing to back up, or a backup was already running."
                     cachedLatestBackup = BackupService.mostCompleteBackup()
+                    cachedMostRecentBackup = BackupService.mostRecentBackup()
                     isBackingUp = false
                 }
             } label: {
@@ -366,9 +373,12 @@ struct SettingsView: View {
             NavigationLink(value: SettingsRoute.backups) {
                 Label("Restore From Backup", systemImage: "clock.arrow.circlepath")
             }
+            if let mostRecentBackup = cachedMostRecentBackup {
+                LabeledContent("Latest backup", value: Formatters.mediumDateTime(mostRecentBackup.date))
+            }
             if let latestBackup = cachedLatestBackup {
-                LabeledContent("Latest backup", value: Formatters.mediumDateTime(latestBackup.date))
-                LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
+                LabeledContent("Most complete backup", value: Formatters.mediumDateTime(latestBackup.date))
+                LabeledContent("Most complete backup records", value: "\(latestBackup.recordCount)")
             } else {
                 Text("No backups yet. Backups are also taken automatically as you use the app.")
                     .font(.caption)

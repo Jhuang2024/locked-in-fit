@@ -10,6 +10,7 @@ struct DiagnosticsView: View {
     @Environment(\.modelContext) private var context
     @State private var recordCount: Int?
     @State private var latestBackup: BackupService.BackupInfo?
+    @State private var mostCompleteBackup: BackupService.BackupInfo?
     @State private var backupCount = 0
 
     private var storeDirectory: URL? {
@@ -52,11 +53,14 @@ struct DiagnosticsView: View {
             Section("Backups") {
                 if let latestBackup {
                     LabeledContent("Latest backup", value: Formatters.mediumDateTime(latestBackup.date))
-                    LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
                 } else {
                     Text("No backups yet.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if let mostCompleteBackup {
+                    LabeledContent("Most complete backup", value: Formatters.mediumDateTime(mostCompleteBackup.date))
+                    LabeledContent("Most complete backup records", value: "\(mostCompleteBackup.recordCount)")
                 }
                 LabeledContent("Backups kept", value: "\(backupCount) / \(BackupService.maxBackupsKept)")
                 LabeledContent("Backups directory", value: BackupService.backupsDirectory.path)
@@ -77,7 +81,8 @@ struct DiagnosticsView: View {
     private func refresh() {
         recordCount = DataLossGuard.currentRecordCount(context: context)
         let backups = BackupService.listBackups()
-        latestBackup = backups.first
+        latestBackup = BackupService.mostRecentBackup()
+        mostCompleteBackup = BackupService.mostCompleteBackup()
         backupCount = backups.count
     }
 }
