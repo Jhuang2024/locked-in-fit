@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import SwiftData
+import UIKit
 
 /// Automatic and manual local backups of LockedInFit's own data, written as
 /// the same JSON snapshot `ExportImportService` already builds for manual
@@ -104,17 +105,38 @@ enum BackupService {
         await BackupCoordinator.shared.backupManually(container: container)
     }
 
-    /// Fire-and-forget backup when the app is backgrounded — the moment that
-    /// precedes an app update, the event local backups exist to survive.
-    /// Bypasses the debounce and throttle (backgrounding frequency is
-    /// bounded by the user), never blocks resigning active (all work runs on
-    /// the background actor), and the content-hash check inside
-    /// `performBackup` makes the no-changes case a cheap no-op, so ordinary
-    /// app switching doesn't churn out duplicate backups.
+    /// Backup fired when the app is backgrounded — the moment that precedes
+    /// an app update, the event local backups exist to survive. Bypasses
+    /// the debounce and throttle (backgrounding frequency is bounded by the
+    /// user), never blocks resigning active (all work runs on the
+    /// background actor), and the content-hash check inside `performBackup`
+    /// makes the no-changes case a cheap no-op, so ordinary app switching
+    /// doesn't churn out duplicate backups.
+    ///
+    /// Explicitly requests background execution time via
+    /// `beginBackgroundTask`. A plain fire-and-forget `Task.detached` here
+    /// was a real bug, not a theoretical one: switching to the App Store to
+    /// tap Update backgrounds this app immediately, and without an explicit
+    /// assertion, iOS is free to suspend the process before the detached
+    /// task ever gets scheduled — a change made moments before updating
+    /// could be backgrounded-but-never-actually-backed-up. The background
+    /// task tells iOS "give me a few seconds to finish," which is exactly
+    /// how long the backup (fetch + encode + write + mirror) actually takes.
+    /// `@MainActor`: the call site (LockedInFitApp's scenePhase onChange) is
+    /// already implicitly main-actor-isolated, and `token.begin` below must
+    /// run synchronously, inline, before `Task.detached` starts — making
+    /// that explicit here means the compiler enforces it instead of it just
+    /// happening to be true.
+    @MainActor
     static func backupOnBackgrounding(container: ModelContainer) {
         PerfLog.event("backup.background")
+        let token = BackgroundTaskToken()
+        token.begin(name: "LockedInFit.backup") {
+            PerfLog.event("backup.background.expired")
+        }
         Task.detached(priority: .utility) {
             _ = await BackupCoordinator.shared.backupManually(container: container)
+            token.end()
         }
     }
 
@@ -457,5 +479,43 @@ private actor BackupCoordinator {
 actor BackupActor {
     func backupNow() -> (url: URL?, wrote: Bool) {
         BackupService.performBackup(context: modelContext)
+    }
+}
+
+/// Wraps a `UIBackgroundTaskIdentifier` so begin/end can be called safely
+/// from several different contexts — the caller (main actor), the
+/// expiration handler (calling thread not documented/guaranteed), and the
+/// backup Task's own completion (a detached background task) — without
+/// racing on the stored ID, double-ending it, or requiring every caller to
+/// already be on the main actor. `begin` runs on the main actor directly
+/// (called synchronously from `backupOnBackgrounding`, itself `@MainActor`,
+/// before the detached backup Task starts, so `id` is always set before
+/// anything could try to end it). `end` is plain/nonisolated so any thread
+/// can call it, and always hops to the main actor via a fresh `Task` to
+/// make the actual UIKit call, which is legal from anywhere regardless of
+/// whether the calling thread happens to already be main.
+private final class BackgroundTaskToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    @MainActor
+    func begin(name: String, expiration: @escaping () -> Void) {
+        lock.lock()
+        id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            expiration()
+            self?.end()
+        }
+        lock.unlock()
+    }
+
+    func end() {
+        lock.lock()
+        let current = id
+        id = .invalid
+        lock.unlock()
+        guard current != .invalid else { return }
+        Task { @MainActor in
+            UIApplication.shared.endBackgroundTask(current)
+        }
     }
 }
