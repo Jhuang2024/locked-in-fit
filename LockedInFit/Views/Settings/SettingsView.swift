@@ -367,7 +367,7 @@ struct SettingsView: View {
                 Label("Restore From Backup", systemImage: "clock.arrow.circlepath")
             }
             if let latestBackup = cachedLatestBackup {
-                LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
+                LabeledContent("Latest backup", value: Formatters.mediumDateTime(latestBackup.date))
                 LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
             } else {
                 Text("No backups yet. Backups are also taken automatically as you use the app.")

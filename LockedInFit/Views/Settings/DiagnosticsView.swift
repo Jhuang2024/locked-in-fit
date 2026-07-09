@@ -51,7 +51,7 @@ struct DiagnosticsView: View {
             }
             Section("Backups") {
                 if let latestBackup {
-                    LabeledContent("Latest backup", value: Formatters.mediumDate(latestBackup.date))
+                    LabeledContent("Latest backup", value: Formatters.mediumDateTime(latestBackup.date))
                     LabeledContent("Latest backup records", value: "\(latestBackup.recordCount)")
                 } else {
                     Text("No backups yet.")
