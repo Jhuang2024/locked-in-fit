@@ -18,6 +18,18 @@ struct SleepTrendsView: View {
     }
     private var windowedLogs: [SleepLog] { logs.filter { $0.date >= cutoff } }
     private var windowedNaps: [NapLog] { naps.filter { $0.date >= cutoff } }
+    /// Forces the charts below to always span the full requested window
+    /// (today back to `cutoff`), rather than auto-fitting to just the dates
+    /// that happen to have logs. With only a couple of points, auto-fit
+    /// shrinks the domain to the gap between them — if that gap is under a
+    /// day, Swift Charts' automatic axis then labels it by hour (12 AM, 6
+    /// AM, ...) with no date shown at all, making two different, correctly
+    /// dated nights unreadable as anything but "today-ish". A domain that
+    /// always spans real days makes the axis fall back to date labels.
+    private var chartDomainStart: Date {
+        windowDays == Self.allTimeWindow ? (windowedLogs.map(\.date).min() ?? Date().daysAgo(1)) : cutoff
+    }
+    private var chartDomainEnd: Date { Date() }
     private var scorePoints: [(date: Date, score: Double)] {
         windowedLogs.map { (date: $0.date, score: $0.totalScore) }
     }
@@ -82,6 +94,8 @@ struct SleepTrendsView: View {
                 }
                 .id("score-\(windowDays)")
                 .chartYScale(domain: 0.0...100.0)
+                .chartXScale(domain: chartDomainStart...chartDomainEnd)
+                .chartXAxis { dateAxisMarks }
             }
         }
     }
@@ -98,7 +112,20 @@ struct SleepTrendsView: View {
                 }
                 .id("duration-\(windowDays)")
                 .chartYScale(domain: 0.0...12.0)
+                .chartXScale(domain: chartDomainStart...chartDomainEnd)
+                .chartXAxis { dateAxisMarks }
             }
+        }
+    }
+
+    /// Always labels the x-axis by calendar date (never finer than a day),
+    /// regardless of how the automatic stride would otherwise resolve for a
+    /// tight cluster of points. See chartDomainStart's comment.
+    private var dateAxisMarks: some AxisContent {
+        AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+            AxisGridLine()
+            AxisTick()
+            AxisValueLabel(format: .dateTime.month(.abbreviated).day())
         }
     }
 
@@ -122,6 +149,8 @@ struct SleepTrendsView: View {
             }
             .id("breakdown-\(windowDays)")
             .chartYScale(domain: 0.0...40.0)
+            .chartXScale(domain: chartDomainStart...chartDomainEnd)
+            .chartXAxis { dateAxisMarks }
         }
     }
 
