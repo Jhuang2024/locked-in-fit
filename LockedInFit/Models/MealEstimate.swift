@@ -28,40 +28,72 @@ struct MealEstimate: Codable {
         var sodium: Double
         var cookingMethod: String
         var confidence: Double
+
+        /// Builds a FoodItem from this AI estimate, except when a food
+        /// preset already exists under the same name — then the preset's
+        /// own saved nutrition numbers win over the AI's fresh guess for
+        /// that food, since a value you've already saved (and presumably
+        /// checked) is more trustworthy than a new estimate for something
+        /// you've logged before. Grams (portion size) always comes from the
+        /// AI, since a preset has no per-meal portion of its own.
+        func makeFoodItem(presets: [FoodPreset]) -> FoodItem {
+            if let preset = FoodPresetSyncService.matchingPreset(named: name, in: presets) {
+                return FoodItem(
+                    name: preset.name,
+                    grams: grams,
+                    calories: preset.calories,
+                    protein: preset.protein,
+                    carbs: preset.carbs,
+                    fat: preset.fat,
+                    fiber: preset.fiber,
+                    sodium: preset.sodium,
+                    cookingMethod: preset.cookingMethod,
+                    confidence: 1.0
+                )
+            }
+            return FoodItem(
+                name: name,
+                grams: grams,
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fat,
+                fiber: fiber,
+                sodium: sodium,
+                cookingMethod: CookingMethod(rawValue: cookingMethod.lowercased()) ?? .unknown,
+                confidence: confidence
+            )
+        }
     }
 
     /// Build an unsaved MealLog draft from the estimate. Caller reviews/edits before inserting.
-    func makeDraft(date: Date = .now, photoPath: String? = nil) -> MealLog {
+    /// `presets` lets any food item matching a saved preset by name use the
+    /// preset's own numbers instead of the AI's estimate for that food (see
+    /// `FoodItemEstimate.makeFoodItem`). Meal-level totals are the sum of
+    /// the (possibly preset-substituted) items, same rule FoodItemEditorRow's
+    /// onChanged uses everywhere else in the app, so a substitution shows up
+    /// immediately instead of only after the user edits something.
+    func makeDraft(date: Date = .now, photoPath: String? = nil, presets: [FoodPreset] = []) -> MealLog {
+        let items = foodItems.map { $0.makeFoodItem(presets: presets) }
+        let oil = items.isEmpty ? (low: hiddenOilLow, high: hiddenOilHigh) : HiddenOilEstimator.estimate(forFoodItems: items)
+        let totalCalories = items.isEmpty ? estimatedCalories : items.reduce(0) { $0 + $1.calories }
         let meal = MealLog(
             date: date,
             mealType: MealType(rawValue: mealType) ?? .guess(for: date),
             photoPath: photoPath,
-            calories: estimatedCalories,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
-            fiber: fiber,
-            sodium: sodium,
+            calories: totalCalories,
+            protein: items.isEmpty ? protein : items.reduce(0) { $0 + $1.protein },
+            carbs: items.isEmpty ? carbs : items.reduce(0) { $0 + $1.carbs },
+            fat: items.isEmpty ? fat : items.reduce(0) { $0 + $1.fat },
+            fiber: items.isEmpty ? fiber : items.reduce(0) { $0 + $1.fiber },
+            sodium: items.isEmpty ? sodium : items.reduce(0) { $0 + $1.sodium },
             confidence: confidence,
-            calorieLow: calorieLow,
-            calorieHigh: calorieHigh,
-            hiddenOilLow: hiddenOilLow,
-            hiddenOilHigh: hiddenOilHigh,
+            calorieLow: items.isEmpty ? calorieLow : (totalCalories * 0.85).rounded(),
+            calorieHigh: items.isEmpty ? calorieHigh : (totalCalories * 1.1 + oil.high).rounded(),
+            hiddenOilLow: oil.low.rounded(),
+            hiddenOilHigh: oil.high.rounded(),
             notes: notes,
-            foodItems: foodItems.map {
-                FoodItem(
-                    name: $0.name,
-                    grams: $0.grams,
-                    calories: $0.calories,
-                    protein: $0.protein,
-                    carbs: $0.carbs,
-                    fat: $0.fat,
-                    fiber: $0.fiber,
-                    sodium: $0.sodium,
-                    cookingMethod: CookingMethod(rawValue: $0.cookingMethod.lowercased()) ?? .unknown,
-                    confidence: $0.confidence
-                )
-            }
+            foodItems: items
         )
         return meal
     }

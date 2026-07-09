@@ -8,6 +8,7 @@ struct MealPhotoAnalysisView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var settingsList: [UserSettings]
+    @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
 
     @State private var model = MealAnalysisViewModel()
     @State private var photoItems: [PhotosPickerItem] = []
@@ -22,6 +23,7 @@ struct MealPhotoAnalysisView: View {
                 if let draft {
                     MealDraftEditor(meal: draft, providerUsed: model.providerUsed) {
                         context.insert(draft)
+                        FoodPresetSyncService.addMissingPresets(for: draft.items, existingPresets: presets, context: context)
                         MealNutritionAnalysisRunner.analyzeInBackground(meal: draft, settings: settings, context: context)
                         dismiss()
                     }
@@ -175,7 +177,7 @@ struct MealPhotoAnalysisView: View {
     private func runAnalysis() async {
         await model.analyze(settings: settings)
         if case .reviewing = model.phase {
-            draft = model.makeDraft()
+            draft = model.makeDraft(presets: presets)
         }
     }
 }

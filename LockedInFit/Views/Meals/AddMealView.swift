@@ -137,13 +137,9 @@ struct AddMealView: View {
     }
 
     private func applyEstimate(_ estimate: MealEstimate) {
-        let items = estimate.foodItems.map { item in
-            FoodItem(name: item.name, grams: item.grams, calories: item.calories,
-                     protein: item.protein, carbs: item.carbs, fat: item.fat,
-                     fiber: item.fiber, sodium: item.sodium,
-                     cookingMethod: CookingMethod(rawValue: item.cookingMethod.lowercased()) ?? .unknown,
-                     confidence: item.confidence)
-        }
+        // Defaults to a matching preset's saved numbers over the AI's fresh
+        // guess for the same food name — see FoodItemEstimate.makeFoodItem.
+        let items = estimate.foodItems.map { $0.makeFoodItem(presets: presets) }
         addedItems.append(contentsOf: items)
         recalcTotals()
         if notes.isEmpty { notes = estimate.notes }
@@ -189,6 +185,7 @@ struct AddMealView: View {
                            hiddenOilLow: oil.low, hiddenOilHigh: oil.high,
                            notes: notes, foodItems: addedItems)
         context.insert(meal)
+        FoodPresetSyncService.addMissingPresets(for: addedItems, existingPresets: presets, context: context)
         MealNutritionAnalysisRunner.analyzeInBackground(meal: meal, settings: settings, context: context)
         dismiss()
     }
