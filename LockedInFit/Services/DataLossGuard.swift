@@ -53,4 +53,22 @@ enum DataLossGuard {
     static func acknowledge(context: ModelContext) {
         UserDefaults.standard.set(currentRecordCount(context: context), forKey: lastKnownRecordCountKey)
     }
+
+    /// Everything above only checks at launch. This checks WHILE the app is
+    /// already running (see RootTabView's periodic loop), for reports of
+    /// data disappearing mid-session with no relaunch in between. If that's
+    /// really happening, this is the only way to catch it in the act: it
+    /// logs a loud, timestamped fault the instant a large drop is observed,
+    /// with the exact before/after counts, so the next Console log finally
+    /// pins down WHEN it happens instead of only being discoverable (as a
+    /// fait accompli) the next time the app opens.
+    static func watchForMidSessionLoss(context: ModelContext, previousCount: Int) -> Int {
+        let current = currentRecordCount(context: context)
+        if previousCount > 5, current == 0 {
+            PerfLog.fault("MID-SESSION DATA LOSS: \(previousCount) -> 0 records while the app was already running, no relaunch")
+        } else if previousCount > 20, current < previousCount / 2 {
+            PerfLog.fault("MID-SESSION DATA DROP: \(previousCount) -> \(current) records while the app was already running, no relaunch")
+        }
+        return current
+    }
 }

@@ -150,6 +150,33 @@ struct RootTabView: View {
             // Automatic backups only run after something actually changes
             // (see BackupService.scheduleBackupSoon call sites).
         }
+        // Belt-and-suspenders safety net, independent of any per-screen
+        // onChange wiring. DashboardView's onChange triggers only cover the
+        // handful of @Query properties it happens to watch (meals, workouts,
+        // steps, sleep, weight...) — editing a measurement, a progress
+        // photo, a food preset, a health scan, or a workout schedule never
+        // touches any of those, so a change made anywhere else could sit
+        // unbacked-up for however long the app stays open. Pinging every 60s
+        // guarantees SOME trigger lands inside every 5-minute throttle
+        // window regardless of which screen/model was actually edited — and
+        // it's cheap: scheduleBackupSoon's own throttle still caps real
+        // writes to once per 5 minutes, and the content-hash dedupe in
+        // performBackup makes a no-change tick free. Same loop also samples
+        // the record count so a mid-session drop gets logged the moment it
+        // happens instead of only being discoverable on the next launch.
+        .task {
+            // No gate on dataLossDetected here (its ordering relative to
+            // onAppear isn't guaranteed): harmless either way, since
+            // performBackup already refuses to write an empty snapshot over
+            // an existing non-empty backup.
+            var lastSampledCount = DataLossGuard.currentRecordCount(context: context)
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard !Task.isCancelled else { return }
+                lastSampledCount = DataLossGuard.watchForMidSessionLoss(context: context, previousCount: lastSampledCount)
+                BackupService.scheduleBackupSoon(container: context.container)
+            }
+        }
     }
 
     private var mainTabs: some View {

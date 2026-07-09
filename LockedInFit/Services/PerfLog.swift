@@ -14,6 +14,13 @@ enum PerfLog {
         logger.notice("event: \(name, privacy: .public)")
     }
 
+    /// Loud, unmistakable log line for something that should never happen
+    /// (e.g. a mid-session data drop) — same visibility tier as the slow
+    /// main-thread fault below, but for correctness rather than performance.
+    static func fault(_ message: String) {
+        logger.fault("\(message, privacy: .public)")
+    }
+
     /// Measures synchronous `work` and logs how long it took and which
     /// thread it ran on. Anything over 250ms on the main thread logs as a
     /// fault, loud and unmistakable in Console, since that's exactly the
