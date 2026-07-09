@@ -118,11 +118,19 @@ struct SleepTrendsView: View {
         }
     }
 
-    /// Always labels the x-axis by calendar date (never finer than a day),
-    /// regardless of how the automatic stride would otherwise resolve for a
-    /// tight cluster of points. See chartDomainStart's comment.
+    /// Ticks always land exactly on a calendar-day boundary, at a stride
+    /// chosen to land roughly 5 of them across the domain. `.automatic`
+    /// picks evenly time-spaced ticks instead, which for a domain under
+    /// ~10 days lands more than one tick inside the same calendar day —
+    /// with a day-only format that prints the same date twice in a row.
+    /// A whole-day stride can't produce two ticks on the same day.
+    private var axisDayStride: Int {
+        let totalDays = Calendar.current.dateComponents([.day], from: chartDomainStart, to: chartDomainEnd).day ?? 1
+        return max(1, totalDays / 5)
+    }
+
     private var dateAxisMarks: some AxisContent {
-        AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+        AxisMarks(values: .stride(by: .day, count: axisDayStride)) { _ in
             AxisGridLine()
             AxisTick()
             AxisValueLabel(format: .dateTime.month(.abbreviated).day())
