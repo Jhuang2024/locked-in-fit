@@ -62,10 +62,8 @@ struct LockedInFitApp: App {
         // this to show up as a SLOW MAIN THREAD fault in the log, bound
         // the repair, don't move it off-main.
         PerfLog.measure("launch.sleepRepair") {
-            let rawLogs = (try? container.mainContext.fetch(FetchDescriptor<SleepLog>())) ?? []
-            let dedupedLogs = SleepScoringService.dedupeSameNight(logs: rawLogs, context: container.mainContext)
             SleepScoringService.repairAll(
-                logs: dedupedLogs,
+                logs: (try? container.mainContext.fetch(FetchDescriptor<SleepLog>())) ?? [],
                 naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
         }
         HealthKitManager.shared.configureAutoSync(container: container)

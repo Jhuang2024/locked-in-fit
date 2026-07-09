@@ -14,8 +14,17 @@ struct SleepDashboardView: View {
 
     private var latest: SleepLog? { logs.first }
     private var streak: Int { SleepScoringService.streak(history: logs) }
+    /// One entry per calendar night — a read-only view, nothing is deleted
+    /// from the store — so a leftover duplicate night (see
+    /// SleepLogEntryView.save) can't double-count itself into the average
+    /// or the Logs count. Recent Logs below intentionally still shows every
+    /// individual entry, duplicates included, since that's where a genuine
+    /// duplicate is visible and can be removed manually (swipe/long-press
+    /// to delete) — the one place deletion should be a deliberate choice,
+    /// not something this screen does on its own.
+    private var distinctLogs: [SleepLog] { SleepScoringService.distinctNights(logs) }
     private var avgDurationHours: Double? {
-        let recent = logs.prefix(7)
+        let recent = distinctLogs.prefix(7)
         guard !recent.isEmpty else { return nil }
         return recent.reduce(0) { $0 + $1.durationHours } / Double(recent.count)
     }
@@ -90,7 +99,7 @@ struct SleepDashboardView: View {
             HStack {
                 StatChip(label: "Streak", value: streak > 0 ? "\(streak)d" : "N/A")
                 StatChip(label: "Avg 7-night", value: avgDurationHours.map { "\(Formatters.trimmed($0))h" } ?? "N/A")
-                StatChip(label: "Logs", value: "\(logs.count)")
+                StatChip(label: "Logs", value: "\(distinctLogs.count)")
             }
         }
     }

@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// Local, deterministic sleep scoring: duration, consistency vs. the user's
 /// own recent bedtime history, interruptions, bedtime timing, and same-day
@@ -165,30 +164,22 @@ enum SleepScoringService {
         }
     }
 
-    /// Merges duplicate SleepLogs for the same calendar night (same `date`)
-    /// into one, keeping the most recently created entry and deleting the
-    /// rest. Logging sleep again for an already-logged night now updates
-    /// that entry in place instead of inserting a second one (see
-    /// SleepLogEntryView.save), so this only matters for duplicates created
-    /// before that fix — self-heals here the same way `repairAll` heals
-    /// stale scores, on every launch, instead of a one-off data migration.
-    /// Returns the deduplicated list so callers can feed it straight into
-    /// `repairAll` without a second fetch.
-    static func dedupeSameNight(logs: [SleepLog], context: ModelContext) -> [SleepLog] {
+    /// Collapses `logs` to at most one entry per calendar night — the most
+    /// recently created one for any night that has more than one — WITHOUT
+    /// deleting anything. Purely a read-time view for rollups (average,
+    /// streak, "Logs" count, Recent Logs) that need one-entry-per-night
+    /// semantics, so a leftover duplicate from before SleepLogEntryView's
+    /// save() started upserting instead of always inserting can't double-
+    /// count a single night or skew an average. Deleting data automatically
+    /// on every launch is exactly the kind of silent, unconfirmed action
+    /// this app avoids everywhere else (restore/repair only ever add or
+    /// update); resolving a genuine duplicate is a manual, user-driven
+    /// action (delete it from Recent Logs), never automatic.
+    static func distinctNights(_ logs: [SleepLog]) -> [SleepLog] {
         let groups = Dictionary(grouping: logs, by: \.date)
-        var survivors: [SleepLog] = []
-        for group in groups.values {
-            guard group.count > 1 else {
-                survivors.append(contentsOf: group)
-                continue
-            }
-            let sorted = group.sorted { $0.createdAt > $1.createdAt }
-            survivors.append(sorted[0])
-            for duplicate in sorted.dropFirst() {
-                context.delete(duplicate)
-            }
-        }
-        return survivors
+        return groups.values
+            .compactMap { group in group.max { $0.createdAt < $1.createdAt } }
+            .sorted { $0.date > $1.date }
     }
 
     /// Consecutive nights ending today/yesterday with at least one sleep log.
