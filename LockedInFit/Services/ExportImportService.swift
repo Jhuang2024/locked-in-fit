@@ -423,7 +423,26 @@ enum ExportImportService {
 
     // MARK: - Import
 
-    /// Imports a JSON snapshot, appending entries (no dedup; meant for restore into a fresh install).
+    /// A dedup identity for content that has no natural uuid (predates one
+    /// existing, or never needed one for in-app purposes), built from fields
+    /// that are extremely unlikely to coincidentally match for two
+    /// genuinely different real-world entries, but WILL match exactly for
+    /// the same entry re-imported from an overlapping/duplicate backup.
+    /// Second precision: `.iso8601` export/import round-trips dates to
+    /// whole seconds, so comparing a decoded DTO's date against a live
+    /// record's full sub-second-precision Date at exact equality would
+    /// never match even for the identical original event.
+    private static func sec(_ date: Date) -> Int64 { Int64(date.timeIntervalSince1970.rounded()) }
+
+    /// Imports a JSON snapshot, appending only entries NOT already present.
+    /// Restoring the same (or an overlapping) backup more than once, or
+    /// restoring onto data that was never actually lost, used to duplicate
+    /// every record unconditionally — exactly the "restore just duplicates
+    /// what's already there instead of bringing back what's missing" bug.
+    /// Each type is deduped either by its own persisted uuid (checklist
+    /// items, sleep/nap logs, appearance check-ins/suggestions, workout
+    /// schedules) or, for types that predate having one, by the content
+    /// signature above.
     static func importJSON(from url: URL, context: ModelContext) throws -> Int {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
@@ -433,7 +452,13 @@ enum ExportImportService {
         let snapshot = try decoder.decode(Snapshot.self, from: data)
 
         var count = 0
+        var existingMealSignatures = Set((try? context.fetch(FetchDescriptor<MealLog>()))?.map {
+            "\(sec($0.date))|\($0.mealTypeRaw)|\($0.calories)|\($0.protein)|\($0.carbs)|\($0.fat)|\($0.notes)"
+        } ?? [])
         for m in snapshot.meals {
+            let signature = "\(sec(m.date))|\(m.mealType)|\(m.calories)|\(m.protein)|\(m.carbs)|\(m.fat)|\(m.notes)"
+            guard !existingMealSignatures.contains(signature) else { continue }
+            existingMealSignatures.insert(signature)
             let meal = MealLog(date: m.date, mealType: MealType(rawValue: m.mealType) ?? .snack,
                                calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
                                fiber: m.fiber, sodium: m.sodium, confidence: m.confidence,
@@ -448,35 +473,69 @@ enum ExportImportService {
                                })
             context.insert(meal); count += 1
         }
+        var existingPresetSignatures = Set((try? context.fetch(FetchDescriptor<FoodPreset>()))?.map {
+            "\($0.name)|\($0.serving)|\($0.calories)"
+        } ?? [])
         for p in snapshot.presets {
+            let signature = "\(p.name)|\(p.serving)|\(p.calories)"
+            guard !existingPresetSignatures.contains(signature) else { continue }
+            existingPresetSignatures.insert(signature)
             context.insert(FoodPreset(name: p.name, serving: p.serving, calories: p.calories,
                                       protein: p.protein, carbs: p.carbs, fat: p.fat, fiber: p.fiber,
                                       sodium: p.sodium, category: p.category, notes: p.notes,
                                       cookingMethod: CookingMethod(rawValue: p.cookingMethod) ?? .unknown))
             count += 1
         }
+        var existingWeightSignatures = Set((try? context.fetch(FetchDescriptor<BodyWeightEntry>()))?.map {
+            "\(sec($0.date))|\($0.weightKg)|\($0.sourceRaw)"
+        } ?? [])
         for w in snapshot.weights {
+            let signature = "\(sec(w.date))|\(w.weightKg)|\(w.source)"
+            guard !existingWeightSignatures.contains(signature) else { continue }
+            existingWeightSignatures.insert(signature)
             context.insert(BodyWeightEntry(date: w.date, weightKg: w.weightKg,
                                            source: EntrySource(rawValue: w.source) ?? .imported))
             count += 1
         }
+        var existingBodyFatSignatures = Set((try? context.fetch(FetchDescriptor<BodyFatEntry>()))?.map {
+            "\(sec($0.date))|\($0.bodyFatPercentage)|\($0.sourceRaw)"
+        } ?? [])
         for f in snapshot.bodyFats {
+            let signature = "\(sec(f.date))|\(f.bodyFatPercentage)|\(f.source)"
+            guard !existingBodyFatSignatures.contains(signature) else { continue }
+            existingBodyFatSignatures.insert(signature)
             context.insert(BodyFatEntry(date: f.date, bodyFatPercentage: f.bodyFatPercentage,
                                         source: EntrySource(rawValue: f.source) ?? .imported))
             count += 1
         }
+        var existingMeasurementDates = Set((try? context.fetch(FetchDescriptor<MeasurementEntry>()))?.map { sec($0.date) } ?? [])
         for m in snapshot.measurements {
+            let signature = sec(m.date)
+            guard !existingMeasurementDates.contains(signature) else { continue }
+            existingMeasurementDates.insert(signature)
             context.insert(MeasurementEntry(date: m.date, waist: m.waist, chest: m.chest, arms: m.arms,
                                             thighs: m.thighs, shoulders: m.shoulders, neck: m.neck,
                                             hips: m.hips, customMeasurements: m.custom, notes: m.notes))
             count += 1
         }
+        var existingStepSignatures = Set((try? context.fetch(FetchDescriptor<StepEntry>()))?.map {
+            "\(sec($0.date))|\($0.sourceRaw)"
+        } ?? [])
         for s in snapshot.steps {
+            let signature = "\(sec(s.date))|\(s.source)"
+            guard !existingStepSignatures.contains(signature) else { continue }
+            existingStepSignatures.insert(signature)
             context.insert(StepEntry(date: s.date, steps: s.steps,
                                      source: EntrySource(rawValue: s.source) ?? .imported))
             count += 1
         }
+        var existingGoalSignatures = Set((try? context.fetch(FetchDescriptor<Goal>()))?.map {
+            "\(sec($0.startDate))|\($0.phaseRaw)|\($0.targetWeightKg)"
+        } ?? [])
         for g in snapshot.goals {
+            let signature = "\(sec(g.startDate))|\(g.phase)|\(g.targetWeightKg)"
+            guard !existingGoalSignatures.contains(signature) else { continue }
+            existingGoalSignatures.insert(signature)
             context.insert(Goal(phase: GoalPhase(rawValue: g.phase) ?? .custom, startDate: g.startDate,
                                 startWeightKg: g.startWeightKg, targetWeightKg: g.targetWeightKg,
                                 targetBodyFatPercentage: g.targetBodyFatPercentage, targetDate: g.targetDate,
@@ -485,7 +544,13 @@ enum ExportImportService {
                                 stepTarget: g.stepTarget, measurementGoals: g.measurementGoals, active: g.active))
             count += 1
         }
+        var existingWorkoutSignatures = Set((try? context.fetch(FetchDescriptor<Workout>()))?.map {
+            "\(sec($0.date))|\($0.title)|\($0.typeRaw)"
+        } ?? [])
         for w in snapshot.workouts {
+            let signature = "\(sec(w.date))|\(w.title)|\(w.type)"
+            guard !existingWorkoutSignatures.contains(signature) else { continue }
+            existingWorkoutSignatures.insert(signature)
             let workout = Workout(date: w.date, title: w.title, type: WorkoutType(rawValue: w.type) ?? .custom,
                                   duration: w.duration, notes: w.notes,
                                   perceivedDifficulty: w.perceivedDifficulty,
@@ -506,18 +571,31 @@ enum ExportImportService {
             }
             context.insert(workout); count += 1
         }
+        var existingActiveEnergySignatures = Set((try? context.fetch(FetchDescriptor<ActiveEnergyEntry>()))?.map {
+            "\(sec($0.date))|\($0.sourceRaw)"
+        } ?? [])
         for a in snapshot.activeEnergy {
+            let signature = "\(sec(a.date))|\(a.source)"
+            guard !existingActiveEnergySignatures.contains(signature) else { continue }
+            existingActiveEnergySignatures.insert(signature)
             context.insert(ActiveEnergyEntry(date: a.date, calories: a.calories,
                                              source: EntrySource(rawValue: a.source) ?? .imported))
             count += 1
         }
+        var existingProgressPhotoDates = Set((try? context.fetch(FetchDescriptor<ProgressPhoto>()))?.map { sec($0.date) } ?? [])
         for p in snapshot.progressPhotos {
+            let signature = sec(p.date)
+            guard !existingProgressPhotoDates.contains(signature) else { continue }
+            existingProgressPhotoDates.insert(signature)
             context.insert(ProgressPhoto(date: p.date, frontPhotoPath: p.frontPhotoPath,
                                          sidePhotoPath: p.sidePhotoPath, backPhotoPath: p.backPhotoPath,
                                          notes: p.notes))
             count += 1
         }
+        var existingChecklistUUIDs = Set((try? context.fetch(FetchDescriptor<DailyChecklistItem>()))?.map { $0.uuid } ?? [])
         for i in snapshot.checklistItems {
+            guard !existingChecklistUUIDs.contains(i.uuid) else { continue }
+            existingChecklistUUIDs.insert(i.uuid)
             let item = DailyChecklistItem(title: i.title, details: i.details,
                                           category: ChecklistCategory(rawValue: i.category) ?? .manual,
                                           dueDate: i.dueDate,
@@ -531,7 +609,10 @@ enum ExportImportService {
             item.isCompleted = i.isCompleted
             context.insert(item); count += 1
         }
+        var existingSleepUUIDs = Set((try? context.fetch(FetchDescriptor<SleepLog>()))?.map { $0.uuid } ?? [])
         for s in snapshot.sleepLogs {
+            guard !existingSleepUUIDs.contains(s.uuid) else { continue }
+            existingSleepUUIDs.insert(s.uuid)
             let log = SleepLog(date: s.date, sleepStart: s.sleepStart, sleepEnd: s.sleepEnd,
                                wakeUps: s.wakeUps, durationHours: s.durationHours, totalScore: s.totalScore,
                                notes: s.notes, source: EntrySource(rawValue: s.source) ?? .imported)
@@ -546,13 +627,19 @@ enum ExportImportService {
             log.napExplanations = s.napExplanations
             context.insert(log); count += 1
         }
+        var existingNapUUIDs = Set((try? context.fetch(FetchDescriptor<NapLog>()))?.map { $0.uuid } ?? [])
         for n in snapshot.napLogs {
+            guard !existingNapUUIDs.contains(n.uuid) else { continue }
+            existingNapUUIDs.insert(n.uuid)
             context.insert(NapLog(date: n.date, napStart: n.napStart, napEnd: n.napEnd,
                                   durationMinutes: n.durationMinutes, notes: n.notes,
                                   source: EntrySource(rawValue: n.source) ?? .imported))
             count += 1
         }
+        var existingStrengthMovements = Set((try? context.fetch(FetchDescriptor<StrengthScore>()))?.map { $0.movementRaw } ?? [])
         for s in snapshot.strengthScores {
+            guard !existingStrengthMovements.contains(s.movement) else { continue }
+            existingStrengthMovements.insert(s.movement)
             let score = StrengthScore(movement: MovementPattern(rawValue: s.movement) ?? .squat)
             score.score = s.score
             score.levelName = s.levelName
@@ -564,7 +651,10 @@ enum ExportImportService {
             score.lastUpdated = s.lastUpdated
             context.insert(score); count += 1
         }
+        var existingCheckInUUIDs = Set((try? context.fetch(FetchDescriptor<AppearanceCheckIn>()))?.map { $0.uuid } ?? [])
         for c in snapshot.appearanceCheckIns {
+            guard !existingCheckInUUIDs.contains(c.uuid) else { continue }
+            existingCheckInUUIDs.insert(c.uuid)
             let checkIn = AppearanceCheckIn(date: c.date, kind: AppearanceCheckInKind(rawValue: c.kind) ?? .face,
                                             photoPath: c.photoPath, frontPhotoPath: c.frontPhotoPath,
                                             sidePhotoPath: c.sidePhotoPath, backPhotoPath: c.backPhotoPath,
@@ -583,7 +673,10 @@ enum ExportImportService {
             checkIn.createdAt = c.createdAt
             context.insert(checkIn); count += 1
         }
+        var existingSuggestionUUIDs = Set((try? context.fetch(FetchDescriptor<AppearanceSuggestion>()))?.map { $0.uuid } ?? [])
         for s in snapshot.appearanceSuggestions {
+            guard !existingSuggestionUUIDs.contains(s.uuid) else { continue }
+            existingSuggestionUUIDs.insert(s.uuid)
             let suggestion = AppearanceSuggestion(sourceKind: s.sourceKind, title: s.title,
                                                   explanation: s.explanation, expectedImpact: s.expectedImpact,
                                                   category: AppearanceSuggestionCategory(rawValue: s.category) ?? .skin,
@@ -600,7 +693,10 @@ enum ExportImportService {
             suggestion.checklistItemId = s.checklistItemId
             context.insert(suggestion); count += 1
         }
+        var existingScheduleUUIDs = Set((try? context.fetch(FetchDescriptor<WorkoutSchedule>()))?.map { $0.uuid } ?? [])
         for sc in snapshot.workoutSchedules {
+            guard !existingScheduleUUIDs.contains(sc.uuid) else { continue }
+            existingScheduleUUIDs.insert(sc.uuid)
             let schedule = WorkoutSchedule(
                 title: sc.title,
                 goal: WorkoutScheduleGoal(rawValue: sc.goal) ?? .generalFitness,
@@ -626,7 +722,13 @@ enum ExportImportService {
             }
             context.insert(schedule); count += 1
         }
+        var existingHealthScanSignatures = Set((try? context.fetch(FetchDescriptor<HealthScan>()))?.map {
+            "\(sec($0.date))|\($0.productName)"
+        } ?? [])
         for h in snapshot.healthScans {
+            let signature = "\(sec(h.date))|\(h.productName)"
+            guard !existingHealthScanSignatures.contains(signature) else { continue }
+            existingHealthScanSignatures.insert(signature)
             context.insert(HealthScan(date: h.date, productName: h.productName, photoPath: h.photoPath,
                                       servingSize: h.servingSize, healthScore: h.healthScore,
                                       satietyScore: h.satietyScore,
