@@ -25,7 +25,10 @@ private let dashboardAllWorkouts = FetchDescriptor<Workout>(
     predicate: #Predicate<Workout> { !$0.isTemplate },
     sortBy: [SortDescriptor(\Workout.date, order: .reverse)])
 private let dashboardAppearanceCheckIns = FetchDescriptor<AppearanceCheckIn>(sortBy: [SortDescriptor(\AppearanceCheckIn.date, order: .reverse)])
-private let dashboardSleepLogs = FetchDescriptor<SleepLog>(sortBy: [SortDescriptor(\SleepLog.date, order: .reverse)])
+private let dashboardSleepLogs = FetchDescriptor<SleepLog>(sortBy: [
+    SortDescriptor(\SleepLog.date, order: .reverse),
+    SortDescriptor(\SleepLog.createdAt, order: .reverse),
+])
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var context

@@ -5,7 +5,8 @@ import SwiftData
 /// entry point into Sleep Trends. Mirrors LooksDashboardView's structure.
 struct SleepDashboardView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: [SortDescriptor(\SleepLog.date, order: .reverse), SortDescriptor(\SleepLog.createdAt, order: .reverse)])
+    private var logs: [SleepLog]
     @Query(sort: \NapLog.napStart, order: .reverse) private var naps: [NapLog]
 
     @State private var showLogSheet = false
@@ -238,7 +239,8 @@ struct SleepDashboardView: View {
 struct SleepLogDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \SleepLog.date, order: .reverse) private var allLogs: [SleepLog]
+    @Query(sort: [SortDescriptor(\SleepLog.date, order: .reverse), SortDescriptor(\SleepLog.createdAt, order: .reverse)])
+    private var allLogs: [SleepLog]
     @Query(sort: \NapLog.napStart) private var allNaps: [NapLog]
     let log: SleepLog
 
@@ -454,7 +456,8 @@ struct SleepLogDetailView: View {
 struct SleepLogEntryView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: [SortDescriptor(\SleepLog.date, order: .reverse), SortDescriptor(\SleepLog.createdAt, order: .reverse)])
+    private var logs: [SleepLog]
     @Query(sort: \NapLog.napStart) private var naps: [NapLog]
 
     @State private var sleepStart: Date = Calendar.current.date(
@@ -506,10 +509,23 @@ struct SleepLogEntryView: View {
         let sameDayNaps = naps.filter { $0.date == day }
         let result = SleepScoringService.score(sleepStart: sleepStart, sleepEnd: sleepEnd, wakeUps: wakeUps,
                                                history: logs, naps: sameDayNaps, date: sleepStart)
-        let log = SleepLog(date: day, sleepStart: sleepStart, sleepEnd: sleepEnd,
-                           wakeUps: wakeUps, durationHours: hours, notes: notes)
-        SleepScoringService.apply(result, to: log)
-        context.insert(log)
+        // Logging sleep again for a night that already has an entry corrects
+        // it in place, rather than inserting a second log for the same
+        // night — which left it ambiguous (and, in practice, wrong) which
+        // one the dashboard's "latest" queries would show.
+        if let existing = logs.first(where: { $0.date == day }) {
+            existing.sleepStart = sleepStart
+            existing.sleepEnd = sleepEnd
+            existing.wakeUps = wakeUps
+            existing.durationHours = hours
+            existing.notes = notes
+            SleepScoringService.apply(result, to: existing)
+        } else {
+            let log = SleepLog(date: day, sleepStart: sleepStart, sleepEnd: sleepEnd,
+                               wakeUps: wakeUps, durationHours: hours, notes: notes)
+            SleepScoringService.apply(result, to: log)
+            context.insert(log)
+        }
         dismiss()
     }
 }
@@ -519,7 +535,8 @@ struct SleepLogEntryView: View {
 struct NapLogEntryView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \SleepLog.date, order: .reverse) private var logs: [SleepLog]
+    @Query(sort: [SortDescriptor(\SleepLog.date, order: .reverse), SortDescriptor(\SleepLog.createdAt, order: .reverse)])
+    private var logs: [SleepLog]
     @Query(sort: \NapLog.napStart) private var naps: [NapLog]
 
     @State private var napStart: Date = Calendar.current.date(bySettingHour: 13, minute: 0, second: 0, of: Date()) ?? Date()

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Local, deterministic sleep scoring: duration, consistency vs. the user's
 /// own recent bedtime history, interruptions, bedtime timing, and same-day
@@ -162,6 +163,32 @@ enum SleepScoringService {
             let dayNaps = naps.filter { $0.date == log.date }
             recompute(log, history: logs, naps: dayNaps)
         }
+    }
+
+    /// Merges duplicate SleepLogs for the same calendar night (same `date`)
+    /// into one, keeping the most recently created entry and deleting the
+    /// rest. Logging sleep again for an already-logged night now updates
+    /// that entry in place instead of inserting a second one (see
+    /// SleepLogEntryView.save), so this only matters for duplicates created
+    /// before that fix — self-heals here the same way `repairAll` heals
+    /// stale scores, on every launch, instead of a one-off data migration.
+    /// Returns the deduplicated list so callers can feed it straight into
+    /// `repairAll` without a second fetch.
+    static func dedupeSameNight(logs: [SleepLog], context: ModelContext) -> [SleepLog] {
+        let groups = Dictionary(grouping: logs, by: \.date)
+        var survivors: [SleepLog] = []
+        for group in groups.values {
+            guard group.count > 1 else {
+                survivors.append(contentsOf: group)
+                continue
+            }
+            let sorted = group.sorted { $0.createdAt > $1.createdAt }
+            survivors.append(sorted[0])
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+            }
+        }
+        return survivors
     }
 
     /// Consecutive nights ending today/yesterday with at least one sleep log.
