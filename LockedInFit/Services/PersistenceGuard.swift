@@ -104,4 +104,22 @@ enum PersistenceGuard {
             defaults.set(groupPath, forKey: lastSeenAppGroupPathKey)
         }
     }
+
+    /// Read-only listing of what's actually sitting in the shared App Group
+    /// container right now, logged at every launch (not gated to a path
+    /// change, unlike the two checks above — this is specifically to catch
+    /// a sibling app writing something unexpected there). Exists because of
+    /// a report that opening Social Climber while LockedInFit is closed
+    /// appears to wipe LockedInFit's data: LockedInFit's own live SwiftData
+    /// store is not placed in this shared container by any code in this
+    /// app (only the backup mirror and the small cross-app JSON bridge
+    /// files are), so this can't explain that report on its own, but if a
+    /// sibling app is doing something unexpected to the SHARED container
+    /// (touching more than its own namespaced files, or something at the
+    /// container root), this log is what would show it.
+    static func logAppGroupContentsIfAvailable() {
+        guard let container = AppGroupContainerLocator().containerURL else { return }
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: container.path)) ?? []
+        logger.notice("App Group container contents: \(entries.joined(separator: ", "), privacy: .public)")
+    }
 }

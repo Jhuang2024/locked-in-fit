@@ -171,6 +171,13 @@ struct RootTabView: View {
             // performBackup already refuses to write an empty snapshot over
             // an existing non-empty backup.
             var lastSampledCount = DataLossGuard.currentRecordCount(context: context)
+            // One-shot, delayed a few seconds to give the App Group lookup
+            // (started in App.init, background/non-blocking) time to
+            // resolve. See PersistenceGuard.logAppGroupContentsIfAvailable.
+            Task.detached(priority: .utility) {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                PersistenceGuard.logAppGroupContentsIfAvailable()
+            }
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 60_000_000_000)
                 guard !Task.isCancelled else { return }
