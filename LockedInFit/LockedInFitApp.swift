@@ -143,10 +143,20 @@ struct RootTabView: View {
         .onAppear {
             guard dataLossDetected == nil else { return }
             PerfLog.event("launch.storeFileSize: \(PersistenceGuard.storeFileSizeBytes()) bytes")
-            let lostData = PerfLog.measure("launch.dataLossCheck") {
-                DataLossGuard.checkForSuddenDataLoss(context: context)
+            guard let previous = PerfLog.measure("launch.dataLossCheck", {
+                DataLossGuard.checkForPossibleSuddenLoss(context: context)
+            }) else {
+                dataLossDetected = false
+                return
             }
-            dataLossDetected = lostData
+            // A possible loss on the first read: confirm it a beat later
+            // before showing the disruptive recovery screen, so a momentary
+            // race right as the store attaches can't trigger it on its own.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 750_000_000)
+                let confirmedCurrent = DataLossGuard.currentRecordCount(context: context)
+                dataLossDetected = DataLossGuard.confirmSuddenLoss(previous: previous, confirmedCurrent: confirmedCurrent)
+            }
             // No backup scheduled here: launch is not a data-mutation event.
             // Automatic backups only run after something actually changes
             // (see BackupService.scheduleBackupSoon call sites).

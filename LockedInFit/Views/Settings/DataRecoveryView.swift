@@ -19,6 +19,7 @@ struct DataRecoveryView: View {
     /// after a wipe the newest backup is usually of the post-wipe state.
     @State private var backups: [BackupService.BackupInfo] = []
     @State private var checkingSharedContainer = false
+    @State private var hasAutoRestored = false
 
     var body: some View {
         NavigationStack {
@@ -111,6 +112,7 @@ struct DataRecoveryView: View {
                 }
                 checkingSharedContainer = false
                 loadBackups()
+                autoRestoreIfPossible()
             }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 switch result {
@@ -143,14 +145,33 @@ struct DataRecoveryView: View {
         let outcome = BackupService.restore(from: backup, context: context,
                                             currentRecordCount: DataLossGuard.currentRecordCount(context: context))
         switch outcome {
-        case .restored(let count):
+        case .restored(let count) where count > 0:
             resultMessage = "Restored \(count) records."
             finish()
+        case .restored:
+            // A "successful" import that added zero records — the backup
+            // was itself empty. Leaves the screen up rather than resolving
+            // into an app that's still empty, so the user still sees their
+            // other options (a different backup, an exported file).
+            resultMessage = "That backup was empty; nothing to restore."
         case .emptyBackupSkipped:
             resultMessage = "That backup is empty; nothing to restore."
         case .failed(let error):
             resultMessage = "Restore failed: \(error.localizedDescription)"
         }
+    }
+
+    /// Restores the most-complete backup the instant one is found, so a
+    /// wipe with a good backup available never requires the user to notice
+    /// this screen and tap through it themselves — merge-only restore makes
+    /// this safe to do without confirmation, and the manual list stays
+    /// visible underneath as a fallback for the rare case this doesn't
+    /// resolve it (an unexpectedly-empty "best" backup, still awaiting a
+    /// slow App Group lookup, or truly nothing available yet).
+    private func autoRestoreIfPossible() {
+        guard !hasAutoRestored, let best = backups.first, best.recordCount > 0 else { return }
+        hasAutoRestored = true
+        restore(from: best)
     }
 
     private func finish() {

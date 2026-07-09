@@ -72,21 +72,38 @@ enum DataLossGuard {
             + count(AppearanceSuggestion.self) + count(WorkoutSchedule.self) + count(HealthScan.self)
     }
 
-    /// Compares today's count against the last-known count. Only updates the
-    /// stored baseline when nothing looks wrong, so a detected loss keeps
-    /// being flagged on every launch until it's actually resolved (restored,
-    /// imported, or explicitly acknowledged), not just once.
-    static func checkForSuddenDataLoss(context: ModelContext) -> Bool {
+    /// First pass of the launch check: compares today's count against the
+    /// last-known count, but does NOT record an incident or update the
+    /// baseline on a possible loss — the caller must confirm this a beat
+    /// later with `confirmSuddenLoss` before treating it as real. A single,
+    /// immediate read right at launch can catch the store mid-open, the
+    /// same false-positive risk Social Climber's bridge fixed on its side;
+    /// this mirrors that fix so a transient zero here never trips the
+    /// disruptive recovery screen on its own.
+    static func checkForPossibleSuddenLoss(context: ModelContext) -> Int? {
         let defaults = UserDefaults.standard
         let previous = defaults.integer(forKey: lastKnownRecordCountKey)
         let current = currentRecordCount(context: context)
-        let lostEverything = previous > 0 && current == 0
-        if lostEverything {
-            recordIncident(kind: "launch", previous: previous, current: current)
-        } else {
+        guard previous > 0, current == 0 else {
             defaults.set(current, forKey: lastKnownRecordCountKey)
+            return nil
         }
-        return lostEverything
+        return previous
+    }
+
+    /// Second pass, called ~750ms after `checkForPossibleSuddenLoss`
+    /// returned a non-nil `previous`, with a freshly-read count. Only
+    /// records the incident (and keeps flagging it on every launch until
+    /// actually resolved) once the zero reading is confirmed to still be
+    /// zero; any other reading is treated as the transient blip it was and
+    /// becomes the new baseline instead.
+    static func confirmSuddenLoss(previous: Int, confirmedCurrent: Int) -> Bool {
+        guard confirmedCurrent == 0 else {
+            UserDefaults.standard.set(confirmedCurrent, forKey: lastKnownRecordCountKey)
+            return false
+        }
+        recordIncident(kind: "launch", previous: previous, current: confirmedCurrent)
+        return true
     }
 
     /// Call after the user has handled a detected loss (restored from a
