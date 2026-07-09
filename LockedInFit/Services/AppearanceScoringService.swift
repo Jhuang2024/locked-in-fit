@@ -81,15 +81,15 @@ enum AppearanceScoringService {
             explanations.append("Consistent sleep is supporting the skin component.")
         }
         if looksComplianceRatio == nil && sleepComplianceRatio == nil {
-            confidenceNotes.append("Skin stays neutral until skincare or sleep habits are logged, or AI analysis is enabled.")
+            confidenceNotes.append("Skin stays neutral until skincare or sleep habits are logged.")
         }
 
         // Symmetry (15): a single 2D photo can't separate real facial symmetry
         // from head angle, so no photo metric is allowed to move this. It
-        // stays a flat neutral value locally; AI analysis, if enabled, can
-        // give the total score a real visual read.
+        // stays a flat neutral value locally — a permanent, structural fact
+        // about single-photo scoring, not a data gap the user can close, so
+        // it's not repeated here as a confidence note every single check-in.
         let symmetry = 10.0
-        confidenceNotes.append("Symmetry stays at a neutral value locally; enable AI analysis in Settings for a real visual read.")
 
         // Grooming (25): a habit, not a pixel statistic; tied to actual
         // grooming/looks-checklist follow-through. Missing data stays
@@ -274,13 +274,14 @@ enum AppearanceScoringService {
 
         // Posture (15): a single photo can't reliably read posture any more
         // than it can read facial symmetry, so this stays a flat neutral
-        // value locally regardless of photo count; AI analysis, if enabled,
-        // can give the total score a real visual read.
+        // value locally regardless of photo count — a permanent, structural
+        // fact, not a data gap, so it's not repeated as a confidence note on
+        // its own. Photo count is still worth flagging when photos are
+        // missing entirely, since front/side/back angles are what the rest
+        // of the app (comparisons, AI observations) actually uses.
         let posture = 10.0
         if inputs.photoCount == 0 {
-            confidenceNotes.append("No body photos attached, so posture stays neutral. Front/side/back photos plus AI analysis give a real read.")
-        } else if inputs.photoCount < 3 {
-            confidenceNotes.append("Partial photo set (\(inputs.photoCount)/3). Adding the missing angles sharpens comparison, but posture already stays neutral either way.")
+            confidenceNotes.append("No body photos attached yet. Front/side/back photos help track changes over time.")
         }
 
         // Trend direction vs active goal (15).

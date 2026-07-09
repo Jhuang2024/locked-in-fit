@@ -183,15 +183,25 @@ enum SleepScoringService {
 
     // MARK: - Component formulas
 
-    /// 0-40. Peaks across 7-9h, tapers steeply below (fatigue), gently above.
+    /// 0-40. Single peak at 9h (the top of the 7-9h "ideal" range), tapering
+    /// gently down to 7h, then steeply below that (fatigue), and gently above
+    /// 9h (oversleep). No flat plateau across 7-9h: 9h is the only true
+    /// maximum, so any shortfall — even a few minutes — always shows up as a
+    /// visibly lower score instead of rounding up to the same 40 as a full
+    /// 9 hours.
     private static func durationPoints(hours: Double) -> Double {
-        if idealDurationRange.contains(hours) { return 40 }
-        if hours < idealDurationRange.lowerBound {
-            let under = idealDurationRange.lowerBound - hours
-            return max(0, 40 - under * 13)
+        if hours >= idealDurationRange.upperBound {
+            let over = hours - idealDurationRange.upperBound
+            return max(20, 40 - over * 8)
         }
-        let over = hours - idealDurationRange.upperBound
-        return max(20, 40 - over * 8)
+        if hours >= idealDurationRange.lowerBound {
+            let under = idealDurationRange.upperBound - hours // 0..<2
+            return 40 - under * 2
+        }
+        let rangeSpan = idealDurationRange.upperBound - idealDurationRange.lowerBound // 2
+        let baseAtLowerBound = 40 - rangeSpan * 2 // score at exactly 7h, matches the branch above
+        let under = idealDurationRange.lowerBound - hours
+        return max(0, baseAtLowerBound - under * 13)
     }
 
     /// 0-25. Circular distance between tonight's bedtime and the median of up
