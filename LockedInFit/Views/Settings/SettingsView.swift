@@ -59,6 +59,12 @@ struct SettingsView: View {
     /// any Settings field (live @Bindable bindings), which made typing
     /// anywhere in Settings re-decode all backups on every character.
     @State private var cachedLatestBackup: BackupService.BackupInfo?
+    /// Loaded once on appear, same reasoning as cachedLatestBackup above.
+    /// Surfaces DataLossGuard's persisted incident log here — not gated to
+    /// DEBUG — specifically so a data-loss event is visible from inside the
+    /// app itself (with a timestamp and record counts) even on a build with
+    /// no Mac/Xcode anywhere nearby when it happened.
+    @State private var dataLossIncidents: [DataLossGuard.Incident] = []
 
     private var latestWeight: BodyWeightEntry? { weights.last }
 
@@ -122,6 +128,10 @@ struct SettingsView: View {
 
             backupSection
 
+            if !dataLossIncidents.isEmpty {
+                dataSafetySection
+            }
+
             Section {
                 LabeledContent("Storage", value: "On-device only")
                 LabeledContent("Version", value: "1.0")
@@ -162,6 +172,7 @@ struct SettingsView: View {
                 weightInput = String(format: "%.1f", latestWeight.weightKg)
             }
             cachedLatestBackup = BackupService.latestBackup()
+            dataLossIncidents = DataLossGuard.recentIncidents()
         }
         .onDisappear {
             PerfLog.event("Settings.disappear")
@@ -366,6 +377,36 @@ struct SettingsView: View {
             Text("Local Backups")
         } footer: {
             Text("Backups are separate from the export file above: up to \(BackupService.maxBackupsKept) rotate on this device, the most complete one is never rotated out, and each backup is also mirrored to the shared App Group container so it survives app updates. Restoring merges records back in without deleting anything.")
+        }
+    }
+
+    /// Only appears when DataLossGuard has actually recorded something —
+    /// most people should never see this section. Each row is a moment the
+    /// on-device record count suddenly dropped, either caught at launch or
+    /// mid-session by the periodic watchdog (see RootTabView), so a report
+    /// of "data deletes itself" has a timestamp and exact before/after
+    /// counts attached instead of only a vague memory of when it happened.
+    private var dataSafetySection: some View {
+        Section {
+            ForEach(dataLossIncidents) { incident in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(incident.kind == "mid-session" ? "While app was open" : "Detected at launch")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Text(Formatters.mediumDate(incident.date))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("\(incident.previousCount) → \(incident.currentCount) records")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Data Safety")
+        } footer: {
+            Text("LockedInFit detected the on-device record count drop suddenly at these times. If this keeps happening, use Restore From Backup above (pick the most-complete entry, not necessarily the newest) and consider saving an Export JSON file somewhere outside the app.")
         }
     }
 }

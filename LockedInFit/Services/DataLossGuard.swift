@@ -9,6 +9,37 @@ import SwiftData
 /// a recovery screen instead of silently continuing into an empty app.
 enum DataLossGuard {
     private static let lastKnownRecordCountKey = "LockedInFit.lastKnownRecordCount"
+    private static let incidentLogKey = "LockedInFit.dataLossIncidents"
+    private static let maxIncidentsKept = 10
+
+    /// A detected loss event, persisted (not just logged) so it's visible
+    /// from inside the app itself — Settings → Data Safety — rather than
+    /// only discoverable via Xcode's console at the exact moment it
+    /// happens. That distinction matters a lot for a report of data
+    /// disappearing hours into ordinary use with no Mac anywhere nearby.
+    struct Incident: Codable, Identifiable {
+        var id = UUID()
+        var date: Date
+        /// "launch" (checkForSuddenDataLoss, next app open) or
+        /// "mid-session" (watchForMidSessionLoss, no relaunch involved).
+        var kind: String
+        var previousCount: Int
+        var currentCount: Int
+    }
+
+    /// Newest first, for display.
+    static func recentIncidents() -> [Incident] {
+        guard let data = UserDefaults.standard.data(forKey: incidentLogKey) else { return [] }
+        return ((try? JSONDecoder().decode([Incident].self, from: data)) ?? []).sorted { $0.date > $1.date }
+    }
+
+    private static func recordIncident(kind: String, previous: Int, current: Int) {
+        var incidents = recentIncidents()
+        incidents.insert(Incident(date: .now, kind: kind, previousCount: previous, currentCount: current), at: 0)
+        incidents = Array(incidents.prefix(maxIncidentsKept))
+        guard let data = try? JSONEncoder().encode(incidents) else { return }
+        UserDefaults.standard.set(data, forKey: incidentLogKey)
+    }
 
     /// Total records across the same categories `Snapshot.totalRecordCount`
     /// counts, using `fetchCount` rather than fetching and DTO-converting
@@ -41,7 +72,9 @@ enum DataLossGuard {
         let previous = defaults.integer(forKey: lastKnownRecordCountKey)
         let current = currentRecordCount(context: context)
         let lostEverything = previous > 0 && current == 0
-        if !lostEverything {
+        if lostEverything {
+            recordIncident(kind: "launch", previous: previous, current: current)
+        } else {
             defaults.set(current, forKey: lastKnownRecordCountKey)
         }
         return lostEverything
@@ -66,8 +99,10 @@ enum DataLossGuard {
         let current = currentRecordCount(context: context)
         if previousCount > 5, current == 0 {
             PerfLog.fault("MID-SESSION DATA LOSS: \(previousCount) -> 0 records while the app was already running, no relaunch")
+            recordIncident(kind: "mid-session", previous: previousCount, current: current)
         } else if previousCount > 20, current < previousCount / 2 {
             PerfLog.fault("MID-SESSION DATA DROP: \(previousCount) -> \(current) records while the app was already running, no relaunch")
+            recordIncident(kind: "mid-session", previous: previousCount, current: current)
         }
         return current
     }
