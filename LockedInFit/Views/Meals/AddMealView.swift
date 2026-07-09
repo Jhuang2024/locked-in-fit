@@ -66,19 +66,17 @@ struct AddMealView: View {
                     } label: {
                         Label("Add preset food", systemImage: "plus.circle")
                     }
-                    ForEach(addedItems, id: \.persistentModelID) { item in
-                        HStack {
-                            Text(item.name)
-                            Spacer()
-                            Text("\(Int(item.calories)) kcal")
-                                .foregroundStyle(.secondary)
+                }
+
+                if !addedItems.isEmpty {
+                    Section("Foods") {
+                        ForEach(addedItems, id: \.persistentModelID) { item in
+                            FoodItemEditorRow(item: item, onChanged: recalcTotals)
                         }
-                    }
-                    .onDelete { offsets in
-                        for index in offsets {
-                            subtractItem(addedItems[index])
+                        .onDelete { offsets in
+                            addedItems.remove(atOffsets: offsets)
+                            recalcTotals()
                         }
-                        addedItems.remove(atOffsets: offsets)
                     }
                 }
 
@@ -114,12 +112,7 @@ struct AddMealView: View {
                                         fiber: preset.fiber, sodium: preset.sodium,
                                         cookingMethod: preset.cookingMethod)
                     addedItems.append(item)
-                    calories += preset.calories
-                    protein += preset.protein
-                    carbs += preset.carbs
-                    fat += preset.fat
-                    fiber += preset.fiber
-                    sodium += preset.sodium
+                    recalcTotals()
                 }
             }
         }
@@ -152,23 +145,26 @@ struct AddMealView: View {
                      confidence: item.confidence)
         }
         addedItems.append(contentsOf: items)
-        calories += estimate.estimatedCalories
-        protein += estimate.protein
-        carbs += estimate.carbs
-        fat += estimate.fat
-        fiber += estimate.fiber
-        sodium += estimate.sodium
+        recalcTotals()
         if notes.isEmpty { notes = estimate.notes }
         mealDescription = ""
     }
 
-    private func subtractItem(_ item: FoodItem) {
-        calories -= item.calories
-        protein -= item.protein
-        carbs -= item.carbs
-        fat -= item.fat
-        fiber -= item.fiber
-        sodium -= item.sodium
+    /// Totals derive from the sum of `addedItems` whenever there's at least
+    /// one, so editing an item's grams, calories, macros, or cooking method
+    /// in the Foods section (via FoodItemEditorRow, same editor the photo
+    /// flow and the post-save meal detail screen use) keeps Totals in sync
+    /// instead of showing a stale figure from whenever the item was added.
+    /// Guarded on non-empty so pure manual entry (no items at all, just
+    /// typed totals) is left alone rather than getting zeroed out.
+    private func recalcTotals() {
+        guard !addedItems.isEmpty else { return }
+        calories = addedItems.reduce(0) { $0 + $1.calories }
+        protein = addedItems.reduce(0) { $0 + $1.protein }
+        carbs = addedItems.reduce(0) { $0 + $1.carbs }
+        fat = addedItems.reduce(0) { $0 + $1.fat }
+        fiber = addedItems.reduce(0) { $0 + $1.fiber }
+        sodium = addedItems.reduce(0) { $0 + $1.sodium }
     }
 
     private func macroField(_ label: String, value: Binding<Double>, unit: String) -> some View {

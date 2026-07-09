@@ -63,13 +63,14 @@ struct MealDetailView: View {
             if !meal.items.isEmpty {
                 Section("Foods") {
                     ForEach(meal.items, id: \.persistentModelID) { item in
-                        FoodItemEditorRow(item: item)
+                        FoodItemEditorRow(item: item, onChanged: recalcTotals)
                     }
                     .onDelete { offsets in
                         let sorted = meal.items
                         for index in offsets {
                             meal.foodItems?.removeAll { $0 === sorted[index] }
                         }
+                        recalcTotals()
                     }
                 }
             }
@@ -113,6 +114,28 @@ struct MealDetailView: View {
                 dismiss()
             }
         }
+    }
+
+    /// Recomputes the meal's totals from its food items, same as
+    /// MealDraftEditor's pre-save version, so editing a food item's grams,
+    /// calories, macros, or cooking method (which itself scales grams'
+    /// nutrients — see FoodItemEditorRow) here after the meal is already
+    /// saved keeps Totals, the food log, and the dashboard's eaten/remaining
+    /// figures in sync instead of showing whatever was true at save time.
+    private func recalcTotals() {
+        let items = meal.items
+        guard !items.isEmpty else { return }
+        meal.calories = items.reduce(0) { $0 + $1.calories }
+        meal.protein = items.reduce(0) { $0 + $1.protein }
+        meal.carbs = items.reduce(0) { $0 + $1.carbs }
+        meal.fat = items.reduce(0) { $0 + $1.fat }
+        meal.fiber = items.reduce(0) { $0 + $1.fiber }
+        meal.sodium = items.reduce(0) { $0 + $1.sodium }
+        let oil = HiddenOilEstimator.estimate(forFoodItems: items)
+        meal.hiddenOilLow = oil.low.rounded()
+        meal.hiddenOilHigh = oil.high.rounded()
+        meal.calorieLow = (meal.calories * 0.85).rounded()
+        meal.calorieHigh = (meal.calories * 1.1 + oil.high).rounded()
     }
 
     private func field(_ label: String, value: Binding<Double>, unit: String) -> some View {
