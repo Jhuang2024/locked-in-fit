@@ -84,11 +84,7 @@ struct BackupRestoreListView: View {
     }
 
     private func load() {
-        backups = (BackupService.listBackups() + BackupService.appGroupMirrorBackups())
-            .sorted {
-                if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
-                return $0.date > $1.date
-            }
+        backups = BackupService.allKnownBackups()
     }
 
     private func row(_ backup: BackupService.BackupInfo) -> some View {

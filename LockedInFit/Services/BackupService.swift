@@ -216,6 +216,29 @@ enum BackupService {
 
     static func latestBackup() -> BackupInfo? { listBackups().first }
 
+    /// Every backup this device knows about — local rotation plus the App
+    /// Group mirrors that survive reinstalls — sorted most-complete first.
+    /// The single source of truth for "what's the best backup we have";
+    /// `BackupRestoreListView` and `DataRecoveryView` both use this so their
+    /// lists can never disagree, and so `mostCompleteBackup()` below can
+    /// never silently miss a more-complete mirror the way a local-only
+    /// summary stat once did.
+    static func allKnownBackups() -> [BackupInfo] {
+        (listBackups() + appGroupMirrorBackups()).sorted {
+            if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
+            return $0.date > $1.date
+        }
+    }
+
+    /// The backup Settings' summary/"Latest backup" stat should show. Not
+    /// `latestBackup()` (local-only, newest-only): a "Backup Now" tap right
+    /// before an update can be followed by a few more entries, then a
+    /// backgrounding-triggered backup that captures them and mirrors to the
+    /// App Group container — but if the on-disk sandbox is then replaced,
+    /// only the mirror survives, and a local-only "latest" stat would show a
+    /// smaller, staler count than what's actually safely backed up.
+    static func mostCompleteBackup() -> BackupInfo? { allKnownBackups().first }
+
     /// Restores a backup into `context`. Import is always additive (never
     /// deletes existing rows), so the only real guard needed is refusing to
     /// "restore" an empty backup onto a database that already has data,

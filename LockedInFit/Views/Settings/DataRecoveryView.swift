@@ -136,11 +136,7 @@ struct DataRecoveryView: View {
     }
 
     private func loadBackups() {
-        backups = (BackupService.listBackups() + BackupService.appGroupMirrorBackups())
-            .sorted {
-                if $0.recordCount != $1.recordCount { return $0.recordCount > $1.recordCount }
-                return $0.date > $1.date
-            }
+        backups = BackupService.allKnownBackups()
     }
 
     private func restore(from backup: BackupService.BackupInfo) {

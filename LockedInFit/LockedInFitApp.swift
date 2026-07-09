@@ -142,6 +142,7 @@ struct RootTabView: View {
         }
         .onAppear {
             guard dataLossDetected == nil else { return }
+            PerfLog.event("launch.storeFileSize: \(PersistenceGuard.storeFileSizeBytes()) bytes")
             let lostData = PerfLog.measure("launch.dataLossCheck") {
                 DataLossGuard.checkForSuddenDataLoss(context: context)
             }

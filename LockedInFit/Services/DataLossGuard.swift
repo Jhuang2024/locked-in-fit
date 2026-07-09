@@ -25,6 +25,13 @@ enum DataLossGuard {
         var kind: String
         var previousCount: Int
         var currentCount: Int
+        /// PersistenceGuard.storeFileSizeBytes() at the moment this was
+        /// detected. The decisive clue for a future occurrence: still large
+        /// despite 0 reported records means SwiftData failed to open an
+        /// intact store; near-empty means the store itself was actually
+        /// replaced. Optional (decodeIfPresent) so it stays compatible with
+        /// any incident already persisted before this field existed.
+        var storeFileSizeBytes: Int64?
     }
 
     /// Newest first, for display.
@@ -35,7 +42,9 @@ enum DataLossGuard {
 
     private static func recordIncident(kind: String, previous: Int, current: Int) {
         var incidents = recentIncidents()
-        incidents.insert(Incident(date: .now, kind: kind, previousCount: previous, currentCount: current), at: 0)
+        let incident = Incident(date: .now, kind: kind, previousCount: previous, currentCount: current,
+                                storeFileSizeBytes: PersistenceGuard.storeFileSizeBytes())
+        incidents.insert(incident, at: 0)
         incidents = Array(incidents.prefix(maxIncidentsKept))
         guard let data = try? JSONEncoder().encode(incidents) else { return }
         UserDefaults.standard.set(data, forKey: incidentLogKey)

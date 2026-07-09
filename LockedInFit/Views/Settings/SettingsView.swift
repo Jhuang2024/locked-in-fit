@@ -53,11 +53,17 @@ struct SettingsView: View {
     @State private var weightInput = ""
     @State private var backupResult: String?
     @State private var isBackingUp = false
-    /// Cached instead of calling BackupService.latestBackup() directly from
-    /// the view body: that call decodes every backup file's full JSON
-    /// snapshot from disk, and the body re-evaluates on every keystroke in
-    /// any Settings field (live @Bindable bindings), which made typing
-    /// anywhere in Settings re-decode all backups on every character.
+    /// Cached instead of calling BackupService.mostCompleteBackup()
+    /// directly from the view body: that call touches disk (index +
+    /// App Group mirror metadata), and the body re-evaluates on every
+    /// keystroke in any Settings field (live @Bindable bindings), which
+    /// made typing anywhere in Settings re-read backup state on every
+    /// character. mostCompleteBackup(), not the newest-only
+    /// BackupService.latestBackup(): a backup right before an update can be
+    /// followed by a few more entries and a backgrounding-triggered backup
+    /// that mirrors them to the App Group container, and if the local
+    /// sandbox is then replaced, only that mirror survives — a newest-LOCAL
+    /// stat would under-report what's actually safely backed up.
     @State private var cachedLatestBackup: BackupService.BackupInfo?
     /// Loaded once on appear, same reasoning as cachedLatestBackup above.
     /// Surfaces DataLossGuard's persisted incident log here — not gated to
@@ -171,7 +177,7 @@ struct SettingsView: View {
             if weightInput.isEmpty, let latestWeight {
                 weightInput = String(format: "%.1f", latestWeight.weightKg)
             }
-            cachedLatestBackup = BackupService.latestBackup()
+            cachedLatestBackup = BackupService.mostCompleteBackup()
             dataLossIncidents = DataLossGuard.recentIncidents()
         }
         .onDisappear {
@@ -343,7 +349,7 @@ struct SettingsView: View {
                     isBackingUp = true
                     let saved = await BackupService.backupNowManually(container: context.container) != nil
                     backupResult = saved ? "Backup saved just now." : "Nothing to back up, or a backup was already running."
-                    cachedLatestBackup = BackupService.latestBackup()
+                    cachedLatestBackup = BackupService.mostCompleteBackup()
                     isBackingUp = false
                 }
             } label: {
@@ -401,6 +407,13 @@ struct SettingsView: View {
                     Text("\(incident.previousCount) → \(incident.currentCount) records")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if let bytes = incident.storeFileSizeBytes {
+                        Text(bytes > 100_000
+                             ? "Store file was still \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) — the data may still be on disk."
+                             : "Store file was \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)), consistent with an empty store.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         } header: {

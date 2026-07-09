@@ -63,6 +63,33 @@ enum PersistenceGuard {
         logger.notice("Schema version changed (\(lastSeen) -> \(currentSchemaVersion)); copied \(storeFiles.count) store file(s) to \(destination.path, privacy: .public)")
     }
 
+    /// Bytes across every `default.store*` file (the main SQLite file plus
+    /// its -wal/-shm journals) currently on disk. Diagnostic, not
+    /// protective: this is what tells apart two very differently-caused
+    /// versions of "the app shows 0 records" —
+    /// - file still large (hundreds of KB+) but SwiftData reports 0 rows:
+    ///   SwiftData failed to open/recognize the existing store and silently
+    ///   substituted an empty one, the data is still sitting right there on
+    ///   disk;
+    /// - file is tiny (a few KB, an empty store's baseline size): the store
+    ///   itself was genuinely replaced/reset, not a SwiftData read failure.
+    /// Logged at every launch and attached to a DataLossGuard incident when
+    /// one is detected, so a future occurrence carries the evidence needed
+    /// to tell these apart instead of remaining a total mystery.
+    static func storeFileSizeBytes() -> Int64 {
+        guard let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+              let contents = try? FileManager.default.contentsOfDirectory(
+                  at: supportDir, includingPropertiesForKeys: [.fileSizeKey]) else {
+            return 0
+        }
+        return contents
+            .filter { $0.lastPathComponent.hasPrefix("default.store") }
+            .reduce(Int64(0)) { total, url in
+                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+                return total + Int64(size)
+            }
+    }
+
     private static func logPathChangesIfAny() {
         let defaults = UserDefaults.standard
         let storePath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.path ?? "unknown"
