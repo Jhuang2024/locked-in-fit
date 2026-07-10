@@ -185,11 +185,14 @@ enum NotificationService {
     // MARK: - Sleep reminder
 
     /// A single same-day reminder to log/check off a due sleep-checklist item.
-    /// Skipped once that item is completed today, or if none is due.
-    static func refreshSleepReminder(enabled: Bool, hour: Int, minute: Int, dueAndIncomplete: Bool) async {
+    /// Skipped once that item is completed today, once a sleep log has
+    /// actually been saved today (the two can disagree: logging sleep on
+    /// the Sleep page doesn't check off a checklist item, so without this a
+    /// user who already logged sleep would still get nagged), or if none is due.
+    static func refreshSleepReminder(enabled: Bool, hour: Int, minute: Int, dueAndIncomplete: Bool, sleepLoggedToday: Bool) async {
         let center = UNUserNotificationCenter.current()
         await removePending(prefix: sleepPrefix)
-        guard enabled, dueAndIncomplete, await isAuthorized() else { return }
+        guard enabled, dueAndIncomplete, !sleepLoggedToday, await isAuthorized() else { return }
 
         let calendar = Calendar.current
         var components = calendar.dateComponents([.year, .month, .day], from: Date())

@@ -84,6 +84,11 @@ struct DashboardView: View {
     private var sleepItemDueIncomplete: Bool {
         DailyChecklistService.sleepItemDueIncomplete(checklistItems)
     }
+    /// Whether the user has actually used the sleep-logging flow today,
+    /// independent of whether any checklist item happens to be checked off.
+    private var sleepLoggedToday: Bool {
+        sleepLogs.contains { $0.createdAt.isToday }
+    }
     private var sleepChecklistItemsDueToday: [DailyChecklistItem] {
         dueChecklistItemsToday.filter { $0.category == .sleep }
     }
@@ -202,7 +207,7 @@ struct DashboardView: View {
             .onChange(of: checklistItems) { _, _ in triggerReminderRefresh(); scheduleBackup() }
             .onChange(of: steps) { _, _ in triggerReminderRefresh(); scheduleBackup() }
             .onChange(of: appearanceCheckIns) { _, _ in triggerReminderRefresh(); scheduleBackup() }
-            .onChange(of: sleepLogs) { _, _ in scheduleBackup() }
+            .onChange(of: sleepLogs) { _, _ in triggerReminderRefresh(); scheduleBackup() }
             .onChange(of: weights) { _, _ in scheduleBackup() }
             .onChange(of: bodyFats) { _, _ in scheduleBackup() }
     }
@@ -325,7 +330,8 @@ struct DashboardView: View {
             enabled: settings.sleepReminderEnabled,
             hour: settings.sleepReminderHour,
             minute: settings.sleepReminderMinute,
-            dueAndIncomplete: sleepItemDueIncomplete)
+            dueAndIncomplete: sleepItemDueIncomplete,
+            sleepLoggedToday: sleepLoggedToday)
         await NotificationService.refreshChecklistDigest(
             enabled: settings.checklistReminderEnabled,
             hour: 18, minute: 0,

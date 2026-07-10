@@ -6,6 +6,7 @@ import UserNotifications
 // DashboardView.swift for why these must never be rebuilt per view init.
 private let notificationsMeals = FetchDescriptor<MealLog>(sortBy: [SortDescriptor(\MealLog.date, order: .reverse)])
 private let notificationsCheckIns = FetchDescriptor<AppearanceCheckIn>(sortBy: [SortDescriptor(\AppearanceCheckIn.date, order: .reverse)])
+private let notificationsSleepLogs = FetchDescriptor<SleepLog>(sortBy: [SortDescriptor(\SleepLog.createdAt, order: .reverse)])
 
 /// Single control surface for every notification category: what fires,
 /// whether it's on, and a quick status/next-reminder readout. Detailed
@@ -16,6 +17,7 @@ struct NotificationSettingsView: View {
     @Query private var checklistItems: [DailyChecklistItem]
     @Query(notificationsMeals) private var meals: [MealLog]
     @Query(notificationsCheckIns) private var appearanceCheckIns: [AppearanceCheckIn]
+    @Query(notificationsSleepLogs) private var sleepLogs: [SleepLog]
     @Query private var workoutSchedules: [WorkoutSchedule]
 
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
@@ -31,6 +33,9 @@ struct NotificationSettingsView: View {
     }
     private var sleepItemDueIncomplete: Bool {
         DailyChecklistService.sleepItemDueIncomplete(checklistItems)
+    }
+    private var sleepLoggedToday: Bool {
+        sleepLogs.contains { $0.createdAt.isToday }
     }
     private var openChecklistCountExcludingSleep: Int {
         DailyChecklistService.openItemsExcludingSleep(checklistItems).count
@@ -102,7 +107,7 @@ struct NotificationSettingsView: View {
                     apply(on, turnOff: { settings.sleepReminderEnabled = false }) {
                         await NotificationService.refreshSleepReminder(
                             enabled: on, hour: settings.sleepReminderHour, minute: settings.sleepReminderMinute,
-                            dueAndIncomplete: sleepItemDueIncomplete)
+                            dueAndIncomplete: sleepItemDueIncomplete, sleepLoggedToday: sleepLoggedToday)
                     }
                 }))
             categoryToggle("Face scan", systemImage: "face.smiling", isOn: Binding(
