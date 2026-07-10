@@ -132,16 +132,32 @@ enum CalorieRemainingCalculator {
                         nutrition: DailyNutritionSummary,
                         activityAdjustment: ActivityAdjustmentSummary,
                         tefCalories: Double = 0) -> CalorieRemainingSummary {
-        let adjustedTarget = baseTarget + activityAdjustment.adjustmentCalories + tefCalories
+        // Round each atomic kcal figure once, here, rather than carrying
+        // Doubles through and letting every display site round its own chip
+        // independently. Doing it per-chip means "Target" (rounded from the
+        // precise, un-rounded sum) can differ from what a user gets by
+        // adding up the Base/Exercise/TEF chips (each independently
+        // rounded) right next to it — e.g. 1899.6 + 0.6 + 26.4 rounds to
+        // chips reading 1900 / +1 / +26 (= 1927 by hand) while the precise
+        // sum 1926.6 itself rounds to 1927... but shift those fractions
+        // slightly and the two paths land on different whole numbers.
+        // Calories are a whole-number concept for display anyway, so
+        // rounding once at the source guarantees every screen's numbers
+        // always add up exactly, by construction.
+        let roundedBase = baseTarget.rounded()
+        let roundedExercise = activityAdjustment.adjustmentCalories.rounded()
+        let roundedTEF = tefCalories.rounded()
+        let roundedEaten = nutrition.consumedCalories.rounded()
+        let adjustedTarget = roundedBase + roundedExercise + roundedTEF
         return CalorieRemainingSummary(
-            baseTarget: baseTarget,
+            baseTarget: roundedBase,
             adjustedTarget: adjustedTarget,
-            eaten: nutrition.consumedCalories,
+            eaten: roundedEaten,
             foodCalories: nutrition.calories,
             hiddenOilCalories: nutrition.hiddenOilCalories,
-            exerciseAdjustment: activityAdjustment.adjustmentCalories,
-            tefCalories: tefCalories,
-            remaining: adjustedTarget - nutrition.consumedCalories
+            exerciseAdjustment: roundedExercise,
+            tefCalories: roundedTEF,
+            remaining: adjustedTarget - roundedEaten
         )
     }
 }
