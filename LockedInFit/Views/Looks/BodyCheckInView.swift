@@ -22,7 +22,7 @@ struct BodyCheckInView: View {
 
     private var settings: UserSettings? { settingsList.first }
     private var usesBazaarLink: Bool {
-        KeychainService.bazaarLinkAPIKey != nil
+        KeychainService.hasAnyAIKey
     }
     private var heightLooksDefault: Bool {
         let height = settings?.heightCm ?? 0

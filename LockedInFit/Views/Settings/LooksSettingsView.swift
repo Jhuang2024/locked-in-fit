@@ -72,9 +72,9 @@ struct LooksSettingsView: View {
                 Face and body photos are stored on this device only, in the app's private storage. \
                 Scores are computed locally from photo quality, consistency, grooming/visibility proxies, \
                 your body composition data, and comparison against your own history; they are not a \
-                measure of attractiveness. If BazaarLink analysis is enabled in AI settings, check-in \
-                photos are sent to your chosen model only when you run an analysis, and nothing is saved \
-                until you review it.
+                measure of attractiveness. If AI analysis is enabled (an OpenRouter or BazaarLink key \
+                saved in AI settings), check-in photos are sent to your chosen model only when you run \
+                an analysis, and nothing is saved until you review it.
                 """)
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -5,8 +5,8 @@ import UIKit
 /// service pattern. Demands strict JSON, tolerates fences, and is explicitly
 /// forbidden from judging attractiveness or inferring protected traits.
 struct BazaarLinkAppearanceAIService: AppearanceAIService {
-    let providerName = "BazaarLink"
-    let modelName: String
+    var providerName: String { KeychainService.openRouterAPIKey != nil ? "OpenRouter" : "BazaarLink" }
+    let modelOverride: String?
 
     private static let sharedRules = """
     You are a supportive, practical appearance-optimization assistant inside a private fitness app. \
@@ -61,8 +61,6 @@ struct BazaarLinkAppearanceAIService: AppearanceAIService {
     }
 
     private func analyze(images: [UIImage], userText: String) async throws -> AppearanceAIResult {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
-
         var content: [[String: Any]] = [["type": "text", "text": userText]]
         for image in images.prefix(3) {
             guard let jpeg = image.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) else { continue }
@@ -72,7 +70,6 @@ struct BazaarLinkAppearanceAIService: AppearanceAIService {
         guard content.count > 1 else { throw FoodAIError.parsing("Couldn't encode the photo.") }
 
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.sharedRules],
                 ["role": "user", "content": content]
@@ -81,8 +78,8 @@ struct BazaarLinkAppearanceAIService: AppearanceAIService {
             "max_tokens": 1200
         ]
 
-        let response = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseResult(from: response)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseResult(from: result.content)
     }
 
     /// Tolerates code fences and stray text around the JSON object.

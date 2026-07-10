@@ -16,6 +16,12 @@ struct HealthScanCaptureView: View {
     @State private var draft: HealthScan?
 
     private var settings: UserSettings? { settingsList.first }
+    /// Reflects an explicit Settings override if set, otherwise says so
+    /// plainly — AIGatewayClient resolves the actual free-routing model per
+    /// provider at call time, so there's no single fixed ID to name here.
+    private var modelDescription: String {
+        AIServiceFactory.modelName(settings: settings) ?? "auto-selected free model"
+    }
 
     var body: some View {
         NavigationStack {
@@ -117,10 +123,10 @@ struct HealthScanCaptureView: View {
                     .disabled(model.image == nil && model.productDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             } footer: {
-                if KeychainService.bazaarLinkAPIKey != nil {
-                    Text("Using BazaarLink (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the result.")
+                if KeychainService.hasAnyAIKey {
+                    Text("Using \(modelDescription). Nothing is saved until you review the result.")
                 } else {
-                    Text("No BazaarLink API key saved. Add one in Settings → AI Analysis to scan products.")
+                    Text("No OpenRouter or BazaarLink API key saved. Add one in Settings → AI Analysis to scan products.")
                 }
             }
         }

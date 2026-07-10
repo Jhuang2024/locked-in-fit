@@ -57,7 +57,7 @@ struct AddMealView: View {
                 } header: {
                     Text("Describe It")
                 } footer: {
-                    Text("Describe the meal in plain language and its calories/macros get added to the totals below. Uses the same BazaarLink model as photo analysis (Settings → AI Analysis).")
+                    Text("Describe the meal in plain language and its calories/macros get added to the totals below. Uses the same AI gateway as photo analysis (OpenRouter, falling back to BazaarLink; Settings → AI Analysis).")
                 }
 
                 Section("From presets") {

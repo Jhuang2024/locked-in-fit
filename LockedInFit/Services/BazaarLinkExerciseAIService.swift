@@ -5,8 +5,8 @@ import Foundation
 /// pattern, equipment, muscle groups, sets, reps, weight in kg), and parses
 /// into ExerciseEstimate.
 struct BazaarLinkExerciseAIService: ExerciseAIService {
-    let providerName = "BazaarLink"
-    let modelName: String
+    var providerName: String { KeychainService.openRouterAPIKey != nil ? "OpenRouter" : "BazaarLink" }
+    let modelOverride: String?
 
     private static let systemPromptText = """
     You are extracting a structured exercise entry from a free-text description for a private fitness \
@@ -28,7 +28,6 @@ struct BazaarLinkExerciseAIService: ExerciseAIService {
     """
 
     func analyzeExercise(description: String, context: ExerciseAnalysisContext) async throws -> ExerciseEstimate {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -36,7 +35,6 @@ struct BazaarLinkExerciseAIService: ExerciseAIService {
         let userText = "Description: \(trimmed). \(unitHint) Return the strict JSON result."
 
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.systemPromptText],
                 ["role": "user", "content": userText]
@@ -45,8 +43,8 @@ struct BazaarLinkExerciseAIService: ExerciseAIService {
             "max_tokens": 500
         ]
 
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseEstimate(from: content)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseEstimate(from: result.content)
     }
 
     /// Tolerates code fences and stray text around the JSON object.

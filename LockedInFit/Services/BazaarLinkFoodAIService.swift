@@ -1,11 +1,18 @@
 import Foundation
 import UIKit
 
-/// Real meal analysis via BazaarLink's chat completions API.
-/// Sends the photo + context, demands strict JSON back, parses into MealEstimate.
+/// Real meal analysis via AIGatewayClient (OpenRouter, falling back to
+/// BazaarLink). Sends the photo + context, demands strict JSON back, parses
+/// into MealEstimate.
 struct BazaarLinkFoodAIService: FoodAIService {
-    let providerName = "BazaarLink"
-    let modelName: String
+    /// Best-effort label for "who will this try first" — read at
+    /// construction time, before any network call, so it can't reflect a
+    /// fallback that hasn't happened yet. AIGatewayClient itself always
+    /// tries OpenRouter before BazaarLink regardless of this label.
+    var providerName: String { KeychainService.openRouterAPIKey != nil ? "OpenRouter" : "BazaarLink" }
+    /// User's explicit model override from Settings, if any; nil/empty lets
+    /// AIGatewayClient pick each provider's own free-routing model.
+    let modelOverride: String?
 
     private static let systemPrompt = """
     You are estimating calories and macros from a food image for a private nutrition tracker. \
@@ -26,7 +33,6 @@ struct BazaarLinkFoodAIService: FoodAIService {
     """
 
     func analyzeMeal(images: [UIImage], context: MealAnalysisContext) async throws -> MealEstimate {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         guard !images.isEmpty else { throw FoodAIError.parsing("No photos to analyze.") }
         let jpegs = images.compactMap { $0.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) }
         guard jpegs.count == images.count else {
@@ -54,7 +60,6 @@ struct BazaarLinkFoodAIService: FoodAIService {
         }
 
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.systemPrompt],
                 ["role": "user", "content": userContent]
@@ -63,8 +68,8 @@ struct BazaarLinkFoodAIService: FoodAIService {
             "max_tokens": 1500
         ]
 
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseEstimate(from: content)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseEstimate(from: result.content)
     }
 
     private static let systemPromptText = """
@@ -86,7 +91,6 @@ struct BazaarLinkFoodAIService: FoodAIService {
     """
 
     func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -97,7 +101,6 @@ struct BazaarLinkFoodAIService: FoodAIService {
         userText += " Return the strict JSON estimate."
 
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.systemPromptText],
                 ["role": "user", "content": userText]
@@ -106,19 +109,17 @@ struct BazaarLinkFoodAIService: FoodAIService {
             "max_tokens": 1200
         ]
 
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseEstimate(from: content)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseEstimate(from: result.content)
     }
 
     func testConnection() async throws -> String {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [["role": "user", "content": "Reply with the single word: ok"]],
             "max_tokens": 10
         ]
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return "Connected via \(result.provider.displayName) (\(result.model)). Replied: \(result.content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 
     /// Tolerates code fences and stray text around the JSON object.

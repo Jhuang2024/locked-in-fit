@@ -4,8 +4,8 @@ import Foundation
 /// Sends a plain-text description of the workout, demands strict JSON back,
 /// parses into WorkoutEstimate.
 struct BazaarLinkWorkoutAIService: WorkoutAIService {
-    let providerName = "BazaarLink"
-    let modelName: String
+    var providerName: String { KeychainService.openRouterAPIKey != nil ? "OpenRouter" : "BazaarLink" }
+    let modelOverride: String?
 
     private static let systemPromptText = """
     You are estimating calories burned from a plain-text description of an exercise session for a \
@@ -20,7 +20,6 @@ struct BazaarLinkWorkoutAIService: WorkoutAIService {
     """
 
     func analyzeWorkout(description: String, context: WorkoutAnalysisContext) async throws -> WorkoutEstimate {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -31,7 +30,6 @@ struct BazaarLinkWorkoutAIService: WorkoutAIService {
         userText += " Description: \(trimmed) Return the strict JSON estimate."
 
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": Self.systemPromptText],
                 ["role": "user", "content": userText]
@@ -40,19 +38,17 @@ struct BazaarLinkWorkoutAIService: WorkoutAIService {
             "max_tokens": 800
         ]
 
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseEstimate(from: content)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseEstimate(from: result.content)
     }
 
     func testConnection() async throws -> String {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [["role": "user", "content": "Reply with the single word: ok"]],
             "max_tokens": 10
         ]
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return "Connected via \(result.provider.displayName) (\(result.model)). Replied: \(result.content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 
     /// Tolerates code fences and stray text around the JSON object.

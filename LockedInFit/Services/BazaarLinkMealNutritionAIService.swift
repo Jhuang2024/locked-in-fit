@@ -1,13 +1,13 @@
 import Foundation
 
-/// Health/satiety scoring for an already-logged meal via BazaarLink's chat
-/// completions API. Reuses BazaarLinkClient's request/parsing plumbing, the
-/// same as BazaarLinkFoodAIService and BazaarLinkHealthScanAIService. Only
-/// needs the meal's final numbers, not another photo round-trip, so it stays
-/// fast and never blocks the food-logging flow.
+/// Health/satiety scoring for an already-logged meal via AIGatewayClient
+/// (OpenRouter, falling back to BazaarLink). Reuses the same request/parsing
+/// plumbing as BazaarLinkFoodAIService and BazaarLinkHealthScanAIService.
+/// Only needs the meal's final numbers, not another photo round-trip, so it
+/// stays fast and never blocks the food-logging flow.
 struct BazaarLinkMealNutritionAIService: MealNutritionAIService {
-    let providerName = "BazaarLink"
-    let modelName: String
+    var providerName: String { KeychainService.openRouterAPIKey != nil ? "OpenRouter" : "BazaarLink" }
+    let modelOverride: String?
 
     private static let systemPrompt = """
     You are a practical nutrition coach scoring a meal or snack the user already logged in a \
@@ -41,18 +41,16 @@ struct BazaarLinkMealNutritionAIService: MealNutritionAIService {
         "outside the JSON object."
 
     func analyze(_ input: MealNutritionAnalysisInput) async throws -> MealNutritionEstimate {
-        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         do {
-            return try await requestAndParse(input: input, apiKey: apiKey, strict: false)
+            return try await requestAndParse(input: input, strict: false)
         } catch FoodAIError.parsing {
             // Parsing failed once; retry with a stricter prompt before giving up.
-            return try await requestAndParse(input: input, apiKey: apiKey, strict: true)
+            return try await requestAndParse(input: input, strict: true)
         }
     }
 
-    private func requestAndParse(input: MealNutritionAnalysisInput, apiKey: String, strict: Bool) async throws -> MealNutritionEstimate {
+    private func requestAndParse(input: MealNutritionAnalysisInput, strict: Bool) async throws -> MealNutritionEstimate {
         let body: [String: Any] = [
-            "model": modelName,
             "messages": [
                 ["role": "system", "content": strict ? Self.strictSystemPrompt : Self.systemPrompt],
                 ["role": "user", "content": Self.describe(input)]
@@ -60,8 +58,8 @@ struct BazaarLinkMealNutritionAIService: MealNutritionAIService {
             "temperature": strict ? 0.0 : 0.2,
             "max_tokens": 700
         ]
-        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
-        return try Self.parseEstimate(from: content)
+        let result = try await AIGatewayClient.send(body: body, modelOverride: modelOverride)
+        return try Self.parseEstimate(from: result.content)
     }
 
     private static func describe(_ input: MealNutritionAnalysisInput) -> String {

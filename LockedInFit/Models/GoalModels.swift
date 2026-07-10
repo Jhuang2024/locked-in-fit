@@ -67,13 +67,22 @@ final class UserSettings {
     var exerciseCalorieAdjustmentRaw: String = ExerciseCalorieAdjustment.conservative.rawValue
     var sodiumLimitMg: Double = 2300
     // AI settings metadata. The API key itself lives in the Keychain only.
-    var aiModelName: String = "openai/gpt-4o-mini"
+    /// Empty by default on purpose: AIServiceFactory.modelName treats empty
+    /// as "no override", which lets AIGatewayClient resolve each provider's
+    /// own free-routing model (OpenRouter's "openrouter/free" / BazaarLink's
+    /// "auto:free") at call time. A non-empty stored default here would
+    /// silently defeat that — every fresh install would send a fixed paid
+    /// model ID forever, never actually falling through to the free
+    /// default, exactly the bug this field's old "openai/gpt-4o-mini"
+    /// default caused.
+    var aiModelName: String = ""
     /// LEGACY, no longer consulted: providers used to be gated on this mode
     /// string, which defaulted to "mock" and silently reset on every
     /// container wipe even when a key survived in the Keychain — sending all
     /// AI analysis to fabricated mock data. Providers now key purely off
-    /// whether an BazaarLink key exists. Kept because persisted properties
-    /// are never removed (additive-only migration policy).
+    /// whether an OpenRouter or BazaarLink key exists. Kept because
+    /// persisted properties are never removed (additive-only migration
+    /// policy).
     var aiModeRaw: String = "mock"
     var hasStoredAPIKey: Bool = false
     var seededSampleData: Bool = false

@@ -55,6 +55,6 @@ extension AIServiceFactory {
     /// ActivityAdjustmentCalculator.estimatedWorkoutCalories heuristic,
     /// which is honest local math rather than fabricated AI output.
     static func makeWorkout(settings: UserSettings?) -> WorkoutAIService {
-        BazaarLinkWorkoutAIService(modelName: modelName(settings: settings))
+        BazaarLinkWorkoutAIService(modelOverride: modelName(settings: settings))
     }
 }

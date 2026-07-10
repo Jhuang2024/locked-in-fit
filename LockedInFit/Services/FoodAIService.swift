@@ -10,7 +10,7 @@ enum FoodAIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noAPIKey:
-            return "No BazaarLink API key saved. Add one in Settings → AI Analysis to use photo and description analysis."
+            return "No OpenRouter or BazaarLink API key saved. Add one in Settings → AI Analysis to use photo and description analysis."
         case .invalidResponse(let detail):
             return "The AI returned an unexpected response. \(detail)"
         case .network(let detail):

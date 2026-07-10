@@ -16,6 +16,12 @@ struct MealPhotoAnalysisView: View {
     @State private var draft: MealLog?
 
     private var settings: UserSettings? { settingsList.first }
+    /// Reflects an explicit Settings override if set, otherwise says so
+    /// plainly — AIGatewayClient resolves the actual free-routing model per
+    /// provider at call time, so there's no single fixed ID to name here.
+    private var modelDescription: String {
+        AIServiceFactory.modelName(settings: settings) ?? "auto-selected free model"
+    }
 
     var body: some View {
         NavigationStack {
@@ -107,10 +113,10 @@ struct MealPhotoAnalysisView: View {
                     .disabled(model.images.isEmpty)
                 }
             } footer: {
-                if KeychainService.bazaarLinkAPIKey != nil {
-                    Text("Using BazaarLink (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the estimate.")
+                if KeychainService.hasAnyAIKey {
+                    Text("Using \(modelDescription). Nothing is saved until you review the estimate.")
                 } else {
-                    Text("No BazaarLink API key saved. Add one in Settings → AI Analysis to analyze meal photos.")
+                    Text("No OpenRouter or BazaarLink API key saved. Add one in Settings → AI Analysis to analyze meal photos.")
                 }
             }
         }
