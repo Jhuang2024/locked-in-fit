@@ -28,6 +28,64 @@ enum CardMetrics {
     static let spacing: CGFloat = 14
 }
 
+/// A small palette built from the app's one AccentColor (see
+/// Assets.xcassets/AccentColor) instead of reaching for whatever system hue
+/// is nearby. Anywhere a UI element needs a *progression* (a tier, a level,
+/// "how far along") should use `tone(_:of:)` rather than stringing together
+/// unrelated system colors (gray → teal → blue → indigo → purple → orange
+/// is six unconnected hues with no visual relationship to each other or to
+/// the app); a single hue that deepens as it climbs reads as one deliberate
+/// scale. `elite` is the one deliberate break from that rule, reserved for
+/// the single top tier — the "you made it" color premium apps use once,
+/// not a rung on the same ramp.
+enum BrandPalette {
+    static let accent = Color.accentColor
+    /// Accent's hue, so tone(_:of:) stays visually tied to AccentColor even
+    /// if the asset's exact RGB ever changes.
+    private static let accentHue = 0.40
+
+    static func tone(_ level: Int, of total: Int) -> Color {
+        let t = total > 1 ? Double(max(0, min(level, total - 1))) / Double(total - 1) : 1
+        return Color(hue: accentHue, saturation: 0.4 + 0.4 * t, brightness: 0.5 + 0.35 * t)
+    }
+
+    static let elite = Color(red: 0.93, green: 0.73, blue: 0.24)
+
+    /// Subtle diagonal brand gradient for the one or two surfaces per screen
+    /// that should visually lead — not applied to ordinary cards, which
+    /// would flatten the effect back into "everything looks the same".
+    static var heroGradient: LinearGradient {
+        LinearGradient(colors: [accent, accent.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+// MARK: - CardEntrance
+
+/// A brief, index-staggered rise-and-fade the first time a card appears, so
+/// a screen full of stacked cards feels composed rather than dropped in all
+/// at once as a single static layout. Purely a one-shot `onAppear` animation
+/// on local `@State` — no ongoing cost once settled, no effect on layout or
+/// hit-testing before/after.
+struct CardEntrance: ViewModifier {
+    let index: Int
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 10)
+            .onAppear {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85).delay(Double(index) * 0.04)) {
+                    appeared = true
+                }
+            }
+    }
+}
+
+extension View {
+    func cardEntrance(_ index: Int) -> some View { modifier(CardEntrance(index: index)) }
+}
+
 /// Consistent card chrome used across every card in the app: soft fill,
 /// a hairline border for definition in both appearances, no heavy shadow.
 struct CardBackground: ViewModifier {
@@ -46,6 +104,40 @@ struct CardBackground: ViewModifier {
 
 extension View {
     func cardBackground() -> some View { modifier(CardBackground()) }
+}
+
+/// The elevated counterpart to CardBackground: a translucent brand-tinted
+/// wash over the same neutral base (not a solid fill — AccentColor is a
+/// bright, light green, so a solid fill would fight legibility for
+/// .primary/.secondary text that assumes a neutral background), plus a
+/// colored border and glow shadow instead of the barely-visible neutral
+/// shadow every ordinary card uses. Reserved for the one hero surface per
+/// screen (the Today dashboard's score card) — using it more broadly would
+/// just flatten the effect back into "everything looks the same", the
+/// exact problem it exists to fix.
+struct HeroCardBackground: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    Color(.secondarySystemGroupedBackground)
+                    LinearGradient(colors: [BrandPalette.accent.opacity(0.18), BrandPalette.accent.opacity(0.03)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                },
+                in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
+                    .strokeBorder(BrandPalette.accent.opacity(colorScheme == .dark ? 0.38 : 0.22), lineWidth: 1)
+            )
+            .shadow(color: BrandPalette.accent.opacity(colorScheme == .dark ? 0.2 : 0.16), radius: 18, x: 0, y: 8)
+    }
+}
+
+extension View {
+    func heroCardBackground() -> some View { modifier(HeroCardBackground()) }
 }
 
 // MARK: - Press feedback
@@ -220,9 +312,31 @@ struct ChartCard<Content: View>: View {
     }
 }
 
+// MARK: - IconBadge
+
+/// A tinted circular badge behind an SF Symbol, used wherever a glyph is the
+/// focal point of what it's next to (empty states, hero surfaces) so it
+/// reads as a designed element rather than a bare system icon floating on
+/// the page background. Not used for the small header icons inside
+/// DashboardCard — those are deliberately minimal secondary labels, and a
+/// badge there would fight the label instead of supporting it.
+struct IconBadge: View {
+    let systemImage: String
+    var color: Color = BrandPalette.accent
+    var size: CGFloat = 40
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: size, height: size)
+            .background(color.opacity(0.15), in: Circle())
+    }
+}
+
 // MARK: - EmptyStateView
 
-/// A quiet, non-demo empty state: an outlined glyph, a short title, and one line
+/// A quiet, non-demo empty state: a badged glyph, a short title, and one line
 /// of guidance. No illustrations, no sample data; just what to do next.
 struct EmptyStateView: View {
     let systemImage: String
@@ -231,9 +345,7 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.system(size: 28, weight: .regular))
-                .foregroundStyle(.tertiary)
+            IconBadge(systemImage: systemImage, color: .secondary, size: 48)
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
@@ -292,16 +404,13 @@ struct StrengthScoreCard: View {
         .cardBackground()
     }
 
+    private static let tierThresholds: [Double] = [150, 300, 450, 600, 750, 900]
+
     private var levelColor: Color {
-        switch score.score {
-        case ..<150: return .gray
-        case ..<300: return .teal
-        case ..<450: return .blue
-        case ..<600: return .indigo
-        case ..<750: return .purple
-        case ..<900: return .orange
-        default: return .yellow
-        }
+        let tier = Self.tierThresholds.firstIndex { score.score < $0 } ?? Self.tierThresholds.count
+        return tier == Self.tierThresholds.count
+            ? BrandPalette.elite
+            : BrandPalette.tone(tier, of: Self.tierThresholds.count + 1)
     }
 }
 

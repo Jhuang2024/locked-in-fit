@@ -251,18 +251,18 @@ struct DashboardView: View {
     private var dashboardScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
-                header
-                quickActions
-                checklistCard
-                socialReadinessCardIfPresent
-                calorieCard
-                macroCard
-                activityCard
-                looksCard
-                sleepCard
-                trendCard
-                goalSnippetIfPresent
-                mealsCard
+                header.cardEntrance(0)
+                quickActions.cardEntrance(1)
+                checklistCard.cardEntrance(2)
+                socialReadinessCardIfPresent.cardEntrance(3)
+                calorieCard.cardEntrance(4)
+                macroCard.cardEntrance(5)
+                activityCard.cardEntrance(6)
+                looksCard.cardEntrance(7)
+                sleepCard.cardEntrance(8)
+                trendCard.cardEntrance(9)
+                goalSnippetIfPresent.cardEntrance(10)
+                mealsCard.cardEntrance(11)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
@@ -491,7 +491,7 @@ struct DashboardView: View {
             }
         }
         .padding(16)
-        .cardBackground()
+        .heroCardBackground()
     }
 
     private var quickActions: some View {

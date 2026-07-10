@@ -83,6 +83,10 @@ struct SleepTrendsView: View {
             ChartCard(title: "Sleep Score", subtitle: "0–100 · duration, consistency, interruptions, timing") {
                 Chart {
                     ForEach(Array(scorePoints.enumerated()), id: \.offset) { _, point in
+                        AreaMark(x: .value("Date", point.date), y: .value("Score", point.score))
+                            .foregroundStyle(.linearGradient(colors: [.indigo.opacity(0.28), .indigo.opacity(0.02)],
+                                                              startPoint: .top, endPoint: .bottom))
+                            .interpolationMethod(.monotone)
                         LineMark(x: .value("Date", point.date), y: .value("Score", point.score))
                             .foregroundStyle(.indigo)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
@@ -107,7 +111,7 @@ struct SleepTrendsView: View {
                 Chart {
                     ForEach(Array(durationPoints.enumerated()), id: \.offset) { _, point in
                         BarMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
-                            .foregroundStyle(.teal)
+                            .foregroundStyle(Color.teal.gradient)
                     }
                 }
                 .id("duration-\(windowDays)")

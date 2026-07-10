@@ -78,6 +78,12 @@ struct WeightTrendsView: View {
                     ChartCard(title: "Bodyweight", subtitle: "Dots are scale readings; the line is your smoothed trend.") {
                         Chart {
                             ForEach(trendPoints) { point in
+                                AreaMark(x: .value("Date", point.date), y: .value("kg", point.trendKg))
+                                    .foregroundStyle(.linearGradient(colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.02)],
+                                                                      startPoint: .top, endPoint: .bottom))
+                                    .interpolationMethod(.monotone)
+                            }
+                            ForEach(trendPoints) { point in
                                 PointMark(x: .value("Date", point.date), y: .value("kg", point.weightKg))
                                     .foregroundStyle(Color.accentColor.opacity(0.35))
                                     .symbolSize(24)

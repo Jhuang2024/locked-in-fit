@@ -113,6 +113,10 @@ struct AppearanceTrendsView: View {
             ChartCard(title: title, subtitle: "0–100 · higher confidence with consistent photos") {
                 Chart {
                     ForEach(Array(points.enumerated()), id: \.offset) { _, point in
+                        AreaMark(x: .value("Date", point.date), y: .value("Score", point.score))
+                            .foregroundStyle(.linearGradient(colors: [color.opacity(0.26), color.opacity(0.02)],
+                                                              startPoint: .top, endPoint: .bottom))
+                            .interpolationMethod(.monotone)
                         LineMark(x: .value("Date", point.date), y: .value("Score", point.score))
                             .foregroundStyle(color)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))

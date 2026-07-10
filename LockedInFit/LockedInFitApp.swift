@@ -74,6 +74,13 @@ struct LockedInFitApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabView()
+                // Rounded design was previously reserved for a handful of
+                // numeric score callouts; applying it once here at the root
+                // cascades it to every Text/Label in the app (anything more
+                // local can still opt out with its own .fontDesign), giving
+                // the whole app one consistent, deliberately "sporty" type
+                // identity instead of 100% default system text everywhere.
+                .fontDesign(.rounded)
         }
         .modelContainer(container)
         // Backgrounding is the moment right before an app update — the exact
@@ -215,6 +222,12 @@ struct RootTabView: View {
                 .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
                 .tag(Tab.trends)
         }
+        // A frosted-glass bar instead of the fully opaque default reads as
+        // deliberately designed rather than stock iOS chrome, and lets
+        // content scrolling underneath show through like the rest of the
+        // system's own apps.
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 }
 
