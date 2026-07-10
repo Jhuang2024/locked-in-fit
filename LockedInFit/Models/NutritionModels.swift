@@ -42,7 +42,13 @@ final class MealLog {
         set { mealTypeRaw = newValue.rawValue }
     }
 
-    var items: [FoodItem] { foodItems ?? [] }
+    /// Sorted by `order`: a SwiftData to-many relationship typed as an array
+    /// (`[FoodItem]?`) does not actually guarantee stable insertion order
+    /// across fetches/saves the way a plain Swift array would — without an
+    /// explicit order field, items can silently reshuffle after a save and
+    /// reload. Same fix already applied to Exercise/WorkoutSet; FoodItem
+    /// never got it.
+    var items: [FoodItem] { (foodItems ?? []).sorted { $0.order < $1.order } }
 
     /// Every photo attached to this meal (primary first), for display and
     /// for cleanup on delete. Same shape as AppearanceCheckIn.allPhotoPaths.
@@ -139,6 +145,8 @@ final class FoodItem {
     var cookingMethodRaw: String = CookingMethod.unknown.rawValue
     var confidence: Double = 1.0
     var meal: MealLog?
+    /// Position within the meal's food list; see MealLog.items.
+    var order: Int = 0
 
     var cookingMethod: CookingMethod {
         get { CookingMethod(rawValue: cookingMethodRaw) ?? .unknown }
@@ -154,7 +162,8 @@ final class FoodItem {
          fiber: Double = 0,
          sodium: Double = 0,
          cookingMethod: CookingMethod = .unknown,
-         confidence: Double = 1.0) {
+         confidence: Double = 1.0,
+         order: Int = 0) {
         self.name = name
         self.grams = grams
         self.calories = calories
@@ -165,6 +174,7 @@ final class FoodItem {
         self.sodium = sodium
         self.cookingMethodRaw = cookingMethod.rawValue
         self.confidence = confidence
+        self.order = order
     }
 }
 

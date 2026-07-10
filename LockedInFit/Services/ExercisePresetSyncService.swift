@@ -7,14 +7,16 @@ import SwiftData
 /// automatically once the workout is saved, so presets build themselves up
 /// from real training instead of requiring a separate manual step.
 enum ExercisePresetSyncService {
-    /// Case-insensitive, whitespace-trimmed exact name match — the one
-    /// notion of "already have this exercise" shared by both directions of
-    /// the sync: skipping a duplicate preset add, and preferring a saved
-    /// preset's own numbers over a fresh AI estimate for the same exercise.
+    /// Case-insensitive match on a normalized name — the one notion of
+    /// "already have this exercise" shared by both directions of the sync:
+    /// skipping a duplicate preset add, and preferring a saved preset's own
+    /// numbers over a fresh AI estimate for the same exercise. See
+    /// FoodPresetSyncService.matchingPreset for why both sides need
+    /// normalizing, not just the incoming name.
     static func matchingPreset(named name: String, in presets: [ExercisePreset]) -> ExercisePreset? {
-        let target = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let target = FoodPresetSyncService.normalize(name)
         guard !target.isEmpty else { return nil }
-        return presets.first { $0.name.caseInsensitiveCompare(target) == .orderedSame }
+        return presets.first { FoodPresetSyncService.normalize($0.name) == target }
     }
 
     /// Adds a preset for every exercise that doesn't already match one by

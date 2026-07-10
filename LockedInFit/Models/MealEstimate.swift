@@ -36,7 +36,7 @@ struct MealEstimate: Codable {
         /// checked) is more trustworthy than a new estimate for something
         /// you've logged before. Grams (portion size) always comes from the
         /// AI, since a preset has no per-meal portion of its own.
-        func makeFoodItem(presets: [FoodPreset]) -> FoodItem {
+        func makeFoodItem(presets: [FoodPreset], order: Int = 0) -> FoodItem {
             if let preset = FoodPresetSyncService.matchingPreset(named: name, in: presets) {
                 return FoodItem(
                     name: preset.name,
@@ -48,7 +48,8 @@ struct MealEstimate: Codable {
                     fiber: preset.fiber,
                     sodium: preset.sodium,
                     cookingMethod: preset.cookingMethod,
-                    confidence: 1.0
+                    confidence: 1.0,
+                    order: order
                 )
             }
             return FoodItem(
@@ -61,7 +62,8 @@ struct MealEstimate: Codable {
                 fiber: fiber,
                 sodium: sodium,
                 cookingMethod: CookingMethod(rawValue: cookingMethod.lowercased()) ?? .unknown,
-                confidence: confidence
+                confidence: confidence,
+                order: order
             )
         }
     }
@@ -74,7 +76,7 @@ struct MealEstimate: Codable {
     /// onChanged uses everywhere else in the app, so a substitution shows up
     /// immediately instead of only after the user edits something.
     func makeDraft(date: Date = .now, photoPath: String? = nil, presets: [FoodPreset] = []) -> MealLog {
-        let items = foodItems.map { $0.makeFoodItem(presets: presets) }
+        let items = foodItems.enumerated().map { index, item in item.makeFoodItem(presets: presets, order: index) }
         let oil = items.isEmpty ? (low: hiddenOilLow, high: hiddenOilHigh) : HiddenOilEstimator.estimate(forFoodItems: items)
         let totalCalories = items.isEmpty ? estimatedCalories : items.reduce(0) { $0 + $1.calories }
         let meal = MealLog(

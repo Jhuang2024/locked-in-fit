@@ -480,12 +480,12 @@ enum ExportImportService {
                                fiber: m.fiber, sodium: m.sodium, confidence: m.confidence,
                                calorieLow: m.calorieLow, calorieHigh: m.calorieHigh,
                                hiddenOilLow: m.hiddenOilLow, hiddenOilHigh: m.hiddenOilHigh, notes: m.notes,
-                               foodItems: m.foodItems.map {
-                                   FoodItem(name: $0.name, grams: $0.grams, calories: $0.calories,
-                                            protein: $0.protein, carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber,
-                                            sodium: $0.sodium,
-                                            cookingMethod: CookingMethod(rawValue: $0.cookingMethod) ?? .unknown,
-                                            confidence: $0.confidence)
+                               foodItems: m.foodItems.enumerated().map { index, item in
+                                   FoodItem(name: item.name, grams: item.grams, calories: item.calories,
+                                            protein: item.protein, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
+                                            sodium: item.sodium,
+                                            cookingMethod: CookingMethod(rawValue: item.cookingMethod) ?? .unknown,
+                                            confidence: item.confidence, order: index)
                                })
             context.insert(meal); count += 1
         }

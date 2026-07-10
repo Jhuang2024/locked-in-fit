@@ -110,7 +110,7 @@ struct AddMealView: View {
                     let item = FoodItem(name: preset.name, grams: 0, calories: preset.calories,
                                         protein: preset.protein, carbs: preset.carbs, fat: preset.fat,
                                         fiber: preset.fiber, sodium: preset.sodium,
-                                        cookingMethod: preset.cookingMethod)
+                                        cookingMethod: preset.cookingMethod, order: addedItems.count)
                     addedItems.append(item)
                     recalcTotals()
                 }
@@ -139,7 +139,12 @@ struct AddMealView: View {
     private func applyEstimate(_ estimate: MealEstimate) {
         // Defaults to a matching preset's saved numbers over the AI's fresh
         // guess for the same food name — see FoodItemEstimate.makeFoodItem.
-        let items = estimate.foodItems.map { $0.makeFoodItem(presets: presets) }
+        // Order continues from whatever's already in addedItems (manual
+        // entry or an earlier "Estimate Calories" pass can precede this).
+        let baseOrder = addedItems.count
+        let items = estimate.foodItems.enumerated().map { index, item in
+            item.makeFoodItem(presets: presets, order: baseOrder + index)
+        }
         addedItems.append(contentsOf: items)
         recalcTotals()
         if notes.isEmpty { notes = estimate.notes }

@@ -119,15 +119,25 @@ struct PresetEditorView: View {
     }
 
     private func save() {
+        // Untrimmed whitespace here is invisible in the UI but permanent in
+        // the stored name/category — a preset saved with a trailing space
+        // would never again match FoodPresetSyncService.matchingPreset
+        // (which normalizes what it's comparing against, but can't fix what
+        // got stored), and an untrimmed category silently starts its own
+        // section in the list below instead of joining the one that looks
+        // identical.
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedCategory = cleanCategory.isEmpty ? "General" : cleanCategory
         if let preset {
-            preset.name = name; preset.serving = serving; preset.calories = calories
+            preset.name = cleanName; preset.serving = serving; preset.calories = calories
             preset.protein = protein; preset.carbs = carbs; preset.fat = fat
-            preset.fiber = fiber; preset.sodium = sodium; preset.category = category
+            preset.fiber = fiber; preset.sodium = sodium; preset.category = resolvedCategory
             preset.notes = notes; preset.cookingMethod = cookingMethod
         } else {
-            context.insert(FoodPreset(name: name, serving: serving, calories: calories,
+            context.insert(FoodPreset(name: cleanName, serving: serving, calories: calories,
                                       protein: protein, carbs: carbs, fat: fat, fiber: fiber,
-                                      sodium: sodium, category: category, notes: notes,
+                                      sodium: sodium, category: resolvedCategory, notes: notes,
                                       cookingMethod: cookingMethod))
         }
         dismiss()

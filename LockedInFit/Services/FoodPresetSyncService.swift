@@ -6,14 +6,35 @@ import SwiftData
 /// becomes one automatically, so presets build themselves up from real
 /// usage instead of requiring a separate manual step.
 enum FoodPresetSyncService {
-    /// Case-insensitive, whitespace-trimmed exact name match — the one
-    /// notion of "already have this food" shared by both directions of the
-    /// sync: skipping a duplicate preset add, and preferring a saved
-    /// preset's own numbers over a fresh AI estimate for the same food.
+    /// Case-insensitive match on a normalized name — the one notion of
+    /// "already have this food" shared by both directions of the sync:
+    /// skipping a duplicate preset add, and preferring a saved preset's own
+    /// numbers over a fresh AI estimate for the same food. Normalizing both
+    /// sides (not just the incoming name) matters: a preset typed by hand
+    /// with a trailing space, or an AI estimate that adds a stray period or
+    /// double space, used to silently never match again — every AI
+    /// rephrasing ("white rice" vs "steamed rice," vs "Rice") created a new
+    /// preset instead of reusing the saved one, which is what actually made
+    /// this feature feel unreliable rather than automatic.
     static func matchingPreset(named name: String, in presets: [FoodPreset]) -> FoodPreset? {
-        let target = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let target = normalize(name)
         guard !target.isEmpty else { return nil }
-        return presets.first { $0.name.caseInsensitiveCompare(target) == .orderedSame }
+        return presets.first { normalize($0.name) == target }
+    }
+
+    /// Trims, collapses internal whitespace runs to a single space, and
+    /// drops trailing punctuation, then case-folds. Only strips *formatting*
+    /// noise — it never bridges genuinely different wording ("chicken
+    /// breast" vs "chicken thigh" still won't match), so it can't cause a
+    /// false match between two actually-different foods.
+    static func normalize(_ raw: String) -> String {
+        let collapsed = raw
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return collapsed
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!"))
+            .lowercased()
     }
 
     /// Adds a preset for every item that doesn't already match one by name.

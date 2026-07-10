@@ -83,9 +83,9 @@ enum SeedDataService {
                 confidence: 0.9, calorieLow: 350, calorieHigh: 430,
                 notes: "Boiled eggs, corn, seaweed pack.",
                 foodItems: [
-                    FoodItem(name: "boiled eggs", grams: 100, calories: 155, protein: 13, carbs: 1, fat: 11, sodium: 125, cookingMethod: .boiled, confidence: 0.95),
-                    FoodItem(name: "corn on the cob", grams: 150, calories: 130, protein: 5, carbs: 27, fat: 2, fiber: 3, sodium: 20, cookingMethod: .boiled, confidence: 0.9),
-                    FoodItem(name: "seaweed snack + fruit", grams: 120, calories: 95, protein: 6, carbs: 14, fat: 0, fiber: 1, sodium: 175, cookingMethod: .raw, confidence: 0.8)
+                    FoodItem(name: "boiled eggs", grams: 100, calories: 155, protein: 13, carbs: 1, fat: 11, sodium: 125, cookingMethod: .boiled, confidence: 0.95, order: 0),
+                    FoodItem(name: "corn on the cob", grams: 150, calories: 130, protein: 5, carbs: 27, fat: 2, fiber: 3, sodium: 20, cookingMethod: .boiled, confidence: 0.9, order: 1),
+                    FoodItem(name: "seaweed snack + fruit", grams: 120, calories: 95, protein: 6, carbs: 14, fat: 0, fiber: 1, sodium: 175, cookingMethod: .raw, confidence: 0.8, order: 2)
                 ])
             context.insert(breakfast)
 
@@ -96,9 +96,9 @@ enum SeedDataService {
                 hiddenOilLow: 80, hiddenOilHigh: 260,
                 notes: "Home-cooked meal. Estimate includes likely stir-fry oil.",
                 foodItems: [
-                    FoodItem(name: "stir-fried eggplant", grams: 180, calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, cookingMethod: .stirFried, confidence: 0.65),
-                    FoodItem(name: "steamed white rice", grams: 200, calories: 260, protein: 5, carbs: 57, fat: 1, fiber: 1, sodium: 5, cookingMethod: .steamed, confidence: 0.9),
-                    FoodItem(name: "boiled shrimp", grams: 100, calories: 100, protein: 22, carbs: 0.5, fat: 1, sodium: 300, cookingMethod: .boiled, confidence: 0.8)
+                    FoodItem(name: "stir-fried eggplant", grams: 180, calories: 260, protein: 4, carbs: 22, fat: 18, fiber: 6, sodium: 480, cookingMethod: .stirFried, confidence: 0.65, order: 0),
+                    FoodItem(name: "steamed white rice", grams: 200, calories: 260, protein: 5, carbs: 57, fat: 1, fiber: 1, sodium: 5, cookingMethod: .steamed, confidence: 0.9, order: 1),
+                    FoodItem(name: "boiled shrimp", grams: 100, calories: 100, protein: 22, carbs: 0.5, fat: 1, sodium: 300, cookingMethod: .boiled, confidence: 0.8, order: 2)
                 ])
             context.insert(lunch)
 
@@ -109,9 +109,9 @@ enum SeedDataService {
                 hiddenOilLow: 40, hiddenOilHigh: 150,
                 notes: "Dumplings, greens, winter melon soup.",
                 foodItems: [
-                    FoodItem(name: "pork & chive dumplings", grams: 220, calories: 420, protein: 18, carbs: 52, fat: 15, fiber: 3, sodium: 780, cookingMethod: .boiled, confidence: 0.75),
-                    FoodItem(name: "stir-fried leafy greens", grams: 120, calories: 90, protein: 2, carbs: 5, fat: 7, fiber: 2, sodium: 280, cookingMethod: .stirFried, confidence: 0.6),
-                    FoodItem(name: "winter melon soup", grams: 250, calories: 50, protein: 2, carbs: 5, fat: 2, fiber: 1, sodium: 500, cookingMethod: .soup, confidence: 0.7)
+                    FoodItem(name: "pork & chive dumplings", grams: 220, calories: 420, protein: 18, carbs: 52, fat: 15, fiber: 3, sodium: 780, cookingMethod: .boiled, confidence: 0.75, order: 0),
+                    FoodItem(name: "stir-fried leafy greens", grams: 120, calories: 90, protein: 2, carbs: 5, fat: 7, fiber: 2, sodium: 280, cookingMethod: .stirFried, confidence: 0.6, order: 1),
+                    FoodItem(name: "winter melon soup", grams: 250, calories: 50, protein: 2, carbs: 5, fat: 2, fiber: 1, sodium: 500, cookingMethod: .soup, confidence: 0.7, order: 2)
                 ])
             context.insert(dinner)
 
