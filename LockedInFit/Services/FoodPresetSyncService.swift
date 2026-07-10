@@ -51,6 +51,7 @@ enum FoodPresetSyncService {
             let preset = FoodPreset(
                 name: item.name.trimmingCharacters(in: .whitespacesAndNewlines),
                 serving: serving,
+                referenceGrams: item.grams,
                 calories: item.calories,
                 protein: item.protein,
                 carbs: item.carbs,

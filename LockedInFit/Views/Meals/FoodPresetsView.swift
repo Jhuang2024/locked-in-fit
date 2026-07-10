@@ -52,6 +52,7 @@ struct PresetEditorView: View {
 
     @State private var name = ""
     @State private var serving = ""
+    @State private var referenceGrams: Double = 0
     @State private var calories: Double = 0
     @State private var protein: Double = 0
     @State private var carbs: Double = 0
@@ -67,19 +68,24 @@ struct PresetEditorView: View {
             Form {
                 Section("Food") {
                     TextField("Name", text: $name)
-                    TextField("Serving (e.g. 1 bowl, 180 g)", text: $serving)
+                    TextField("Serving label (e.g. 1 bowl, 180 g)", text: $serving)
                     TextField("Category", text: $category)
                     Picker("Cooking method", selection: $cookingMethod) {
                         ForEach(CookingMethod.allCases) { Text($0.label).tag($0) }
                     }
                 }
-                Section("Nutrition per serving") {
+                Section {
+                    field("Weight", value: $referenceGrams, unit: "g")
                     field("Calories", value: $calories, unit: "kcal")
                     field("Protein", value: $protein, unit: "g")
                     field("Carbs", value: $carbs, unit: "g")
                     field("Fat", value: $fat, unit: "g")
                     field("Fiber", value: $fiber, unit: "g")
                     field("Sodium", value: $sodium, unit: "mg")
+                } header: {
+                    Text("Nutrition per serving")
+                } footer: {
+                    Text("Weight is what makes this preset reusable at other portion sizes: when a logged meal's amount differs from this weight, the calories and macros above are scaled proportionally instead of applied as-is.")
                 }
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
@@ -113,6 +119,10 @@ struct PresetEditorView: View {
     private func load() {
         guard let preset else { return }
         name = preset.name; serving = preset.serving; calories = preset.calories
+        // Falls back to whatever can be parsed out of the serving label for
+        // presets saved before the Weight field existed, so editing one
+        // shows a sensible starting value instead of a blank 0.
+        referenceGrams = preset.effectiveReferenceGrams
         protein = preset.protein; carbs = preset.carbs; fat = preset.fat
         fiber = preset.fiber; sodium = preset.sodium; category = preset.category
         notes = preset.notes; cookingMethod = preset.cookingMethod
@@ -130,15 +140,16 @@ struct PresetEditorView: View {
         let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedCategory = cleanCategory.isEmpty ? "General" : cleanCategory
         if let preset {
-            preset.name = cleanName; preset.serving = serving; preset.calories = calories
+            preset.name = cleanName; preset.serving = serving; preset.referenceGrams = referenceGrams
+            preset.calories = calories
             preset.protein = protein; preset.carbs = carbs; preset.fat = fat
             preset.fiber = fiber; preset.sodium = sodium; preset.category = resolvedCategory
             preset.notes = notes; preset.cookingMethod = cookingMethod
         } else {
-            context.insert(FoodPreset(name: cleanName, serving: serving, calories: calories,
-                                      protein: protein, carbs: carbs, fat: fat, fiber: fiber,
-                                      sodium: sodium, category: resolvedCategory, notes: notes,
-                                      cookingMethod: cookingMethod))
+            context.insert(FoodPreset(name: cleanName, serving: serving, referenceGrams: referenceGrams,
+                                      calories: calories, protein: protein, carbs: carbs, fat: fat,
+                                      fiber: fiber, sodium: sodium, category: resolvedCategory,
+                                      notes: notes, cookingMethod: cookingMethod))
         }
         dismiss()
     }

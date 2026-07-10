@@ -107,7 +107,15 @@ struct AddMealView: View {
             }
             .sheet(isPresented: $showPresetPicker) {
                 PresetPickerView { preset in
-                    let item = FoodItem(name: preset.name, grams: 0, calories: preset.calories,
+                    // Seed grams from the preset's own reference weight so
+                    // grams and calories describe the same amount of food
+                    // from the moment the item is created — FoodItemEditorRow
+                    // scales proportionally from whatever grams starts at,
+                    // so a mismatched starting pair (e.g. grams: 0 next to
+                    // the preset's full calories) throws every later edit
+                    // off by that same wrong ratio.
+                    let seedGrams = preset.effectiveReferenceGrams > 0 ? preset.effectiveReferenceGrams : 100
+                    let item = FoodItem(name: preset.name, grams: seedGrams, calories: preset.calories,
                                         protein: preset.protein, carbs: preset.carbs, fat: preset.fat,
                                         fiber: preset.fiber, sodium: preset.sodium,
                                         cookingMethod: preset.cookingMethod, order: addedItems.count)

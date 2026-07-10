@@ -182,6 +182,14 @@ final class FoodItem {
 final class FoodPreset {
     var name: String = ""
     var serving: String = ""
+    /// The weight, in grams, that `calories`/`protein`/`carbs`/`fat`/`fiber`/
+    /// `sodium` below actually correspond to. Required to scale this
+    /// preset's saved numbers to whatever portion a new meal actually logs
+    /// (see `effectiveReferenceGrams` and `MealEstimate.FoodItemEstimate.makeFoodItem`);
+    /// without it, applying a preset to a differently-sized portion silently
+    /// pairs the wrong calorie total with the new gram amount. Presets saved
+    /// before this field existed default to 0 (unknown).
+    var referenceGrams: Double = 0
     var calories: Double = 0
     var protein: Double = 0
     var carbs: Double = 0
@@ -197,8 +205,20 @@ final class FoodPreset {
         set { cookingMethodRaw = newValue.rawValue }
     }
 
+    /// `referenceGrams` when known, otherwise a best-effort parse of a
+    /// leading number out of `serving` (e.g. "150 g", written automatically
+    /// by `FoodPresetSyncService` before this field existed) — so presets
+    /// saved by earlier app versions still scale correctly instead of
+    /// falling back to unscaled substitution forever.
+    var effectiveReferenceGrams: Double {
+        if referenceGrams > 0 { return referenceGrams }
+        let digits = serving.prefix { $0.isNumber || $0 == "." }
+        return Double(digits) ?? 0
+    }
+
     init(name: String,
          serving: String,
+         referenceGrams: Double = 0,
          calories: Double,
          protein: Double,
          carbs: Double,
@@ -210,6 +230,7 @@ final class FoodPreset {
          cookingMethod: CookingMethod = .unknown) {
         self.name = name
         self.serving = serving
+        self.referenceGrams = referenceGrams
         self.calories = calories
         self.protein = protein
         self.carbs = carbs

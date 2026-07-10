@@ -95,9 +95,40 @@ enum ExportImportService {
     }
 
     struct PresetDTO: Codable {
-        var name: String; var serving: String; var calories: Double; var protein: Double
+        var name: String; var serving: String; var referenceGrams: Double = 0; var calories: Double
+        var protein: Double
         var carbs: Double; var fat: Double; var fiber: Double; var sodium: Double
         var category: String; var notes: String; var cookingMethod: String
+
+        init(name: String, serving: String, referenceGrams: Double, calories: Double, protein: Double,
+             carbs: Double, fat: Double, fiber: Double, sodium: Double, category: String, notes: String,
+             cookingMethod: String) {
+            self.name = name; self.serving = serving; self.referenceGrams = referenceGrams
+            self.calories = calories; self.protein = protein; self.carbs = carbs; self.fat = fat
+            self.fiber = fiber; self.sodium = sodium; self.category = category; self.notes = notes
+            self.cookingMethod = cookingMethod
+        }
+
+        // `referenceGrams` postdates this DTO: a backup exported before it
+        // existed has no such key, and the default synthesized decoder would
+        // fail the whole entry (and, since callers wrap this in `try?`,
+        // silently drop every preset in the file) rather than just leaving
+        // this one field at its default.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            serving = try c.decode(String.self, forKey: .serving)
+            referenceGrams = try c.decodeIfPresent(Double.self, forKey: .referenceGrams) ?? 0
+            calories = try c.decode(Double.self, forKey: .calories)
+            protein = try c.decode(Double.self, forKey: .protein)
+            carbs = try c.decode(Double.self, forKey: .carbs)
+            fat = try c.decode(Double.self, forKey: .fat)
+            fiber = try c.decode(Double.self, forKey: .fiber)
+            sodium = try c.decode(Double.self, forKey: .sodium)
+            category = try c.decode(String.self, forKey: .category)
+            notes = try c.decode(String.self, forKey: .notes)
+            cookingMethod = try c.decode(String.self, forKey: .cookingMethod)
+        }
     }
 
     struct WeightDTO: Codable { var date: Date; var weightKg: Double; var source: String }
@@ -247,7 +278,8 @@ enum ExportImportService {
                     })
         }
         snapshot.presets = try context.fetch(FetchDescriptor<FoodPreset>()).map {
-            PresetDTO(name: $0.name, serving: $0.serving, calories: $0.calories, protein: $0.protein,
+            PresetDTO(name: $0.name, serving: $0.serving, referenceGrams: $0.referenceGrams,
+                      calories: $0.calories, protein: $0.protein,
                       carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber, sodium: $0.sodium,
                       category: $0.category, notes: $0.notes, cookingMethod: $0.cookingMethodRaw)
         }
@@ -496,9 +528,9 @@ enum ExportImportService {
             let signature = "\(p.name)|\(p.serving)|\(p.calories)"
             guard !existingPresetSignatures.contains(signature) else { continue }
             existingPresetSignatures.insert(signature)
-            context.insert(FoodPreset(name: p.name, serving: p.serving, calories: p.calories,
-                                      protein: p.protein, carbs: p.carbs, fat: p.fat, fiber: p.fiber,
-                                      sodium: p.sodium, category: p.category, notes: p.notes,
+            context.insert(FoodPreset(name: p.name, serving: p.serving, referenceGrams: p.referenceGrams,
+                                      calories: p.calories, protein: p.protein, carbs: p.carbs, fat: p.fat,
+                                      fiber: p.fiber, sodium: p.sodium, category: p.category, notes: p.notes,
                                       cookingMethod: CookingMethod(rawValue: p.cookingMethod) ?? .unknown))
             count += 1
         }

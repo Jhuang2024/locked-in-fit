@@ -35,18 +35,26 @@ struct MealEstimate: Codable {
         /// that food, since a value you've already saved (and presumably
         /// checked) is more trustworthy than a new estimate for something
         /// you've logged before. Grams (portion size) always comes from the
-        /// AI, since a preset has no per-meal portion of its own.
+        /// AI, since a preset has no per-meal portion of its own; the
+        /// preset's calories/macros are scaled by grams / preset's own
+        /// reference weight so a preset saved at, say, 150 g still comes out
+        /// correct when this meal's portion is a different size. When the
+        /// preset's reference weight is unknown (legacy presets with
+        /// neither `referenceGrams` nor a parseable `serving`), the raw
+        /// saved numbers are used unscaled rather than guessed at.
         func makeFoodItem(presets: [FoodPreset], order: Int = 0) -> FoodItem {
             if let preset = FoodPresetSyncService.matchingPreset(named: name, in: presets) {
+                let reference = preset.effectiveReferenceGrams
+                let ratio = (reference > 0 && grams > 0) ? grams / reference : 1
                 return FoodItem(
                     name: preset.name,
                     grams: grams,
-                    calories: preset.calories,
-                    protein: preset.protein,
-                    carbs: preset.carbs,
-                    fat: preset.fat,
-                    fiber: preset.fiber,
-                    sodium: preset.sodium,
+                    calories: preset.calories * ratio,
+                    protein: preset.protein * ratio,
+                    carbs: preset.carbs * ratio,
+                    fat: preset.fat * ratio,
+                    fiber: preset.fiber * ratio,
+                    sodium: preset.sodium * ratio,
                     cookingMethod: preset.cookingMethod,
                     confidence: 1.0,
                     order: order
