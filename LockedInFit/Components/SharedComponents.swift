@@ -120,14 +120,14 @@ struct HeroCardBackground: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(
+            .background {
                 ZStack {
                     Color(.secondarySystemGroupedBackground)
                     LinearGradient(colors: [BrandPalette.accent.opacity(0.18), BrandPalette.accent.opacity(0.03)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                },
-                in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
-            )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
                     .strokeBorder(BrandPalette.accent.opacity(colorScheme == .dark ? 0.38 : 0.22), lineWidth: 1)
