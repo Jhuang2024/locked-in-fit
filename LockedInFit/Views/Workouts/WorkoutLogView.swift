@@ -400,7 +400,7 @@ struct ExercisePickerView: View {
     }
 }
 
-/// Describes a custom exercise in natural language and uses AI (OpenRouter,
+/// Describes a custom exercise in natural language and uses AI (BazaarLink,
 /// or the offline parser when no key is configured) to turn it into a
 /// structured ExerciseDraft, previewed here before it's added to the workout.
 /// A separate feature from the library picker above, not folded into its

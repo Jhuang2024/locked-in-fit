@@ -117,10 +117,10 @@ struct HealthScanCaptureView: View {
                     .disabled(model.image == nil && model.productDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             } footer: {
-                if KeychainService.openRouterAPIKey != nil {
-                    Text("Using OpenRouter (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the result.")
+                if KeychainService.bazaarLinkAPIKey != nil {
+                    Text("Using BazaarLink (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the result.")
                 } else {
-                    Text("No OpenRouter API key saved. Add one in Settings → AI Analysis to scan products.")
+                    Text("No BazaarLink API key saved. Add one in Settings → AI Analysis to scan products.")
                 }
             }
         }

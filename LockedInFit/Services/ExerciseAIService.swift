@@ -59,12 +59,12 @@ struct OfflineExerciseParserService: ExerciseAIService {
 }
 
 extension AIServiceFactory {
-    /// Exercise-description analyzer: OpenRouter when a key exists,
+    /// Exercise-description analyzer: BazaarLink when a key exists,
     /// otherwise the honest local parser (real parsing, not fabrication).
     static func makeExerciseAnalyzer(settings: UserSettings?) -> ExerciseAIService {
-        guard KeychainService.openRouterAPIKey != nil else {
+        guard KeychainService.bazaarLinkAPIKey != nil else {
             return OfflineExerciseParserService()
         }
-        return OpenRouterExerciseAIService(modelName: modelName(settings: settings))
+        return BazaarLinkExerciseAIService(modelName: modelName(settings: settings))
     }
 }

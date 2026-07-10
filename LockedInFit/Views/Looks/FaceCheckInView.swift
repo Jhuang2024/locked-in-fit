@@ -23,8 +23,8 @@ struct FaceCheckInView: View {
     @State private var showSuggestionReview = false
 
     private var settings: UserSettings? { settingsList.first }
-    private var usesOpenRouter: Bool {
-        KeychainService.openRouterAPIKey != nil
+    private var usesBazaarLink: Bool {
+        KeychainService.bazaarLinkAPIKey != nil
     }
 
     private var suggestionContext: SuggestionGenerationService.Context {
@@ -122,8 +122,8 @@ struct FaceCheckInView: View {
 
     private var privacyCard: some View {
         DashboardCard(title: "Private by Default", systemImage: "lock") {
-            Text(usesOpenRouter
-                 ? "This photo is stored on your device. Because OpenRouter analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations; nothing is saved until you review the result."
+            Text(usesBazaarLink
+                 ? "This photo is stored on your device. Because BazaarLink analysis is enabled in AI settings, the photo will also be sent to your chosen model for optional observations; nothing is saved until you review the result."
                  : "This photo is stored on your device only and analyzed locally. Nothing is saved until you review the result.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -212,7 +212,7 @@ struct FaceCheckInView: View {
                 Task {
                     await viewModel.analyzeFace(history: Array(checkIns),
                                                 context: suggestionContext,
-                                                useAI: usesOpenRouter,
+                                                useAI: usesBazaarLink,
                                                 looksComplianceRatio: looksComplianceRatio,
                                                 sleepComplianceRatio: sleepComplianceRatio)
                 }
@@ -232,7 +232,7 @@ struct FaceCheckInView: View {
         DashboardCard(title: "Analyzing", systemImage: "sparkles") {
             HStack(spacing: 10) {
                 ProgressView()
-                Text(usesOpenRouter
+                Text(usesBazaarLink
                      ? "Scoring locally and requesting observations from \(settings?.aiModelName ?? "your model")…"
                      : "Scoring locally…")
                     .font(.subheadline)

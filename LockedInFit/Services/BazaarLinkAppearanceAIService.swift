@@ -1,11 +1,11 @@
 import Foundation
 import UIKit
 
-/// Real appearance analysis via OpenRouter, following the meal/health-scan
+/// Real appearance analysis via BazaarLink, following the meal/health-scan
 /// service pattern. Demands strict JSON, tolerates fences, and is explicitly
 /// forbidden from judging attractiveness or inferring protected traits.
-struct OpenRouterAppearanceAIService: AppearanceAIService {
-    let providerName = "OpenRouter"
+struct BazaarLinkAppearanceAIService: AppearanceAIService {
+    let providerName = "BazaarLink"
     let modelName: String
 
     private static let sharedRules = """
@@ -61,7 +61,7 @@ struct OpenRouterAppearanceAIService: AppearanceAIService {
     }
 
     private func analyze(images: [UIImage], userText: String) async throws -> AppearanceAIResult {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
 
         var content: [[String: Any]] = [["type": "text", "text": userText]]
         for image in images.prefix(3) {
@@ -81,7 +81,7 @@ struct OpenRouterAppearanceAIService: AppearanceAIService {
             "max_tokens": 1200
         ]
 
-        let response = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let response = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseResult(from: response)
     }
 

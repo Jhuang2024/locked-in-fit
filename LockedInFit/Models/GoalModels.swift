@@ -72,7 +72,7 @@ final class UserSettings {
     /// string, which defaulted to "mock" and silently reset on every
     /// container wipe even when a key survived in the Keychain — sending all
     /// AI analysis to fabricated mock data. Providers now key purely off
-    /// whether an OpenRouter key exists. Kept because persisted properties
+    /// whether an BazaarLink key exists. Kept because persisted properties
     /// are never removed (additive-only migration policy).
     var aiModeRaw: String = "mock"
     var hasStoredAPIKey: Bool = false

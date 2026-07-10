@@ -1,10 +1,10 @@
 import Foundation
 import UIKit
 
-/// Real meal analysis via OpenRouter's chat completions API.
+/// Real meal analysis via BazaarLink's chat completions API.
 /// Sends the photo + context, demands strict JSON back, parses into MealEstimate.
-struct OpenRouterFoodAIService: FoodAIService {
-    let providerName = "OpenRouter"
+struct BazaarLinkFoodAIService: FoodAIService {
+    let providerName = "BazaarLink"
     let modelName: String
 
     private static let systemPrompt = """
@@ -26,7 +26,7 @@ struct OpenRouterFoodAIService: FoodAIService {
     """
 
     func analyzeMeal(images: [UIImage], context: MealAnalysisContext) async throws -> MealEstimate {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         guard !images.isEmpty else { throw FoodAIError.parsing("No photos to analyze.") }
         let jpegs = images.compactMap { $0.resized(maxDimension: 1024).jpegData(compressionQuality: 0.7) }
         guard jpegs.count == images.count else {
@@ -63,7 +63,7 @@ struct OpenRouterFoodAIService: FoodAIService {
             "max_tokens": 1500
         ]
 
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
@@ -86,7 +86,7 @@ struct OpenRouterFoodAIService: FoodAIService {
     """
 
     func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -106,18 +106,18 @@ struct OpenRouterFoodAIService: FoodAIService {
             "max_tokens": 1200
         ]
 
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
     func testConnection() async throws -> String {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let body: [String: Any] = [
             "model": modelName,
             "messages": [["role": "user", "content": "Reply with the single word: ok"]],
             "max_tokens": 10
         ]
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 

@@ -107,10 +107,10 @@ struct MealPhotoAnalysisView: View {
                     .disabled(model.images.isEmpty)
                 }
             } footer: {
-                if KeychainService.openRouterAPIKey != nil {
-                    Text("Using OpenRouter (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the estimate.")
+                if KeychainService.bazaarLinkAPIKey != nil {
+                    Text("Using BazaarLink (\(AIServiceFactory.modelName(settings: settings))). Nothing is saved until you review the estimate.")
                 } else {
-                    Text("No OpenRouter API key saved. Add one in Settings → AI Analysis to analyze meal photos.")
+                    Text("No BazaarLink API key saved. Add one in Settings → AI Analysis to analyze meal photos.")
                 }
             }
         }

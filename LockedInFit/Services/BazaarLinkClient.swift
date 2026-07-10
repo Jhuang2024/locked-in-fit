@@ -1,9 +1,9 @@
 import Foundation
 
-/// Shared low-level POST + response-unwrapping for OpenRouter's chat completions API.
-/// Used by every OpenRouter-backed AI service (meal analysis, health scan, ...).
-enum OpenRouterClient {
-    static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+/// Shared low-level POST + response-unwrapping for BazaarLink's chat completions API.
+/// Used by every BazaarLink-backed AI service (meal analysis, health scan, ...).
+enum BazaarLinkClient {
+    static let endpoint = URL(string: "https://bazaarlink.ai/api/v1/chat/completions")!
 
     static func send(body: [String: Any], apiKey: String) async throws -> String {
         var request = URLRequest(url: endpoint)
@@ -11,8 +11,9 @@ enum OpenRouterClient {
         request.timeoutInterval = 60
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("https://localhost/locked-in-fit", forHTTPHeaderField: "HTTP-Referer")
-        request.setValue("Locked In Fit", forHTTPHeaderField: "X-Title")
+        // No HTTP-Referer/X-Title here: those were OpenRouter-specific
+        // app-attribution headers from before the BazaarLink migration;
+        // BazaarLink's OpenAI-compatible API just takes the Bearer key.
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response): (Data, URLResponse)

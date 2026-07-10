@@ -1,10 +1,10 @@
 import Foundation
 
-/// Real workout-calorie analysis via OpenRouter's chat completions API.
+/// Real workout-calorie analysis via BazaarLink's chat completions API.
 /// Sends a plain-text description of the workout, demands strict JSON back,
 /// parses into WorkoutEstimate.
-struct OpenRouterWorkoutAIService: WorkoutAIService {
-    let providerName = "OpenRouter"
+struct BazaarLinkWorkoutAIService: WorkoutAIService {
+    let providerName = "BazaarLink"
     let modelName: String
 
     private static let systemPromptText = """
@@ -20,7 +20,7 @@ struct OpenRouterWorkoutAIService: WorkoutAIService {
     """
 
     func analyzeWorkout(description: String, context: WorkoutAnalysisContext) async throws -> WorkoutEstimate {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -40,18 +40,18 @@ struct OpenRouterWorkoutAIService: WorkoutAIService {
             "max_tokens": 800
         ]
 
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
     func testConnection() async throws -> String {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let body: [String: Any] = [
             "model": modelName,
             "messages": [["role": "user", "content": "Reply with the single word: ok"]],
             "max_tokens": 10
         ]
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return "Connected. \(modelName) replied: \(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))"
     }
 

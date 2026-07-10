@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// AI Analysis settings: mode, OpenRouter key (Keychain), model, test, clear.
+/// AI Analysis settings: mode, BazaarLink key (Keychain), model, test, clear.
 struct AISettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
@@ -9,14 +9,14 @@ struct AISettingsView: View {
     @State private var apiKeyInput = ""
     @State private var testResult: String?
     @State private var testing = false
-    @State private var keyStored = KeychainService.openRouterAPIKey != nil
+    @State private var keyStored = KeychainService.bazaarLinkAPIKey != nil
 
     private var settings: UserSettings? { settingsList.first }
 
     var body: some View {
         Form {
             Section {
-                SecureField("ENTER_OPENROUTER_API_KEY_HERE", text: $apiKeyInput)
+                SecureField("sk-bl-…", text: $apiKeyInput)
                     .textContentType(.password)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -29,8 +29,8 @@ struct AISettingsView: View {
                 }
                 Button("Save API Key") {
                     let trimmed = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty, trimmed != "ENTER_OPENROUTER_API_KEY_HERE" else { return }
-                    KeychainService.save(trimmed, account: KeychainService.openRouterKeyAccount)
+                    guard !trimmed.isEmpty, trimmed != "ENTER_BAZAARLINK_API_KEY_HERE" else { return }
+                    KeychainService.save(trimmed, account: KeychainService.bazaarLinkKeyAccount)
                     settings?.hasStoredAPIKey = true
                     apiKeyInput = ""
                     keyStored = true
@@ -38,29 +38,29 @@ struct AISettingsView: View {
                 }
                 .disabled(apiKeyInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button("Clear API Key", role: .destructive) {
-                    KeychainService.delete(account: KeychainService.openRouterKeyAccount)
+                    KeychainService.delete(account: KeychainService.bazaarLinkKeyAccount)
                     settings?.hasStoredAPIKey = false
                     keyStored = false
                     testResult = "Key removed. AI analysis is unavailable until a key is saved."
                 }
                 .disabled(!keyStored)
             } header: {
-                Text("OpenRouter API Key")
+                Text("BazaarLink API Key")
             } footer: {
-                Text("Paste your OpenRouter key once; it's stored in the iOS Keychain, never in the database or UserDefaults. Every AI feature (meal photos, descriptions, product scans, workout calories, appearance analysis) uses this key directly — there is no offline mock mode. Get a key at openrouter.ai.")
+                Text("Paste your BazaarLink key (starts with sk-bl-) once; it's stored in the iOS Keychain, never in the database or UserDefaults. Every AI feature (meal photos, descriptions, product scans, workout calories, appearance analysis) uses this key directly — there is no offline mock mode. Get a key at bazaarlink.ai.")
             }
 
             Section {
                 if let settings {
                     @Bindable var settings = settings
-                    TextField("openai/gpt-4o-mini", text: $settings.aiModelName)
+                    TextField(AIServiceFactory.defaultModelName, text: $settings.aiModelName)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
             } header: {
                 Text("Model")
             } footer: {
-                Text("Any OpenRouter vision-capable model ID, e.g. openai/gpt-4o-mini, anthropic/claude-sonnet-4.5, google/gemini-2.5-flash.")
+                Text("Any BazaarLink vision-capable model ID — plain names like gpt-4o-mini or gemini-2.5-flash, not OpenRouter's provider/model form. If a leftover OpenRouter-style ID (with a slash) fails here, clear the field to use the default.")
             }
 
             Section {
@@ -89,8 +89,7 @@ struct AISettingsView: View {
     private func testConnection() async {
         testing = true
         defer { testing = false }
-        let model = settings?.aiModelName ?? "openai/gpt-4o-mini"
-        let service = OpenRouterFoodAIService(modelName: model.isEmpty ? "openai/gpt-4o-mini" : model)
+        let service = BazaarLinkFoodAIService(modelName: AIServiceFactory.modelName(settings: settings))
         do {
             testResult = try await service.testConnection()
         } catch {

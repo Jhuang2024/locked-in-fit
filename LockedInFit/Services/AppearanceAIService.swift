@@ -13,8 +13,8 @@ protocol AppearanceAIService {
 
 extension AIServiceFactory {
     /// Appearance analysis is opt-in and only offered by the check-in views
-    /// when an OpenRouter key exists; no mock, no fabricated observations.
+    /// when an BazaarLink key exists; no mock, no fabricated observations.
     static func makeAppearance(settings: UserSettings?) -> AppearanceAIService {
-        OpenRouterAppearanceAIService(modelName: modelName(settings: settings))
+        BazaarLinkAppearanceAIService(modelName: modelName(settings: settings))
     }
 }

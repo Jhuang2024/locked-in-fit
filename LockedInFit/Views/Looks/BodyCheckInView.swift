@@ -21,8 +21,8 @@ struct BodyCheckInView: View {
     @State private var savedCheckIn = false
 
     private var settings: UserSettings? { settingsList.first }
-    private var usesOpenRouter: Bool {
-        KeychainService.openRouterAPIKey != nil
+    private var usesBazaarLink: Bool {
+        KeychainService.bazaarLinkAPIKey != nil
     }
     private var heightLooksDefault: Bool {
         let height = settings?.heightCm ?? 0
@@ -70,8 +70,8 @@ struct BodyCheckInView: View {
     private var captureSection: some View {
         VStack(spacing: 14) {
             DashboardCard(title: "Private by Default", systemImage: "lock") {
-                Text(usesOpenRouter
-                     ? "Photos stay on your device and also save to your Progress Photos timeline. With OpenRouter enabled, they're additionally sent to your chosen model for optional observations; nothing is saved until you review."
+                Text(usesBazaarLink
+                     ? "Photos stay on your device and also save to your Progress Photos timeline. With BazaarLink enabled, they're additionally sent to your chosen model for optional observations; nothing is saved until you review."
                      : "Photos stay on your device and also save to your Progress Photos timeline. Analysis runs locally; nothing is saved until you review.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -93,7 +93,7 @@ struct BodyCheckInView: View {
 
             Button {
                 Task {
-                    await viewModel.analyzeBody(inputs: scoreInputs, context: suggestionContext, useAI: usesOpenRouter)
+                    await viewModel.analyzeBody(inputs: scoreInputs, context: suggestionContext, useAI: usesBazaarLink)
                 }
             } label: {
                 Label("Analyze", systemImage: "sparkles")

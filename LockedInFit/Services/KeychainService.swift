@@ -1,9 +1,9 @@
 import Foundation
 import Security
 
-/// Thin Keychain wrapper. Stores the OpenRouter API key outside SwiftData/UserDefaults.
+/// Thin Keychain wrapper. Stores the BazaarLink API key outside SwiftData/UserDefaults.
 enum KeychainService {
-    static let openRouterKeyAccount = "openrouter_api_key"
+    static let bazaarLinkKeyAccount = "bazaarlink_api_key"
     private static let service = "com.jerryhuang.LockedInFit"
 
     @discardableResult
@@ -46,10 +46,10 @@ enum KeychainService {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
-    static var openRouterAPIKey: String? {
-        guard let key = read(account: openRouterKeyAccount),
+    static var bazaarLinkAPIKey: String? {
+        guard let key = read(account: bazaarLinkKeyAccount),
               !key.isEmpty,
-              key != "ENTER_OPENROUTER_API_KEY_HERE" else { return nil }
+              key != "ENTER_BAZAARLINK_API_KEY_HERE" else { return nil }
         return key
     }
 }

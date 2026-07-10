@@ -147,7 +147,7 @@ struct SettingsView: View {
                 LabeledContent("Storage", value: "On-device only")
                 LabeledContent("Version", value: "1.0")
             } footer: {
-                Text("Locked In Fit is local-first. No accounts, no cloud, no analytics. The only network call is meal analysis via OpenRouter when you enable it.")
+                Text("Locked In Fit is local-first. No accounts, no cloud, no analytics. The only network call is meal analysis via BazaarLink when you enable it.")
             }
         }
         .navigationTitle("Settings")

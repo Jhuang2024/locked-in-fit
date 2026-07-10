@@ -1,11 +1,11 @@
 import Foundation
 
-/// Real exercise-description analysis via OpenRouter's chat completions API.
+/// Real exercise-description analysis via BazaarLink's chat completions API.
 /// Sends the plain-text description, demands strict JSON back (name, movement
 /// pattern, equipment, muscle groups, sets, reps, weight in kg), and parses
 /// into ExerciseEstimate.
-struct OpenRouterExerciseAIService: ExerciseAIService {
-    let providerName = "OpenRouter"
+struct BazaarLinkExerciseAIService: ExerciseAIService {
+    let providerName = "BazaarLink"
     let modelName: String
 
     private static let systemPromptText = """
@@ -28,7 +28,7 @@ struct OpenRouterExerciseAIService: ExerciseAIService {
     """
 
     func analyzeExercise(description: String, context: ExerciseAnalysisContext) async throws -> ExerciseEstimate {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw FoodAIError.parsing("Description is empty.") }
 
@@ -45,7 +45,7 @@ struct OpenRouterExerciseAIService: ExerciseAIService {
             "max_tokens": 500
         ]
 
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 

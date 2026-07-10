@@ -1,12 +1,12 @@
 import Foundation
 
-/// Health/satiety scoring for an already-logged meal via OpenRouter's chat
-/// completions API. Reuses OpenRouterClient's request/parsing plumbing, the
-/// same as OpenRouterFoodAIService and OpenRouterHealthScanAIService. Only
+/// Health/satiety scoring for an already-logged meal via BazaarLink's chat
+/// completions API. Reuses BazaarLinkClient's request/parsing plumbing, the
+/// same as BazaarLinkFoodAIService and BazaarLinkHealthScanAIService. Only
 /// needs the meal's final numbers, not another photo round-trip, so it stays
 /// fast and never blocks the food-logging flow.
-struct OpenRouterMealNutritionAIService: MealNutritionAIService {
-    let providerName = "OpenRouter"
+struct BazaarLinkMealNutritionAIService: MealNutritionAIService {
+    let providerName = "BazaarLink"
     let modelName: String
 
     private static let systemPrompt = """
@@ -41,7 +41,7 @@ struct OpenRouterMealNutritionAIService: MealNutritionAIService {
         "outside the JSON object."
 
     func analyze(_ input: MealNutritionAnalysisInput) async throws -> MealNutritionEstimate {
-        guard let apiKey = KeychainService.openRouterAPIKey else { throw FoodAIError.noAPIKey }
+        guard let apiKey = KeychainService.bazaarLinkAPIKey else { throw FoodAIError.noAPIKey }
         do {
             return try await requestAndParse(input: input, apiKey: apiKey, strict: false)
         } catch FoodAIError.parsing {
@@ -60,7 +60,7 @@ struct OpenRouterMealNutritionAIService: MealNutritionAIService {
             "temperature": strict ? 0.0 : 0.2,
             "max_tokens": 700
         ]
-        let content = try await OpenRouterClient.send(body: body, apiKey: apiKey)
+        let content = try await BazaarLinkClient.send(body: body, apiKey: apiKey)
         return try Self.parseEstimate(from: content)
     }
 
