@@ -14,14 +14,14 @@ import Foundation
 /// UserSettings as an unused legacy field per the additive-only migration
 /// policy.
 enum AIServiceFactory {
-    /// BazaarLink uses plain model IDs ("gpt-4o-mini"), not OpenRouter's
-    /// provider-prefixed form ("openai/gpt-4o-mini"). The default must be a
-    /// vision-capable model: meal photos, health scans, and appearance
-    /// check-ins all send images. (BazaarLink's special "auto:free" routes
-    /// to free models, but those aren't guaranteed to handle images — fine
-    /// to set manually in AI Settings for text-only use, wrong as the
-    /// app-wide default.)
-    static let defaultModelName = "gpt-4o-mini"
+    /// BazaarLink's special "auto:free" routing ID: every request is
+    /// automatically routed to an available free model, so AI analysis
+    /// costs nothing by default. Deliberate trade-off: free-tier models
+    /// aren't guaranteed to be vision-capable, so photo features (meal
+    /// photos, health scans, appearance check-ins) can fail under it — in
+    /// that case set an explicit vision-capable model ID (e.g.
+    /// "gpt-4o-mini") in AI Settings, which overrides this default.
+    static let defaultModelName = "auto:free"
 
     static func modelName(settings: UserSettings?) -> String {
         let model = settings?.aiModelName.trimmingCharacters(in: .whitespaces) ?? ""

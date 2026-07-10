@@ -60,7 +60,7 @@ struct AISettingsView: View {
             } header: {
                 Text("Model")
             } footer: {
-                Text("Any BazaarLink vision-capable model ID — plain names like gpt-4o-mini or gemini-2.5-flash, not OpenRouter's provider/model form. If a leftover OpenRouter-style ID (with a slash) fails here, clear the field to use the default.")
+                Text("Empty uses the default auto:free, which routes every request to a free BazaarLink model — zero cost. If photo features (meal photos, scans, appearance) error because the free model can't read images, enter a vision-capable model ID here instead, e.g. gpt-4o-mini (plain names, not OpenRouter's provider/model form).")
             }
 
             Section {
