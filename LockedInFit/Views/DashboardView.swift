@@ -709,10 +709,18 @@ struct DashboardView: View {
         return "\(Int(abs(remaining))) mg over today's sodium limit"
     }
 
+    /// "10k" for round-thousand step goals, otherwise the exact number —
+    /// the goal lives in the chip's label so the value can be just today's
+    /// count. "208/10000" crammed into one heavy value overflowed the chip
+    /// and read as two numbers fighting for the same slot.
+    private var compactStepTarget: String {
+        viewModel.stepTarget % 1000 == 0 ? "\(viewModel.stepTarget / 1000)k" : "\(viewModel.stepTarget)"
+    }
+
     private var activityCard: some View {
         DashboardCard(title: "Activity", systemImage: "figure.walk") {
             HStack {
-                StatChip(label: "Steps", value: "\(viewModel.stepsToday)/\(viewModel.stepTarget)")
+                StatChip(label: "Steps · goal \(compactStepTarget)", value: viewModel.stepsToday.formatted())
                 StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))")
                 StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)")
             }
