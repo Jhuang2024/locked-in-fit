@@ -694,11 +694,11 @@ struct DashboardView: View {
             DashboardCard(title: "Looks", systemImage: "sparkles") {
                 HStack {
                     StatChip(label: "Overall",
-                             value: overallLooksScore.map { "\(Int($0))" } ?? "N/A")
+                             value: overallLooksScore.map { "\(Int($0.rounded()))" } ?? "N/A")
                     StatChip(label: "Face",
-                             value: latestFaceCheckIn.map { "\(Int($0.totalScore))" } ?? "N/A")
+                             value: latestFaceCheckIn.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A")
                     StatChip(label: "Body",
-                             value: displayedBodyScore.map { "\(Int($0))" } ?? "N/A")
+                             value: displayedBodyScore.map { "\(Int($0.rounded()))" } ?? "N/A")
                 }
                 HStack {
                     StatChip(label: "Streak",
@@ -729,7 +729,7 @@ struct DashboardView: View {
         NavigationLink(destination: SleepDashboardView()) {
             DashboardCard(title: "Sleep", systemImage: "bed.double.fill") {
                 HStack {
-                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore))" } ?? "N/A")
+                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A")
                     StatChip(label: "Duration", value: latestSleepLog.map { "\(Formatters.trimmed($0.durationHours))h" } ?? "N/A")
                     StatChip(label: "Wake-ups", value: latestSleepLog.map { "\($0.wakeUps)" } ?? "N/A")
                 }
