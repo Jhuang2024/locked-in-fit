@@ -227,7 +227,7 @@ struct LooksDashboardView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(Int(checkIn.totalScore))")
+                Text("\(Int(checkIn.totalScore.rounded()))")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                 Text("/100")
                     .font(.caption2)

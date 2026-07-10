@@ -320,7 +320,7 @@ struct BodyCheckInView: View {
                 frontPhotoPath: viewModel.frontImage.flatMap { ImageStore.save($0, prefix: "front") },
                 sidePhotoPath: viewModel.sideImage.flatMap { ImageStore.save($0, prefix: "side") },
                 backPhotoPath: viewModel.backImage.flatMap { ImageStore.save($0, prefix: "back") },
-                notes: "Body check-in · score \(Int(checkIn.totalScore))/100")
+                notes: "Body check-in · score \(Int(checkIn.totalScore.rounded()))/100")
             context.insert(progressPhoto)
         }
         if viewModel.insertedSuggestionCount == 0 {

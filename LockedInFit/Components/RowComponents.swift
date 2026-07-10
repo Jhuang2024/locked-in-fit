@@ -85,7 +85,7 @@ struct HealthScanRowView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(Int(scan.healthScore))")
+                Text("\(Int(scan.healthScore.rounded()))")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(HealthScanCoreSections.scoreColor(scan.healthScore))
                 Text("health")
