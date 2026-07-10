@@ -83,6 +83,7 @@ struct AISettingsView: View {
         }
         .navigationTitle("AI Analysis")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .onAppear { PerfLog.event("nav.aiSettings.appear") }
     }
 
