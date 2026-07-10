@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct LockedInFitApp: App {
@@ -10,6 +11,14 @@ struct LockedInFitApp: App {
         // logged from a background watchdog while it's happening, even if
         // the stalled call itself was never instrumented and never returns.
         MainThreadHangDetector.shared.start()
+
+        // Editorial navigation titles: heavy rounded display type instead
+        // of the system default, matched to the root-level
+        // .fontDesign(.rounded) so screen titles read as part of one
+        // designed type system rather than stock chrome sitting on top of
+        // it. UIKit appearance is the only lever for nav-title fonts;
+        // SwiftUI exposes none.
+        Self.configureNavigationTitleTypography()
 
         // Resolve the shared App Group container immediately (background
         // queue, non-blocking, duration logged). Backup mirrors are written
@@ -67,6 +76,17 @@ struct LockedInFitApp: App {
                 naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
         }
         HealthKitManager.shared.configureAutoSync(container: container)
+    }
+
+    private static func configureNavigationTitleTypography() {
+        func rounded(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+            let base = UIFont.systemFont(ofSize: size, weight: weight)
+            guard let descriptor = base.fontDescriptor.withDesign(.rounded) else { return base }
+            return UIFont(descriptor: descriptor, size: size)
+        }
+        let appearance = UINavigationBar.appearance()
+        appearance.largeTitleTextAttributes = [.font: rounded(size: 34, weight: .heavy)]
+        appearance.titleTextAttributes = [.font: rounded(size: 17, weight: .bold)]
     }
 
     @Environment(\.scenePhase) private var scenePhase

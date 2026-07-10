@@ -86,19 +86,37 @@ extension View {
     func cardEntrance(_ index: Int) -> some View { modifier(CardEntrance(index: index)) }
 }
 
-/// Consistent card chrome used across every card in the app: soft fill,
-/// a hairline border for definition in both appearances, no heavy shadow.
+/// Consistent card chrome used across every card in the app. Built for the
+/// app's committed dark look (see INFOPLIST_KEY_UIUserInterfaceStyle): a
+/// soft fill with a faint top-edge "sheen" gradient so each card reads as a
+/// lit surface with depth rather than a flat gray rectangle — the single
+/// biggest tell separating premium dark UIs (Whoop, Oura) from default
+/// dark-mode grays — plus a hairline border whose top edge is slightly
+/// brighter than its sides, mimicking how light actually falls on a raised
+/// surface. Still renders sensibly in light mode (the sheen fades to
+/// near-invisible) in case the forced style is ever reverted.
 struct CardBackground: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
+            .background {
+                ZStack {
+                    Color(.secondarySystemGroupedBackground)
+                    LinearGradient(colors: [.white.opacity(colorScheme == .dark ? 0.07 : 0.25), .clear],
+                                   startPoint: .top, endPoint: .center)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05), lineWidth: 1)
+                    .strokeBorder(
+                        LinearGradient(colors: [Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08),
+                                                Color.primary.opacity(colorScheme == .dark ? 0.05 : 0.04)],
+                                       startPoint: .top, endPoint: .bottom),
+                        lineWidth: 1)
             )
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.04), radius: 8, x: 0, y: 3)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.04), radius: 14, x: 0, y: 8)
     }
 }
 
@@ -194,9 +212,9 @@ struct DashboardCard<Content: View>: View {
                         .foregroundStyle(.secondary)
                 }
                 Text(title)
-                    .font(.footnote.weight(.semibold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
-                    .tracking(0.3)
+                    .tracking(1.4)
                     .textCase(.uppercase)
                 Spacer()
             }
@@ -453,18 +471,25 @@ struct StatChip: View {
     var body: some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .font(.system(.title3, design: .rounded, weight: .heavy))
                 .foregroundStyle(color)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.6)
                 .lineLimit(1)
             Text(label)
-                .font(.caption2)
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.secondary)
+                .tracking(0.8)
+                .textCase(.uppercase)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, 10)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+        )
     }
 }
 

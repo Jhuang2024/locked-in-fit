@@ -196,7 +196,18 @@ struct DashboardView: View {
     /// chrome above.
     private var dashboardWithTriggers: some View {
         dashboardScrollView
-            .background(Color(.systemGroupedBackground))
+            // A faint brand glow bleeding down from the top instead of a
+            // flat fill — on the committed dark look this gives the page
+            // an ambient light source the cards sit under, rather than
+            // gray boxes floating on plain black.
+            .background {
+                ZStack {
+                    Color(.systemGroupedBackground)
+                    LinearGradient(colors: [BrandPalette.accent.opacity(0.12), .clear],
+                                   startPoint: .top, endPoint: .center)
+                }
+                .ignoresSafeArea()
+            }
             .refreshable {
                 await healthKit.sync(context: context)
                 await refreshReminderSchedules()
@@ -557,11 +568,13 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(Int(viewModel.calories.remaining))")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .font(.system(size: 46, weight: .heavy, design: .rounded))
                         .foregroundStyle(viewModel.calories.remaining < 0 ? .red : .primary)
-                    Text("kcal left")
-                        .font(.subheadline)
+                        .contentTransition(.numericText())
+                    Text("KCAL LEFT")
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
+                        .tracking(1.2)
                     Spacer()
                 }
                 ProgressView(value: min(viewModel.calories.eaten, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
