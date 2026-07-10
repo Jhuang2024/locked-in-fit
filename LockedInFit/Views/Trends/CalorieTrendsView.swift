@@ -150,7 +150,7 @@ struct CalorieTrendsView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Calorie Trends")
     }
 }

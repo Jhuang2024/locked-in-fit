@@ -54,7 +54,7 @@ struct LooksDashboardView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Looks")
         .sheet(isPresented: $showFaceCheckIn) { FaceCheckInSheet() }
         .sheet(isPresented: $showBodyCheckIn) { BodyCheckInView() }
@@ -320,7 +320,7 @@ struct AppearanceCheckInDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("\(checkIn.kind.label) Check-In")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -461,7 +461,7 @@ struct LiveBodyScoreDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Body Score")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showBodyCheckIn) { BodyCheckInView() }

@@ -84,7 +84,7 @@ struct ExerciseDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle(exerciseName)
         .navigationBarTitleDisplayMode(.inline)
     }

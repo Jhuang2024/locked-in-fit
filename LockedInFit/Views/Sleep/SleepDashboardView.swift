@@ -54,7 +54,7 @@ struct SleepDashboardView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Sleep")
         .sheet(isPresented: $showLogSheet) { NavigationStack { SleepLogEntryView() } }
         .sheet(isPresented: $showNapSheet) { NavigationStack { NapLogEntryView() } }
@@ -348,7 +348,7 @@ struct SleepLogDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Sleep Log")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

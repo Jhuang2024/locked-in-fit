@@ -122,7 +122,7 @@ struct WeightTrendsView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Weight Trends")
         .toolbar {
             Button { showLogWeight = true } label: { Image(systemName: "plus") }

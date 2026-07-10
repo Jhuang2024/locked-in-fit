@@ -86,6 +86,54 @@ extension View {
     func cardEntrance(_ index: Int) -> some View { modifier(CardEntrance(index: index)) }
 }
 
+// MARK: - RollingNumberText
+
+/// A number that interpolates through intermediate values instead of
+/// snapping — SwiftUI animates `animatableData`, re-rendering the text at
+/// each intermediate value, so wrapping a change in an animation (or
+/// attaching `.animation(_:value:)` above this view) makes the number
+/// visibly count up/down. Inherits font/color from the environment like
+/// any Text. This is the telemetry-dial feel: a metric that *arrives* at
+/// its value rather than teleporting to it.
+struct RollingNumberText: View, Animatable {
+    var value: Double
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text("\(Int(value.rounded()))")
+    }
+}
+
+// MARK: - BrandScreenBackground
+
+/// The shared screen backdrop: base grouped background with a faint brand
+/// glow bleeding down from the top, so every hub screen sits under the
+/// same ambient light source instead of each being its own flat gray
+/// void. One modifier everywhere is also what makes the screens read as
+/// one product — see the design rule that every screen should feel
+/// related to every other screen.
+struct BrandScreenBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    Color(.systemGroupedBackground)
+                    LinearGradient(colors: [BrandPalette.accent.opacity(0.10), .clear],
+                                   startPoint: .top, endPoint: .center)
+                }
+                .ignoresSafeArea()
+            }
+    }
+}
+
+extension View {
+    func brandScreenBackground() -> some View { modifier(BrandScreenBackground()) }
+}
+
 /// Consistent card chrome used across every card in the app. Built for the
 /// app's committed dark look (see INFOPLIST_KEY_UIUserInterfaceStyle): a
 /// soft fill with a faint top-edge "sheen" gradient so each card reads as a
@@ -234,6 +282,7 @@ struct MacroRingView: View {
     let target: Double
     let unit: String
     let color: Color
+    @State private var appeared = false
 
     private var progress: Double { target > 0 ? min(1.2, current / target) : 0 }
 
@@ -243,11 +292,11 @@ struct MacroRingView: View {
                 Circle()
                     .stroke(color.opacity(0.16), lineWidth: 6)
                 Circle()
-                    .trim(from: 0, to: min(1, progress))
+                    .trim(from: 0, to: appeared ? min(1, progress) : 0)
                     .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 0) {
-                    Text("\(Int(current))")
+                    RollingNumberText(value: appeared ? current : 0)
                         .font(.system(.subheadline, design: .rounded, weight: .bold))
                         .minimumScaleFactor(0.6)
                     Text(unit)
@@ -257,6 +306,12 @@ struct MacroRingView: View {
                 .padding(6)
             }
             .frame(width: 60, height: 60)
+            // Ring sweeps and number counts up together on first appear;
+            // later data edits animate through the same channel because
+            // `progress`/`current` changes are also value-triggered here.
+            .animation(.easeOut(duration: 0.9), value: appeared)
+            .animation(.snappy(duration: 0.45), value: progress)
+            .onAppear { appeared = true }
             Text(label)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -272,26 +327,34 @@ struct ScoreRingView: View {
     let score: Double
     let maxScore: Double
     let color: Color
+    @State private var appeared = false
 
     private var progress: Double { maxScore > 0 ? max(0, min(1, score / maxScore)) : 0 }
+    private var isFull: Bool { maxScore > 0 && score >= maxScore }
 
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
                 Circle().stroke(color.opacity(0.15), lineWidth: 9)
                 Circle()
-                    .trim(from: 0, to: progress)
+                    .trim(from: 0, to: appeared ? progress : 0)
                     .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
                     .rotationEffect(.degrees(-90))
+                    // A completed ring earns a glow — the milestone reads in
+                    // the lighting, not just the number.
+                    .shadow(color: color.opacity(isFull && appeared ? 0.55 : 0), radius: 10)
                 VStack(spacing: 0) {
-                    Text("\(Int(score.rounded()))")
-                        .font(.system(.title3, design: .rounded, weight: .bold))
+                    RollingNumberText(value: appeared ? score.rounded() : 0)
+                        .font(.system(.title3, design: .rounded, weight: .heavy))
                     Text("/\(Int(maxScore))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
             .frame(width: 84, height: 84)
+            .animation(.easeOut(duration: 0.9), value: appeared)
+            .animation(.snappy(duration: 0.45), value: progress)
+            .onAppear { appeared = true }
             Text(label)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)

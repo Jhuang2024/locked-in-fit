@@ -58,7 +58,7 @@ struct AppearanceSuggestionReviewView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Suggestions")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingSuggestion) { suggestion in

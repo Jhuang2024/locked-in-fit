@@ -24,7 +24,7 @@ struct GoalDashboardView: View {
                     Spacer()
                 }
                 .padding()
-                .background(Color(.systemGroupedBackground))
+                .brandScreenBackground()
             }
         }
         .navigationTitle("Goal")
@@ -116,7 +116,7 @@ struct GoalDashboardView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
     }
 
     /// Approved, long-term appearance suggestions read as standing goals here:

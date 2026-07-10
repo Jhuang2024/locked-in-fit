@@ -97,7 +97,7 @@ struct AppearanceTrendsView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Appearance Trends")
     }
 

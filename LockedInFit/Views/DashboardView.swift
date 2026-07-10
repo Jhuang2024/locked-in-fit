@@ -59,6 +59,8 @@ struct DashboardView: View {
     @State private var activeWorkoutIsDraft = false
     @State private var actionTick = 0
     @State private var showCalorieDetails = false
+    /// Drives the hero ring's sweep-in and score count-up on first appear.
+    @State private var heroAppeared = false
 
     private var settings: UserSettings? { settingsList.first }
     private var goal: Goal? { activeGoals.first }
@@ -164,6 +166,11 @@ struct DashboardView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .sensoryFeedback(.selection, trigger: actionTick)
+            // Milestone haptic: fires exactly once when the Locked In Score
+            // crosses into a perfect day, not on every recompute at 100.
+            .sensoryFeedback(.success, trigger: viewModel.lockedInScore) { old, new in
+                new >= 100 && old < 100
+            }
     }
 
     /// Split into staged sub-expressions (`dashboardWithTriggers` →
@@ -456,6 +463,18 @@ struct DashboardView: View {
         Task { await HealthKitManager.shared.writeWeight(kg, date: .now) }
     }
 
+    /// One-line performance briefing derived from the Locked In Score: the
+    /// first thing the screen answers is "how am I doing," in words, before
+    /// any numbers. Thresholds mirror the score ring's own meaning.
+    private var briefingHeadline: (text: String, color: Color) {
+        switch viewModel.lockedInScore {
+        case 80...: return ("LOCKED IN", .accentColor)
+        case 50..<80: return ("ON PACE", .primary)
+        case 1..<50: return ("BEHIND PACE", .orange)
+        default: return ("START YOUR DAY", .secondary)
+        }
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -465,22 +484,35 @@ struct DashboardView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(goal?.phase.label ?? "No active phase")
-                        .font(.title3.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
+
+            Text(briefingHeadline.text)
+                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .tracking(1.0)
+                .foregroundStyle(briefingHeadline.color)
+                .contentTransition(.opacity)
+                .animation(.snappy(duration: 0.3), value: briefingHeadline.text)
 
             HStack(spacing: 16) {
                 ZStack {
                     Circle().stroke(Color.accentColor.opacity(0.15), lineWidth: 8)
                     Circle()
-                        .trim(from: 0, to: Double(viewModel.lockedInScore) / 100)
+                        .trim(from: 0, to: heroAppeared ? Double(viewModel.lockedInScore) / 100 : 0)
                         .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .rotationEffect(.degrees(-90))
+                        // Perfect day → the ring itself lights up.
+                        .shadow(color: Color.accentColor.opacity(viewModel.lockedInScore >= 100 && heroAppeared ? 0.6 : 0), radius: 12)
+                        .animation(.easeOut(duration: 0.9), value: heroAppeared)
                         .animation(.easeInOut(duration: 0.4), value: viewModel.lockedInScore)
                     VStack(spacing: 0) {
-                        Text("\(viewModel.lockedInScore)")
-                            .font(.system(.title2, design: .rounded, weight: .bold))
+                        RollingNumberText(value: heroAppeared ? Double(viewModel.lockedInScore) : 0)
+                            .font(.system(.title2, design: .rounded, weight: .heavy))
+                            .animation(.easeOut(duration: 0.9), value: heroAppeared)
+                            .animation(.easeInOut(duration: 0.4), value: viewModel.lockedInScore)
                         Text("SCORE")
                             .font(.system(size: 8, weight: .semibold))
                             .foregroundStyle(.secondary)
@@ -488,6 +520,7 @@ struct DashboardView: View {
                     }
                 }
                 .frame(width: 72, height: 72)
+                .onAppear { heroAppeared = true }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
 
@@ -567,10 +600,10 @@ struct DashboardView: View {
         DashboardCard(title: "Calories Remaining", systemImage: "flame") {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(Int(viewModel.calories.remaining))")
+                    RollingNumberText(value: viewModel.calories.remaining)
                         .font(.system(size: 46, weight: .heavy, design: .rounded))
                         .foregroundStyle(viewModel.calories.remaining < 0 ? .red : .primary)
-                        .contentTransition(.numericText())
+                        .animation(.snappy(duration: 0.5), value: viewModel.calories.remaining)
                     Text("KCAL LEFT")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)

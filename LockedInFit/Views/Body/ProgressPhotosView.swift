@@ -41,7 +41,7 @@ struct ProgressPhotosView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Progress Photos")
         .toolbar {
             Button { showNew = true } label: { Image(systemName: "plus") }

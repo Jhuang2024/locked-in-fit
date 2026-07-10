@@ -52,7 +52,7 @@ struct BodyCheckInView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 24)
             }
-            .background(Color(.systemGroupedBackground))
+            .brandScreenBackground()
             .navigationTitle("Body Check-In")
             .navigationBarTitleDisplayMode(.inline)
             .animation(.snappy, value: viewModel.phase)

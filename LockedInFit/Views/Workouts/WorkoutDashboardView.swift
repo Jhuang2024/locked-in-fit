@@ -172,7 +172,7 @@ struct WorkoutDashboardView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .brandScreenBackground()
         .navigationTitle("Training")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
