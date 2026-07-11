@@ -35,15 +35,18 @@ struct CalorieTrendsView: View {
         return start...max(chartEnd, start.addingTimeInterval(86400))
     }
 
-    /// Net calories: what's eaten minus what digesting it burns (TEF) and
-    /// minus that day's walking/step calorie burn: the figure that actually
-    /// counts against the flat target, not raw logged intake.
+    /// Net calories: what's eaten (logged food, plus hidden oil and the
+    /// portion-underestimation allowance) minus what digesting it burns (TEF)
+    /// and minus that day's walking/step calorie burn: the figure that actually
+    /// counts against the flat target, not raw logged intake. Matches the
+    /// dashboard, which trims the target by the same oil and portion amounts.
     private var caloriePoints: [DayPoint] {
         let eaten = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
         let tef = tefByDay
         let stepCals = stepCaloriesByDay
+        let portion = portionUpliftByDay
         return eaten.map { day, calories in
-            DayPoint(date: day, value: calories - (tef[day] ?? 0) - (stepCals[day] ?? 0))
+            DayPoint(date: day, value: calories + (portion[day] ?? 0) - (tef[day] ?? 0) - (stepCals[day] ?? 0))
         }.sorted { $0.date < $1.date }
     }
     private var proteinPoints: [DayPoint] {
@@ -84,6 +87,18 @@ struct CalorieTrendsView: View {
             }
     }
 
+    /// The user's portion-underestimation setting, applied to logged food only
+    /// (excludes hidden oil), matching the dashboard's portion allowance.
+    private var portionUplift: Double {
+        (settingsList.first?.portionEstimationAdjustment ?? .off).uplift
+    }
+
+    private var portionUpliftByDay: [Date: Double] {
+        guard portionUplift > 0 else { return [:] }
+        return Dictionary(grouping: meals.filter { $0.date >= cutoff }, by: { $0.date.startOfDay })
+            .mapValues { entries in entries.reduce(0) { $0 + $1.calories } * portionUplift }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -96,7 +111,7 @@ struct CalorieTrendsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil, net of TEF & steps" }) {
+                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil\(portionUplift > 0 ? " & portions" : ""), net of TEF & steps" }) {
                     Chart(caloriePoints) { point in
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(Color.accentColor.gradient)

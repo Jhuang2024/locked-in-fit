@@ -40,16 +40,6 @@ struct ActivityAdjustmentSummary {
 }
 
 enum ActivityAdjustmentCalculator {
-    /// Roughly the calories a single step burns for someone of `bodyWeightKg`.
-    /// Walking energy scales with body mass, so a flat per-step number over- or
-    /// under-credits people far from average weight. Anchored so a ~70 kg walker
-    /// lands near the familiar 0.04 kcal/step (≈40 kcal per 1,000 steps) and a
-    /// 60 kg walker near ~0.034 (≈34, inside the widely cited 32–38 range).
-    static func caloriesPerStep(bodyWeightKg: Double) -> Double {
-        let weight = bodyWeightKg > 0 ? bodyWeightKg : 70
-        return 0.00057 * weight
-    }
-
     static func summary(for date: Date = .now,
                         steps: [StepEntry],
                         activeEnergy: [ActiveEnergyEntry],
@@ -60,9 +50,11 @@ enum ActivityAdjustmentCalculator {
 
         // Steps-and-workouts estimate for the day. Apple Health's active energy
         // already folds walking and workouts together, so this is the same
-        // quantity measured a cruder way — never something to add on top.
+        // quantity measured a cruder way — never something to add on top. Uses
+        // the same weight-scaled step formula as trends and maintenance, so a
+        // step burns identical calories everywhere in the app.
         let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
-        let stepCalories = Double(stepCount) * Self.caloriesPerStep(bodyWeightKg: bodyWeightKg)
+        let stepCalories = NutritionCalculator.stepCalories(steps: stepCount, weightKg: bodyWeightKg > 0 ? bodyWeightKg : 70)
         let workoutCalories = workouts
             .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
             .reduce(0) { $0 + Self.workoutCalories($1) }
