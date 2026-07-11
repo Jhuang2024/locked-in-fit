@@ -87,8 +87,8 @@ struct CalorieTrendsView: View {
         WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 75
     }
 
-    /// The user's portion-underestimation setting, applied to logged food only
-    /// (excludes hidden oil), matching the dashboard's portion allowance.
+    /// The user's portion-underestimation setting, applied to estimated food
+    /// only (excludes hidden oil and preset foods), matching the dashboard.
     private var portionUplift: Double {
         (settingsList.first?.portionEstimationAdjustment ?? .off).uplift
     }
@@ -96,7 +96,7 @@ struct CalorieTrendsView: View {
     private var portionUpliftByDay: [Date: Double] {
         guard portionUplift > 0 else { return [:] }
         return Dictionary(grouping: meals.filter { $0.date >= cutoff }, by: { $0.date.startOfDay })
-            .mapValues { entries in entries.reduce(0) { $0 + $1.calories } * portionUplift }
+            .mapValues { entries in entries.reduce(0) { $0 + max(0, $1.calories - $1.presetCalories) } * portionUplift }
     }
 
     var body: some View {

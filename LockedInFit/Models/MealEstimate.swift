@@ -57,7 +57,8 @@ struct MealEstimate: Codable {
                     sodium: preset.sodium * ratio,
                     cookingMethod: preset.cookingMethod,
                     confidence: 1.0,
-                    order: order
+                    order: order,
+                    fromPreset: true
                 )
             }
             return FoodItem(

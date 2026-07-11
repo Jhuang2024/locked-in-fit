@@ -91,6 +91,7 @@ enum ExportImportService {
             var name: String; var grams: Double; var calories: Double; var protein: Double
             var carbs: Double; var fat: Double; var fiber: Double; var sodium: Double
             var cookingMethod: String; var confidence: Double
+            var fromPreset: Bool?
         }
     }
 
@@ -276,7 +277,8 @@ enum ExportImportService {
                     foodItems: meal.items.map {
                         .init(name: $0.name, grams: $0.grams, calories: $0.calories, protein: $0.protein,
                               carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber, sodium: $0.sodium,
-                              cookingMethod: $0.cookingMethodRaw, confidence: $0.confidence)
+                              cookingMethod: $0.cookingMethodRaw, confidence: $0.confidence,
+                              fromPreset: $0.fromPreset)
                     })
         }
         snapshot.presets = try context.fetch(FetchDescriptor<FoodPreset>()).map {
@@ -520,7 +522,8 @@ enum ExportImportService {
                                             protein: item.protein, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
                                             sodium: item.sodium,
                                             cookingMethod: CookingMethod(rawValue: item.cookingMethod) ?? .unknown,
-                                            confidence: item.confidence, order: index)
+                                            confidence: item.confidence, order: index,
+                                            fromPreset: item.fromPreset ?? false)
                                })
             context.insert(meal); count += 1
         }

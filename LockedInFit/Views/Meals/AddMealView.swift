@@ -118,7 +118,8 @@ struct AddMealView: View {
                     let item = FoodItem(name: preset.name, grams: seedGrams, calories: preset.calories,
                                         protein: preset.protein, carbs: preset.carbs, fat: preset.fat,
                                         fiber: preset.fiber, sodium: preset.sodium,
-                                        cookingMethod: preset.cookingMethod, order: addedItems.count)
+                                        cookingMethod: preset.cookingMethod, order: addedItems.count,
+                                        fromPreset: true)
                     addedItems.append(item)
                     recalcTotals()
                 }

@@ -72,6 +72,9 @@ final class MealLog {
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
     /// Calories this meal counts for: logged calories plus hidden oil.
     var consumedCalories: Double { calories + hiddenOilCalories }
+    /// Calories from preset (known, pre-measured) items in this meal. Excluded
+    /// from the portion-underestimation uplift.
+    var presetCalories: Double { (foodItems ?? []).filter { $0.fromPreset }.reduce(0) { $0 + $1.calories } }
 
     /// "Estimated 620 kcal, likely range 520–820, oil uncertainty +80 to +260."
     var honestSummary: String {
@@ -147,6 +150,11 @@ final class FoodItem {
     var meal: MealLog?
     /// Position within the meal's food list; see MealLog.items.
     var order: Int = 0
+    /// True when this item's numbers came from a saved preset (a known,
+    /// pre-measured food) rather than an eyeballed/AI estimate. Preset calories
+    /// are excluded from the portion-underestimation uplift, since there's no
+    /// portion to underestimate.
+    var fromPreset: Bool = false
 
     var cookingMethod: CookingMethod {
         get { CookingMethod(rawValue: cookingMethodRaw) ?? .unknown }
@@ -163,7 +171,8 @@ final class FoodItem {
          sodium: Double = 0,
          cookingMethod: CookingMethod = .unknown,
          confidence: Double = 1.0,
-         order: Int = 0) {
+         order: Int = 0,
+         fromPreset: Bool = false) {
         self.name = name
         self.grams = grams
         self.calories = calories
@@ -175,6 +184,7 @@ final class FoodItem {
         self.cookingMethodRaw = cookingMethod.rawValue
         self.confidence = confidence
         self.order = order
+        self.fromPreset = fromPreset
     }
 }
 
