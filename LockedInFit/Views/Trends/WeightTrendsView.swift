@@ -61,10 +61,11 @@ struct WeightTrendsView: View {
 
                 if let last = trendPoints.last {
                     HStack {
-                        StatChip(label: "Trend weight", value: Formatters.kg(last.trendKg))
-                        StatChip(label: "Last scale", value: Formatters.kg(last.weightKg))
+                        StatChip(label: "Trend weight", value: Formatters.kg(last.trendKg), color: .blue)
+                        StatChip(label: "Last scale", value: Formatters.kg(last.weightKg), color: .blue)
                         let rate = WeightTrendCalculator.weeklyChangeFromEntries(entries: weights)
-                        StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "Not enough data")
+                        StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "Not enough data",
+                                 color: rate != nil ? .blue : .secondary)
                     }
                     .padding(14)
                     .cardBackground()

@@ -112,13 +112,16 @@ struct LooksDashboardView: View {
     private var statsCard: some View {
         DashboardCard(title: "Status", systemImage: "chart.bar") {
             HStack {
-                StatChip(label: "Face streak", value: streak > 0 ? "\(streak)d" : "N/A")
-                StatChip(label: "Last face", value: latestFace.map { Formatters.shortDate($0.date) } ?? "None")
-                StatChip(label: "Last body", value: latestBody.map { Formatters.shortDate($0.date) } ?? (liveBodyScore != nil ? "Estimated" : "None"))
+                StatChip(label: "Face streak", value: streak > 0 ? "\(streak)d" : "N/A",
+                         color: streak > 0 ? .green : .secondary)
+                StatChip(label: "Last face", value: latestFace.map { Formatters.shortDate($0.date) } ?? "None",
+                         color: latestFace != nil ? .blue : .secondary)
+                StatChip(label: "Last body", value: latestBody.map { Formatters.shortDate($0.date) } ?? (liveBodyScore != nil ? "Estimated" : "None"),
+                         color: (latestBody != nil || liveBodyScore != nil) ? .blue : .secondary)
             }
             HStack {
-                StatChip(label: "Pending suggestions", value: "\(pendingCount)", color: pendingCount > 0 ? .orange : .primary)
-                StatChip(label: "Active actions", value: "\(activeCount)")
+                StatChip(label: "Pending suggestions", value: "\(pendingCount)", color: pendingCount > 0 ? .orange : .secondary)
+                StatChip(label: "Active actions", value: "\(activeCount)", color: activeCount > 0 ? .blue : .secondary)
             }
         }
     }
@@ -229,6 +232,7 @@ struct LooksDashboardView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(Int(checkIn.totalScore.rounded()))")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(checkIn.totalScore >= 70 ? .green : checkIn.totalScore >= 50 ? .orange : .red)
                 Text("/100")
                     .font(.caption2)
                     .foregroundStyle(.secondary)

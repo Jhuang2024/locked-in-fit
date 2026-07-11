@@ -193,9 +193,10 @@ struct AppearanceTrendsView: View {
         return DashboardCard(title: title, systemImage: "point.3.connected.trianglepath.dotted") {
             HStack {
                 StatChip(label: "Correlation", value: String(format: "%+.2f", r),
-                         color: abs(r) < 0.25 ? .primary : (r > 0 ? .green : .orange))
-                StatChip(label: "Strength", value: abs(r) >= 0.6 ? "Strong" : abs(r) >= 0.3 ? "Moderate" : "Weak")
-                StatChip(label: "Pairs", value: "\(pairs.count)")
+                         color: abs(r) < 0.25 ? .secondary : (r > 0 ? .green : .orange))
+                StatChip(label: "Strength", value: abs(r) >= 0.6 ? "Strong" : abs(r) >= 0.3 ? "Moderate" : "Weak",
+                         color: abs(r) >= 0.3 ? .blue : .secondary)
+                StatChip(label: "Pairs", value: "\(pairs.count)", color: pairs.count >= 4 ? .blue : .secondary)
             }
             if abs(r) >= 0.3 {
                 Text(r > 0 ? positiveText : negativeText)

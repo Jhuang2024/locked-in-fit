@@ -19,12 +19,26 @@ enum WeightTrendCalculator {
         let sortedDays = byDay.keys.sorted()
         guard let first = sortedDays.first else { return [] }
 
+        // Time-aware EWMA. `smoothing` is calibrated for daily weigh-ins, so
+        // translate it into a decay time constant and weight each update by the
+        // ACTUAL gap between readings rather than treating every entry as one
+        // step. Without this, sparse or irregular logging (or a stale imported
+        // weight) drags the trend far longer than it should: a weigh-in a week
+        // later would smooth as gently as one the next day, leaving the "current"
+        // trend and weekly rate anchored to old values. With it, a long gap
+        // mostly resets the trend to the fresh reading, so "current" figures
+        // track recent weight instead of lagging months behind.
+        let tau = -1.0 / log(1 - smoothing)   // days; ≈9.5 for smoothing 0.1
         var points: [TrendPoint] = []
         var trend = byDay[first]!
+        var previousDay = first
         for day in sortedDays {
             let weight = byDay[day]!
-            trend += smoothing * (weight - trend)
+            let gapDays = day.timeIntervalSince(previousDay) / 86400
+            let alpha = 1 - exp(-gapDays / tau)   // 0 on the seed day, →1 after long gaps
+            trend += alpha * (weight - trend)
             points.append(TrendPoint(date: day, weightKg: weight, trendKg: trend))
+            previousDay = day
         }
         return points
     }

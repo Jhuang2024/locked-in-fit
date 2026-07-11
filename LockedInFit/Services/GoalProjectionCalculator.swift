@@ -4,6 +4,12 @@ struct GoalProjection {
     var currentTrendKg: Double?
     var weeklyRateKg: Double?
     var projectedFinishDate: Date?
+    /// True when the goal is a maintenance goal (no meaningful weekly target),
+    /// so there's no finish line to project toward.
+    var isMaintaining: Bool = false
+    /// True when the latest logged weight has already reached the target in the
+    /// goal's direction — so any "projected finish" would be spurious.
+    var hasReachedGoal: Bool = false
     var paceWarning: String?
     /// 0–100: how close actual weekly rate is to the target.
     var adherenceScore: Int
@@ -17,9 +23,17 @@ enum GoalProjectionCalculator {
     static func project(goal: Goal, weightEntries: [BodyWeightEntry]) -> GoalProjection {
         let trendKg = WeightTrendCalculator.currentTrendKg(entries: weightEntries)
         let rate = WeightTrendCalculator.weeklyRate(entries: weightEntries)
+        let latestKg = WeightTrendCalculator.latestKg(entries: weightEntries)
+
+        // A maintenance goal has no finish line, and once the latest weight has
+        // reached the target there's nothing left to project — otherwise a
+        // lagging trend line manufactures a finish date months out even though
+        // the scale already shows the goal weight.
+        let isMaintaining = abs(goal.weeklyWeightChangeTarget) < 0.05
+        let reachedGoal = hasReachedTarget(goal: goal, latestKg: latestKg)
 
         var finish: Date?
-        if let trendKg, let rate, abs(rate) > 0.02 {
+        if !isMaintaining, !reachedGoal, let trendKg, let rate, abs(rate) > 0.02 {
             let remaining = goal.targetWeightKg - trendKg
             // Only projects if moving toward the target.
             if remaining * rate > 0 {
@@ -76,11 +90,29 @@ enum GoalProjectionCalculator {
             currentTrendKg: trendKg,
             weeklyRateKg: rate,
             projectedFinishDate: finish,
+            isMaintaining: isMaintaining,
+            hasReachedGoal: reachedGoal,
             paceWarning: warning,
             adherenceScore: adherence,
             recommendedCalories: goal.calorieTarget,
             recommendedProtein: goal.proteinTarget,
             recommendedSteps: goal.stepTarget
         )
+    }
+
+    /// Whether the latest scale reading has arrived at the target in the goal's
+    /// direction: at/below it for a cut, at/above it for a bulk, close to it for
+    /// maintenance. A small tolerance absorbs day-to-day water noise.
+    private static func hasReachedTarget(goal: Goal, latestKg: Double?) -> Bool {
+        guard let latestKg else { return false }
+        let tolerance = 0.3
+        switch goal.phase {
+        case .cut:
+            return latestKg <= goal.targetWeightKg + tolerance
+        case .leanBulk, .aggressiveBulk:
+            return latestKg >= goal.targetWeightKg - tolerance
+        case .maintain, .custom:
+            return abs(latestKg - goal.targetWeightKg) <= tolerance
+        }
     }
 }

@@ -85,9 +85,10 @@ struct GoalDashboardView: View {
                 DashboardCard(title: "Pace & Projection", systemImage: "calendar.badge.clock") {
                     VStack(spacing: 10) {
                         HStack {
-                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "N/A")
-                            StatChip(label: "Weekly target", value: Formatters.kgChange(goal.weeklyWeightChangeTarget))
-                            StatChip(label: "Projected finish", value: projection.projectedFinishDate.map { Formatters.shortDate($0) } ?? "N/A")
+                            StatChip(label: "Weekly trend", value: projection.weeklyRateKg.map { Formatters.kgChange($0) } ?? "N/A",
+                                     color: paceColor(projection))
+                            StatChip(label: "Weekly target", value: Formatters.kgChange(goal.weeklyWeightChangeTarget), color: .blue)
+                            StatChip(label: "Projected finish", value: finishChip(projection).value, color: finishChip(projection).color)
                         }
                         if let targetDate = goal.targetDate {
                             Text("Goal date: \(Formatters.mediumDate(targetDate))")
@@ -160,6 +161,26 @@ struct GoalDashboardView: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Green when the observed rate is tracking the target (high adherence),
+    /// orange when drifting, red when off pace or moving the wrong way. Muted
+    /// when there's no rate yet.
+    private func paceColor(_ projection: GoalProjection) -> Color {
+        guard projection.weeklyRateKg != nil else { return .secondary }
+        let score = projection.adherenceScore
+        return score >= 70 ? .green : (score >= 40 ? .orange : .red)
+    }
+
+    /// The projected-finish chip: a real date when we're actually heading toward
+    /// a target, otherwise an honest status instead of a made-up date.
+    private func finishChip(_ projection: GoalProjection) -> (value: String, color: Color) {
+        if let date = projection.projectedFinishDate {
+            return (Formatters.shortDate(date), .blue)
+        }
+        if projection.hasReachedGoal { return ("At goal", .green) }
+        if projection.isMaintaining { return ("Maintaining", .blue) }
+        return ("N/A", .secondary)
     }
 
     private func weightProgress(goal: Goal, current: Double) -> Double {

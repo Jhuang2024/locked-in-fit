@@ -174,9 +174,12 @@ struct SleepTrendsView: View {
             let avgWakeUps = Double(windowedLogs.reduce(0) { $0 + $1.wakeUps }) / Double(windowedLogs.count)
             DashboardCard(title: "Window Averages", systemImage: "chart.bar") {
                 HStack {
-                    StatChip(label: "Avg score", value: "\(Int(avgScore.rounded()))")
-                    StatChip(label: "Avg duration", value: "\(Formatters.trimmed(avgDuration))h")
-                    StatChip(label: "Avg wake-ups", value: String(format: "%.1f", avgWakeUps))
+                    StatChip(label: "Avg score", value: "\(Int(avgScore.rounded()))",
+                             color: avgScore >= 70 ? .green : avgScore >= 50 ? .orange : .red)
+                    StatChip(label: "Avg duration", value: "\(Formatters.trimmed(avgDuration))h",
+                             color: (avgDuration >= 7 && avgDuration <= 9.5) ? .green : avgDuration >= 6 ? .orange : .red)
+                    StatChip(label: "Avg wake-ups", value: String(format: "%.1f", avgWakeUps),
+                             color: avgWakeUps <= 1 ? .green : avgWakeUps <= 3 ? .orange : .red)
                 }
             }
             let times = SleepScoringService.averageTimes(for: windowedLogs)
@@ -191,8 +194,8 @@ struct SleepTrendsView: View {
         if !windowedNaps.isEmpty {
             DashboardCard(title: "Naps", systemImage: "zzz") {
                 HStack {
-                    StatChip(label: "Total nap time", value: Formatters.napDuration(totalNapMinutes))
-                    StatChip(label: "Days napped", value: "\(napDayCount)")
+                    StatChip(label: "Total nap time", value: Formatters.napDuration(totalNapMinutes), color: .blue)
+                    StatChip(label: "Days napped", value: "\(napDayCount)", color: .blue)
                     if let avgNapContribution {
                         StatChip(label: "Avg impact", value: avgNapContribution >= 0 ? "+\(Int(avgNapContribution.rounded()))" : "\(Int(avgNapContribution.rounded()))",
                                  color: avgNapContribution > 0 ? .green : (avgNapContribution < 0 ? .red : .primary))
