@@ -47,7 +47,7 @@ struct DailyLogView: View {
                 let calories = model.calories
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        StatChip(label: "Food kcal", value: "\(Int(nutrition.calories))")
+                        StatChip(label: "Food kcal", value: "\(Int(nutrition.calories))", color: .teal)
                         StatChip(label: "protein", value: "\(Int(nutrition.protein))g", color: .red)
                         StatChip(label: "carbs", value: "\(Int(nutrition.carbs))g", color: .blue)
                         StatChip(label: "fat", value: "\(Int(nutrition.fat))g", color: .yellow)
@@ -57,8 +57,9 @@ struct DailyLogView: View {
                         StatChip(label: "sodium", value: "\(Int(nutrition.sodium))mg", color: sodiumColor(for: nutrition.sodium))
                     }
                     HStack {
-                        StatChip(label: "Eaten", value: "\(Int(calories.eaten))")
-                        StatChip(label: "Target", value: "\(Int(calories.adjustedTarget))")
+                        StatChip(label: "Eaten", value: "\(Int(calories.eaten))",
+                                 color: calories.eaten > calories.adjustedTarget ? .red : .green)
+                        StatChip(label: "Target", value: "\(Int(calories.adjustedTarget))", color: .blue)
                         StatChip(label: "Remaining", value: "\(Int(calories.remaining))",
                                  color: calories.remaining < 0 ? .red : .green)
                     }
@@ -76,7 +77,7 @@ struct DailyLogView: View {
                             .tint(sodiumColor(for: nutrition.sodium))
                     }
                     HStack {
-                        StatChip(label: "Exercise", value: "+\(Int(calories.exerciseAdjustment))")
+                        StatChip(label: "Exercise", value: "+\(Int(calories.exerciseAdjustment))", color: .green)
                         StatChip(label: "TEF", value: "+\(Int(calories.tefCalories))", color: .purple)
                         StatChip(label: "Oil", value: "-\(Int(calories.hiddenOilCalories))", color: .orange)
                         if calories.portionUpliftCalories > 0 {

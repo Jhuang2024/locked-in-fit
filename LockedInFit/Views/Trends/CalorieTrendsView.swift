@@ -6,6 +6,8 @@ import Charts
 struct CalorieTrendsView: View {
     @Query(sort: \MealLog.date) private var meals: [MealLog]
     @Query(sort: \StepEntry.date) private var steps: [StepEntry]
+    @Query(sort: \ActiveEnergyEntry.date) private var activeEnergy: [ActiveEnergyEntry]
+    @Query(sort: \Workout.date) private var workouts: [Workout]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
     @Query private var settingsList: [UserSettings]
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
@@ -37,16 +39,21 @@ struct CalorieTrendsView: View {
 
     /// Net calories: what's eaten (logged food, plus hidden oil and the
     /// portion-underestimation allowance) minus what digesting it burns (TEF)
-    /// and minus that day's walking/step calorie burn: the figure that actually
-    /// counts against the flat target, not raw logged intake. Matches the
-    /// dashboard, which trims the target by the same oil and portion amounts.
+    /// and minus that day's activity burn: the figure that actually counts
+    /// against the flat target, not raw logged intake. Activity uses the same
+    /// full model as the dashboard — Apple Health active energy or the
+    /// step+workout estimate, whichever is larger — so the two views agree.
     private var caloriePoints: [DayPoint] {
         let eaten = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
         let tef = tefByDay
-        let stepCals = stepCaloriesByDay
         let portion = portionUpliftByDay
+        let weight = currentWeightKg
         return eaten.map { day, calories in
-            DayPoint(date: day, value: calories + (portion[day] ?? 0) - (tef[day] ?? 0) - (stepCals[day] ?? 0))
+            let activityBurn = ActivityAdjustmentCalculator.summary(
+                for: day, steps: steps, activeEnergy: activeEnergy, workouts: workouts,
+                adjustment: .full, bodyWeightKg: weight
+            ).adjustmentCalories
+            return DayPoint(date: day, value: calories + (portion[day] ?? 0) - (tef[day] ?? 0) - activityBurn)
         }.sorted { $0.date < $1.date }
     }
     private var proteinPoints: [DayPoint] {
@@ -74,17 +81,10 @@ struct CalorieTrendsView: View {
         applyTEF ? Analytics.dailyTEF(meals.filter { $0.date >= cutoff }) : [:]
     }
 
-    /// Current bodyweight, used to scale step-calorie burn the same way
-    /// NutritionCalculator.stepCalories does elsewhere in the app.
+    /// Current bodyweight, used to weight-scale step-calorie burn the same way
+    /// the dashboard's activity model does.
     private var currentWeightKg: Double {
         WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 75
-    }
-
-    private var stepCaloriesByDay: [Date: Double] {
-        Dictionary(grouping: steps.filter { $0.date >= cutoff }, by: { $0.date.startOfDay })
-            .mapValues { entries in
-                NutritionCalculator.stepCalories(steps: entries.reduce(0) { $0 + $1.steps }, weightKg: currentWeightKg)
-            }
     }
 
     /// The user's portion-underestimation setting, applied to logged food only
@@ -111,7 +111,7 @@ struct CalorieTrendsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil\(portionUplift > 0 ? " & portions" : ""), net of TEF & steps" }) {
+                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil\(portionUplift > 0 ? " & portions" : ""), net of TEF & activity" }) {
                     Chart(caloriePoints) { point in
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(Color.accentColor.gradient)
@@ -125,7 +125,7 @@ struct CalorieTrendsView: View {
                     .chartXScale(domain: chartDomain)
                 }
 
-                ChartCard(title: "Deficit / Surplus", subtitle: "net of TEF & steps, vs estimated maintenance (\(Int(maintenance)) kcal)") {
+                ChartCard(title: "Deficit / Surplus", subtitle: "net of TEF & activity, vs estimated maintenance (\(Int(maintenance)) kcal)") {
                     Chart(deficitPoints) { point in
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)

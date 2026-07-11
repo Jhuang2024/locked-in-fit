@@ -613,12 +613,13 @@ struct DashboardView: View {
                 ProgressView(value: min(viewModel.calories.eaten, viewModel.calories.adjustedTarget), total: max(viewModel.calories.adjustedTarget, 1))
                     .tint(viewModel.calories.eaten > viewModel.calories.adjustedTarget ? .red : .accentColor)
                 HStack {
-                    StatChip(label: "Eaten", value: "\(Int(viewModel.calories.eaten))")
-                    StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
-                    StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
+                    StatChip(label: "Eaten", value: "\(Int(viewModel.calories.eaten))",
+                             color: viewModel.calories.eaten > viewModel.calories.adjustedTarget ? .red : .green)
+                    StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))", color: .blue)
+                    StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))", color: .blue)
                 }
                 HStack {
-                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))", color: .green)
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
                     StatChip(label: "Oil", value: "-\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                     if viewModel.calories.portionUpliftCalories > 0 {
@@ -727,9 +728,11 @@ struct DashboardView: View {
     private var activityCard: some View {
         DashboardCard(title: "Activity", systemImage: "figure.walk") {
             HStack {
-                StatChip(label: "Steps · goal \(compactStepTarget)", value: viewModel.stepsToday.formatted())
-                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))")
-                StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)")
+                StatChip(label: "Steps · goal \(compactStepTarget)", value: viewModel.stepsToday.formatted(),
+                         color: viewModel.stepsToday >= viewModel.stepTarget ? .green : .orange)
+                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))", color: .green)
+                StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)",
+                         color: viewModel.completedWorkoutsToday > 0 ? .green : .secondary)
             }
         }
     }
