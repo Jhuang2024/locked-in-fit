@@ -620,7 +620,7 @@ struct DashboardView: View {
                 HStack {
                     StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
-                    StatChip(label: "Oil", value: "+\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
+                    StatChip(label: "Oil", value: "-\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                 }
                 Button {
                     withAnimation(.snappy) { showCalorieDetails.toggle() }
@@ -644,7 +644,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.purple)
                         }
                         if viewModel.nutrition.hiddenOilHigh > 0 {
-                            Label("Hidden oil adds +\(Int(viewModel.calories.hiddenOilCalories)) kcal to eaten (range +\(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
+                            Label("Hidden oil is already counted in Eaten above, cutting \(Int(viewModel.calories.hiddenOilCalories)) kcal from what's left (estimated range \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh))).", systemImage: "drop.fill")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }

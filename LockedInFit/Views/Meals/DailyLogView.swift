@@ -47,7 +47,7 @@ struct DailyLogView: View {
                 let calories = model.calories
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        StatChip(label: "kcal", value: "\(Int(nutrition.calories))")
+                        StatChip(label: "Food kcal", value: "\(Int(nutrition.calories))")
                         StatChip(label: "protein", value: "\(Int(nutrition.protein))g", color: .red)
                         StatChip(label: "carbs", value: "\(Int(nutrition.carbs))g", color: .blue)
                         StatChip(label: "fat", value: "\(Int(nutrition.fat))g", color: .yellow)
@@ -76,7 +76,7 @@ struct DailyLogView: View {
                             .tint(sodiumColor(for: nutrition.sodium))
                     }
                     if nutrition.hiddenOilHigh > 0 {
-                        Label("Hidden oil adds +\(Int(calories.hiddenOilCalories)) kcal to eaten (range +\(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))", systemImage: "drop.fill")
+                        Label("Hidden oil is already counted in Eaten above, cutting \(Int(calories.hiddenOilCalories)) kcal from what's left (estimated range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh))).", systemImage: "drop.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }

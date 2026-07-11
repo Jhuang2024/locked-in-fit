@@ -96,7 +96,7 @@ struct CalorieTrendsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · net of TEF & steps" }) {
+                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil, net of TEF & steps" }) {
                     Chart(caloriePoints) { point in
                         BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
                             .foregroundStyle(Color.accentColor.gradient)
