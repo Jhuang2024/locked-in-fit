@@ -75,20 +75,13 @@ struct DailyLogView: View {
                         ProgressView(value: min(nutrition.sodium, sodiumLimit), total: sodiumLimit)
                             .tint(sodiumColor(for: nutrition.sodium))
                     }
-                    if nutrition.hiddenOilHigh > 0 {
-                        Label("Hidden oil is already counted in Eaten above, cutting \(Int(calories.hiddenOilCalories)) kcal from what's left (estimated range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh))).", systemImage: "drop.fill")
-                            .font(.caption)
+                    Text("Target = \(Int(calories.baseTarget)) base + \(Int(calories.exerciseAdjustment)) exercise + \(Int(calories.tefCalories)) TEF")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if calories.hiddenOilCalories > 0 {
+                        Text("Eaten = \(Int(calories.foodCalories)) food + \(Int(calories.hiddenOilCalories)) hidden oil (estimated range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))")
+                            .font(.caption2)
                             .foregroundStyle(.orange)
-                    }
-                    if calories.tefCalories > 0 {
-                        Text("TEF adds +\(Int(calories.tefCalories)) kcal to the day's target (burned digesting).")
-                            .font(.caption)
-                            .foregroundStyle(.purple)
-                    }
-                    if calories.exerciseAdjustment > 0 {
-                        Text("Exercise adds +\(Int(calories.exerciseAdjustment)) kcal to the day's target.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 4)

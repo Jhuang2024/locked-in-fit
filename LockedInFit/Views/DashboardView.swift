@@ -617,10 +617,15 @@ struct DashboardView: View {
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
-                HStack {
-                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
-                    StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
-                    StatChip(label: "Oil", value: "-\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Target = \(Int(viewModel.calories.baseTarget)) base + \(Int(viewModel.calories.exerciseAdjustment)) exercise + \(Int(viewModel.calories.tefCalories)) TEF")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if viewModel.calories.hiddenOilCalories > 0 {
+                        Text("Eaten = \(Int(viewModel.calories.foodCalories)) food + \(Int(viewModel.calories.hiddenOilCalories)) hidden oil")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
                 Button {
                     withAnimation(.snappy) { showCalorieDetails.toggle() }
@@ -644,7 +649,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.purple)
                         }
                         if viewModel.nutrition.hiddenOilHigh > 0 {
-                            Label("Hidden oil is already counted in Eaten above, cutting \(Int(viewModel.calories.hiddenOilCalories)) kcal from what's left (estimated range \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh))).", systemImage: "drop.fill")
+                            Label("Hidden oil is an estimate for oil used in cooking that isn't itemized in your log, ranging \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)) kcal; the midpoint is used in Eaten above.", systemImage: "drop.fill")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
