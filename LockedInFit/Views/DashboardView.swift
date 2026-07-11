@@ -758,18 +758,22 @@ struct DashboardView: View {
             DashboardCard(title: "Looks", systemImage: "sparkles") {
                 HStack {
                     StatChip(label: "Overall",
-                             value: overallLooksScore.map { "\(Int($0.rounded()))" } ?? "N/A")
+                             value: overallLooksScore.map { "\(Int($0.rounded()))" } ?? "N/A",
+                             color: scoreColor(overallLooksScore))
                     StatChip(label: "Face",
-                             value: latestFaceCheckIn.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A")
+                             value: latestFaceCheckIn.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A",
+                             color: scoreColor(latestFaceCheckIn?.totalScore))
                     StatChip(label: "Body",
-                             value: displayedBodyScore.map { "\(Int($0.rounded()))" } ?? "N/A")
+                             value: displayedBodyScore.map { "\(Int($0.rounded()))" } ?? "N/A",
+                             color: scoreColor(displayedBodyScore))
                 }
                 HStack {
                     StatChip(label: "Streak",
-                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "N/A")
+                             value: appearanceStreak > 0 ? "\(appearanceStreak)d" : "N/A",
+                             color: appearanceStreak > 0 ? .green : .secondary)
                     StatChip(label: "Suggestions",
                              value: "\(pendingSuggestionCount)",
-                             color: pendingSuggestionCount > 0 ? .orange : .primary)
+                             color: pendingSuggestionCount > 0 ? .orange : .secondary)
                 }
                 if latestBodyCheckIn == nil, liveBodyScore != nil {
                     Text("Body score estimated from your logged weight and body fat. Add a body photo check-in for the full picture.")
@@ -793,12 +797,16 @@ struct DashboardView: View {
         NavigationLink(destination: SleepDashboardView()) {
             DashboardCard(title: "Sleep", systemImage: "bed.double.fill") {
                 HStack {
-                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A")
-                    StatChip(label: "Duration", value: latestSleepLog.map { "\(Formatters.trimmed($0.durationHours))h" } ?? "N/A")
-                    StatChip(label: "Wake-ups", value: latestSleepLog.map { "\($0.wakeUps)" } ?? "N/A")
+                    StatChip(label: "Score", value: latestSleepLog.map { "\(Int($0.totalScore.rounded()))" } ?? "N/A",
+                             color: scoreColor(latestSleepLog?.totalScore))
+                    StatChip(label: "Duration", value: latestSleepLog.map { "\(Formatters.trimmed($0.durationHours))h" } ?? "N/A",
+                             color: sleepDurationColor(latestSleepLog?.durationHours))
+                    StatChip(label: "Wake-ups", value: latestSleepLog.map { "\($0.wakeUps)" } ?? "N/A",
+                             color: wakeUpsColor(latestSleepLog?.wakeUps))
                 }
                 HStack {
-                    StatChip(label: "Streak", value: sleepStreak > 0 ? "\(sleepStreak)d" : "N/A")
+                    StatChip(label: "Streak", value: sleepStreak > 0 ? "\(sleepStreak)d" : "N/A",
+                             color: sleepStreak > 0 ? .green : .secondary)
                 }
                 if sleepLogs.isEmpty {
                     Text("Log your bedtime and wake time to start tracking your sleep score.")
@@ -816,9 +824,11 @@ struct DashboardView: View {
         DashboardCard(title: "Trends", systemImage: "chart.line.uptrend.xyaxis") {
             HStack {
                 let latest = WeightTrendCalculator.latestKg(entries: weights)
-                StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "Log weight")
-                StatChip(label: "7-day calories", value: viewModel.weeklyCalorieAverage.map { "\(Int($0))" } ?? "No meals")
-                StatChip(label: "Adherence", value: adherenceLabel)
+                StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "Log weight",
+                         color: latest != nil ? .blue : .secondary)
+                StatChip(label: "7-day calories", value: viewModel.weeklyCalorieAverage.map { "\(Int($0))" } ?? "No meals",
+                         color: viewModel.weeklyCalorieAverage != nil ? .blue : .secondary)
+                StatChip(label: "Adherence", value: adherenceLabel, color: adherenceColor)
             }
             NavigationLink(destination: WeightTrendsView()) {
                 Label("View weight trends", systemImage: "chart.line.uptrend.xyaxis")
@@ -836,13 +846,46 @@ struct DashboardView: View {
         return deviation <= 0.1 ? "On track" : deviation <= 0.2 ? "Close" : "Review"
     }
 
+    private var adherenceColor: Color {
+        guard viewModel.calories.eaten > 0 else { return .secondary }
+        let deviation = abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1)
+        return deviation <= 0.1 ? .green : deviation <= 0.2 ? .orange : .red
+    }
+
+    /// Traffic-light for a 0–100 wellness score (sleep, appearance): green when
+    /// strong, orange in the middle, red when low, muted when there's no data.
+    private func scoreColor(_ value: Double?) -> Color {
+        guard let value else { return .secondary }
+        if value >= 70 { return .green }
+        if value >= 50 { return .orange }
+        return .red
+    }
+
+    /// Sleep duration coloring: a healthy 7–9.5h reads green, with too little or
+    /// too much stepping down to orange then red.
+    private func sleepDurationColor(_ hours: Double?) -> Color {
+        guard let hours else { return .secondary }
+        if hours >= 7 && hours <= 9.5 { return .green }
+        if hours >= 6 { return .orange }
+        return .red
+    }
+
+    /// Fewer overnight wake-ups is better.
+    private func wakeUpsColor(_ wakeUps: Int?) -> Color {
+        guard let wakeUps else { return .secondary }
+        if wakeUps <= 1 { return .green }
+        if wakeUps <= 3 { return .orange }
+        return .red
+    }
+
     private func goalSnippet(_ goal: Goal) -> some View {
         NavigationLink(destination: GoalDashboardView()) {
             DashboardCard(title: "\(goal.phase.label) Progress", systemImage: goal.phase.systemImage) {
                 HStack {
                     let latest = WeightTrendCalculator.latestKg(entries: weights)
-                    StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "No data")
-                    StatChip(label: "Target", value: Formatters.kg(goal.targetWeightKg))
+                    StatChip(label: "Current weight", value: latest.map { Formatters.kg($0) } ?? "No data",
+                             color: latest != nil ? .blue : .secondary)
+                    StatChip(label: "Target", value: Formatters.kg(goal.targetWeightKg), color: .blue)
                     let rate = WeightTrendCalculator.weeklyChangeFromEntries(entries: weights)
                     StatChip(label: "Per week", value: rate.map { Formatters.kgChange($0) } ?? "Not enough data",
                              color: rateColor(rate, goal: goal))
