@@ -42,18 +42,29 @@ struct ActivityAdjustmentSummary {
 }
 
 enum ActivityAdjustmentCalculator {
+    /// Roughly the calories a single step burns for someone of `bodyWeightKg`.
+    /// Walking energy scales with body mass, so a flat per-step number over- or
+    /// under-credits people far from average weight. Anchored so a ~70 kg walker
+    /// lands near the familiar 0.04 kcal/step (≈40 kcal per 1,000 steps) and a
+    /// 60 kg walker near ~0.034 (≈34, inside the widely cited 32–38 range).
+    static func caloriesPerStep(bodyWeightKg: Double) -> Double {
+        let weight = bodyWeightKg > 0 ? bodyWeightKg : 70
+        return 0.00057 * weight
+    }
+
     static func summary(for date: Date = .now,
                         steps: [StepEntry],
                         activeEnergy: [ActiveEnergyEntry],
                         workouts: [Workout],
-                        adjustment: ExerciseCalorieAdjustment) -> ActivityAdjustmentSummary {
+                        adjustment: ExerciseCalorieAdjustment,
+                        bodyWeightKg: Double = 70) -> ActivityAdjustmentSummary {
         let multiplier = adjustment.multiplier
 
         // Steps-and-workouts estimate for the day. Apple Health's active energy
         // already folds walking and workouts together, so this is the same
         // quantity measured a cruder way — never something to add on top.
         let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
-        let stepCalories = Double(stepCount) * 0.04
+        let stepCalories = Double(stepCount) * Self.caloriesPerStep(bodyWeightKg: bodyWeightKg)
         let workoutCalories = workouts
             .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
             .reduce(0) { $0 + Self.workoutCalories($1) }
@@ -186,12 +197,14 @@ struct DashboardViewModel {
         let stepTarget = goal?.stepTarget ?? 8000
         let adjustmentMode = settings?.exerciseCalorieAdjustment ?? .conservative
         let nutrition = DailyNutritionCalculator.summary(for: date, meals: meals)
+        let bodyWeightKg = WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 70
         let activity = ActivityAdjustmentCalculator.summary(
             for: date,
             steps: steps,
             activeEnergy: activeEnergy,
             workouts: workouts,
-            adjustment: adjustmentMode
+            adjustment: adjustmentMode,
+            bodyWeightKg: bodyWeightKg
         )
         let tefCalories = (settings?.applyTEF ?? true)
             ? NutritionCalculator.tef(protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat)
