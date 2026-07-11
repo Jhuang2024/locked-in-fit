@@ -282,25 +282,13 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
             }
-            Picker("Exercise calorie adjustment", selection: $settings.exerciseCalorieAdjustment) {
-                ForEach(ExerciseCalorieAdjustment.allCases) { option in
-                    Text(option.label).tag(option)
-                }
-            }
-            Text(settings.exerciseCalorieAdjustment.detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         } header: {
             Text("Energy Model")
         } footer: {
             Text("""
             Maintenance is estimated from BMR, steps, and activity, then adjusted over time using your logged intake and weight trend.
 
-            Exercise calorie adjustment controls how much of today's estimated workout/step calories get added back to your target, useful because activity estimates run high:
-            • Off: no calories added back; your target stays fixed regardless of activity.
-            • Conservative (default): adds back 45%. Safest choice if you tend to overeat on training days.
-            • Moderate: adds back 65%. A middle ground for reasonably accurate trackers.
-            • Full: adds back 100%. Only use this if your activity data (e.g. a chest-strap HR monitor) is highly accurate.
+            Tracked workout and step calories are credited to your target in full. To hedge against inaccuracy, use the Portion estimation setting under Nutrition rather than discounting your activity.
             """)
         }
     }
@@ -318,10 +306,26 @@ struct SettingsView: View {
                 Text("mg").font(.caption).foregroundStyle(.secondary)
             }
             LabeledContent("Default guidance", value: "2300 mg/day")
+            Picker("Portion estimation", selection: $settings.portionEstimationAdjustment) {
+                ForEach(PortionEstimationAdjustment.allCases) { option in
+                    Text(option.label).tag(option)
+                }
+            }
+            Text(settings.portionEstimationAdjustment.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } header: {
             Text("Nutrition Limits")
         } footer: {
-            Text("Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.")
+            Text("""
+            Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.
+
+            Portion estimation trims your daily target by a percentage of your logged food, since portions are easy to underestimate. Pick how much you tend to underestimate by. It only affects calories, not your macro targets:
+            • Off (default): trust your log exactly.
+            • Conservative: 5%.
+            • Moderate: 10%.
+            • Full: 20%.
+            """)
         }
     }
 

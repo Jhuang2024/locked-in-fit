@@ -259,6 +259,43 @@ enum ExerciseCalorieAdjustment: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// How much to inflate logged food calories to offset the well-documented
+/// tendency to underestimate portion sizes. Applied to logged food calories
+/// only — hidden cooking oil is estimated separately.
+enum PortionEstimationAdjustment: String, Codable, CaseIterable, Identifiable {
+    case off, conservative, moderate, full
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off: return "Off"
+        case .conservative: return "Conservative"
+        case .moderate: return "Moderate"
+        case .full: return "Full"
+        }
+    }
+
+    /// Fraction added on top of logged food calories.
+    var uplift: Double {
+        switch self {
+        case .off: return 0
+        case .conservative: return 0.05
+        case .moderate: return 0.10
+        case .full: return 0.20
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .off: return "Trust logged portions exactly as entered."
+        case .conservative: return "Assume you underestimate portions by 5%."
+        case .moderate: return "Assume you underestimate portions by 10%."
+        case .full: return "Assume you underestimate portions by 20%."
+        }
+    }
+}
+
 enum Equipment: String, Codable, CaseIterable, Identifiable {
     case barbell, dumbbell, machine, cable, bodyweight, kettlebell, band, cardioMachine = "cardio_machine"
     var id: String { rawValue }

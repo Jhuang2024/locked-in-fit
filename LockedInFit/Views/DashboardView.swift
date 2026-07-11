@@ -621,6 +621,9 @@ struct DashboardView: View {
                     StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
                     StatChip(label: "Oil", value: "-\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
+                    if viewModel.calories.portionUpliftCalories > 0 {
+                        StatChip(label: "Portions", value: "-\(Int(viewModel.calories.portionUpliftCalories))", color: .orange)
+                    }
                 }
                 Button {
                     withAnimation(.snappy) { showCalorieDetails.toggle() }
@@ -648,6 +651,11 @@ struct DashboardView: View {
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
+                        if viewModel.calories.portionUpliftCalories > 0 {
+                            Label("Portions subtract \(Int(viewModel.calories.portionUpliftCalories)) kcal from today's target, your allowance for underestimating portion sizes.", systemImage: "fork.knife")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                         Text("Estimated maintenance: \(Int(maintenance)) kcal")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -658,8 +666,7 @@ struct DashboardView: View {
     }
 
     private var adjustmentLabel: String {
-        let prefix = settings?.exerciseCalorieAdjustment.label ?? ExerciseCalorieAdjustment.conservative.label
-        let base = "\(prefix): \(Int(viewModel.activity.adjustmentCalories)) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
+        let base = "Exercise: +\(Int(viewModel.calories.exerciseAdjustment)) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
         return viewModel.activity.isEstimated ? base + " (estimate)" : base
     }
 

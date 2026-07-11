@@ -250,7 +250,9 @@ enum ExportImportService {
         var heightCm: Double; var age: Int; var sexRaw: String; var unitsRaw: String
         var activityAssumptionRaw: String; var applyTEF: Bool; var manualMaintenanceOverride: Double
         var adaptiveMaintenance: Double; var adaptiveMaintenanceUpdated: Date?
-        var exerciseCalorieAdjustmentRaw: String; var sodiumLimitMg: Double; var aiModelName: String
+        var exerciseCalorieAdjustmentRaw: String
+        var portionEstimationAdjustmentRaw: String?
+        var sodiumLimitMg: Double; var aiModelName: String
         var aiModeRaw: String; var hasStoredAPIKey: Bool; var seededSampleData: Bool
         var clearedEmptyWorkoutsV1: Bool; var faceReminderEnabled: Bool; var faceReminderHour: Int
         var faceReminderMinute: Int; var bodyReminderEnabled: Bool; var bodyReminderFrequencyRaw: String
@@ -381,6 +383,7 @@ enum ExportImportService {
                             adaptiveMaintenance: $0.adaptiveMaintenance,
                             adaptiveMaintenanceUpdated: $0.adaptiveMaintenanceUpdated,
                             exerciseCalorieAdjustmentRaw: $0.exerciseCalorieAdjustmentRaw,
+                            portionEstimationAdjustmentRaw: $0.portionEstimationAdjustmentRaw,
                             sodiumLimitMg: $0.sodiumLimitMg, aiModelName: $0.aiModelName,
                             aiModeRaw: $0.aiModeRaw, hasStoredAPIKey: $0.hasStoredAPIKey,
                             seededSampleData: $0.seededSampleData,
@@ -818,6 +821,7 @@ enum ExportImportService {
             settings.adaptiveMaintenance = u.adaptiveMaintenance
             settings.adaptiveMaintenanceUpdated = u.adaptiveMaintenanceUpdated
             settings.exerciseCalorieAdjustmentRaw = u.exerciseCalorieAdjustmentRaw
+            settings.portionEstimationAdjustmentRaw = u.portionEstimationAdjustmentRaw ?? PortionEstimationAdjustment.off.rawValue
             settings.sodiumLimitMg = u.sodiumLimitMg
             settings.aiModelName = u.aiModelName
             settings.aiModeRaw = u.aiModeRaw

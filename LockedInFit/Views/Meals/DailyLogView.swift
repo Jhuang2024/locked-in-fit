@@ -79,6 +79,9 @@ struct DailyLogView: View {
                         StatChip(label: "Exercise", value: "+\(Int(calories.exerciseAdjustment))")
                         StatChip(label: "TEF", value: "+\(Int(calories.tefCalories))", color: .purple)
                         StatChip(label: "Oil", value: "-\(Int(calories.hiddenOilCalories))", color: .orange)
+                        if calories.portionUpliftCalories > 0 {
+                            StatChip(label: "Portions", value: "-\(Int(calories.portionUpliftCalories))", color: .orange)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
