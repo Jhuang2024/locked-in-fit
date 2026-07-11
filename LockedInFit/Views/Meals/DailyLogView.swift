@@ -75,9 +75,11 @@ struct DailyLogView: View {
                         ProgressView(value: min(nutrition.sodium, sodiumLimit), total: sodiumLimit)
                             .tint(sodiumColor(for: nutrition.sodium))
                     }
-                    Text(targetEquationText(calories: calories, nutrition: nutrition))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        StatChip(label: "Exercise", value: "+\(Int(calories.exerciseAdjustment))")
+                        StatChip(label: "TEF", value: "+\(Int(calories.tefCalories))", color: .purple)
+                        StatChip(label: "Oil", value: "-\(Int(calories.hiddenOilCalories))", color: .orange)
+                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -125,14 +127,6 @@ struct DailyLogView: View {
         }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
-    }
-
-    private func targetEquationText(calories: CalorieRemainingSummary, nutrition: DailyNutritionSummary) -> String {
-        var text = "Target = \(Int(calories.baseTarget)) base + \(Int(calories.exerciseAdjustment)) exercise + \(Int(calories.tefCalories)) TEF"
-        if calories.hiddenOilCalories > 0 {
-            text += " − \(Int(calories.hiddenOilCalories)) hidden oil (range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))"
-        }
-        return text
     }
 
     private func sodiumColor(for sodium: Double) -> Color {

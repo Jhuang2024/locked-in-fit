@@ -617,9 +617,11 @@ struct DashboardView: View {
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
-                Text(targetEquationText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
+                    StatChip(label: "Oil", value: "-\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
+                }
                 Button {
                     withAnimation(.snappy) { showCalorieDetails.toggle() }
                 } label: {
@@ -653,14 +655,6 @@ struct DashboardView: View {
                 }
             }
         }
-    }
-
-    private var targetEquationText: String {
-        var text = "Target = \(Int(viewModel.calories.baseTarget)) base + \(Int(viewModel.calories.exerciseAdjustment)) exercise + \(Int(viewModel.calories.tefCalories)) TEF"
-        if viewModel.calories.hiddenOilCalories > 0 {
-            text += " − \(Int(viewModel.calories.hiddenOilCalories)) hidden oil"
-        }
-        return text
     }
 
     private var adjustmentLabel: String {
