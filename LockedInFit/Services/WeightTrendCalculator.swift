@@ -80,13 +80,21 @@ enum WeightTrendCalculator {
         return (latest.weightKg - previous.weightKg) / weeksBetween
     }
 
-    /// kg/week change of the trend line over the last `days`.
+    /// kg/week change of the trend line over roughly the last `days`.
+    ///
+    /// The start point is taken from a bounded recent window (a little wider than
+    /// `days` so a start point can still be found) rather than "the newest point
+    /// before `days` ago". The old rule reached back across a logging gap to a
+    /// stale reading — so a weight that's been flat for weeks, but with an older
+    /// heavier reading still in history, reported a phantom weekly loss. Now, if
+    /// the recent points are all at the same weight, both ends sit at the same
+    /// trend and the rate is ~0, as it should be.
     static func weeklyRate(entries: [BodyWeightEntry], days: Int = 14) -> Double? {
         let points = trend(entries: recent(entries))
         guard let last = points.last else { return nil }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: last.date)!
-        guard let start = points.last(where: { $0.date <= cutoff }) ?? points.first,
-              start.date < last.date else { return nil }
+        let windowSeconds = Double(days) * 2 * 86400
+        let recentPoints = points.filter { last.date.timeIntervalSince($0.date) <= windowSeconds }
+        guard let start = recentPoints.first, start.date < last.date else { return nil }
         let dayspan = last.date.timeIntervalSince(start.date) / 86400
         guard dayspan >= 5 else { return nil }
         return (last.trendKg - start.trendKg) / dayspan * 7

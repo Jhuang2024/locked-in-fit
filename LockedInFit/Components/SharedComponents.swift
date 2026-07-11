@@ -298,6 +298,7 @@ struct MacroRingView: View {
                 VStack(spacing: 0) {
                     RollingNumberText(value: appeared ? current : 0)
                         .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(color)
                         .minimumScaleFactor(0.6)
                     Text(unit)
                         .font(.system(size: 9))
@@ -346,6 +347,7 @@ struct ScoreRingView: View {
                 VStack(spacing: 0) {
                     RollingNumberText(value: appeared ? score.rounded() : 0)
                         .font(.system(.title3, design: .rounded, weight: .heavy))
+                        .foregroundStyle(color)
                     Text("/\(Int(maxScore))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)

@@ -602,7 +602,7 @@ struct DashboardView: View {
                 HStack(alignment: .firstTextBaseline) {
                     RollingNumberText(value: viewModel.calories.remaining)
                         .font(.system(size: 46, weight: .heavy, design: .rounded))
-                        .foregroundStyle(viewModel.calories.remaining < 0 ? .red : .primary)
+                        .foregroundStyle(viewModel.calories.remaining < 0 ? .red : .green)
                         .animation(.snappy(duration: 0.5), value: viewModel.calories.remaining)
                     Text("KCAL LEFT")
                         .font(.caption.weight(.bold))
