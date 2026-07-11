@@ -386,7 +386,7 @@ struct DashboardView: View {
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
                 HStack {
-                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment))")
+                    StatChip(label: "Exercise", value: "+\(Int(viewModel.calories.exerciseAdjustment.rounded()))")
                     StatChip(label: "TEF", value: "+\(Int(viewModel.calories.tefCalories))", color: .purple)
                     StatChip(label: "Oil", value: "+\(Int(viewModel.calories.hiddenOilCalories))", color: .orange)
                 }
@@ -427,7 +427,7 @@ struct DashboardView: View {
 
     private var adjustmentLabel: String {
         let prefix = settings?.exerciseCalorieAdjustment.label ?? ExerciseCalorieAdjustment.conservative.label
-        let base = "\(prefix): \(Int(viewModel.activity.adjustmentCalories)) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
+        let base = "\(prefix): \(Int(viewModel.activity.adjustmentCalories.rounded())) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
         return viewModel.activity.isEstimated ? base + " (estimate)" : base
     }
 
@@ -481,7 +481,7 @@ struct DashboardView: View {
         DashboardCard(title: "Activity", systemImage: "figure.walk") {
             HStack {
                 StatChip(label: "Steps", value: "\(viewModel.stepsToday)/\(viewModel.stepTarget)")
-                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))")
+                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories.rounded()))")
                 StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)")
             }
         }

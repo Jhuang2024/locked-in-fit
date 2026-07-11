@@ -86,7 +86,7 @@ struct DailyLogView: View {
                             .foregroundStyle(.purple)
                     }
                     if calories.exerciseAdjustment > 0 {
-                        Text("Exercise adds +\(Int(calories.exerciseAdjustment)) kcal to the day's target.")
+                        Text("Exercise adds +\(Int(calories.exerciseAdjustment.rounded())) kcal to the day's target.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

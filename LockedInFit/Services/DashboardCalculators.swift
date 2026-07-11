@@ -48,30 +48,43 @@ enum ActivityAdjustmentCalculator {
                         workouts: [Workout],
                         adjustment: ExerciseCalorieAdjustment) -> ActivityAdjustmentSummary {
         let multiplier = adjustment.multiplier
-        if let healthEnergy = activeEnergy.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }),
-           healthEnergy.calories > 0 {
+
+        // Steps-and-workouts estimate for the day. Apple Health's active energy
+        // already folds walking and workouts together, so this is the same
+        // quantity measured a cruder way — never something to add on top.
+        let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
+        let stepCalories = Double(stepCount) * 0.04
+        let workoutCalories = workouts
+            .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
+            .reduce(0) { $0 + Self.workoutCalories($1) }
+        let estimated = stepCalories + workoutCalories
+
+        let healthEnergy = activeEnergy
+            .first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?
+            .calories ?? 0
+
+        // Prefer whichever source reports MORE burned rather than always trusting
+        // Apple Health: a phone-only or not-yet-synced day can leave active energy
+        // far below what the step count alone implies (e.g. ~1,000 steps reading
+        // as a handful of kcal). Taking the larger of the two keeps that partial
+        // reading from erasing the credit the day's steps and workouts earned,
+        // while still deferring to Apple Health whenever it's the fuller number.
+        if healthEnergy >= estimated && healthEnergy > 0 {
             return ActivityAdjustmentSummary(
-                baseActiveCalories: healthEnergy.calories,
-                adjustmentCalories: healthEnergy.calories * multiplier,
+                baseActiveCalories: healthEnergy,
+                adjustmentCalories: healthEnergy * multiplier,
                 multiplier: multiplier,
                 sourceLabel: "Apple Health active energy",
                 isEstimated: false
             )
         }
 
-        let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
-        let stepCalories = Double(stepCount) * 0.04
-        let workoutCalories = workouts
-            .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
-            .reduce(0) { $0 + Self.workoutCalories($1) }
-        let total = stepCalories + workoutCalories
-
         return ActivityAdjustmentSummary(
-            baseActiveCalories: total,
-            adjustmentCalories: total * multiplier,
+            baseActiveCalories: estimated,
+            adjustmentCalories: estimated * multiplier,
             multiplier: multiplier,
-            sourceLabel: "Estimated from steps and workouts",
-            isEstimated: total > 0
+            sourceLabel: "steps and workouts",
+            isEstimated: estimated > 0
         )
     }
 
