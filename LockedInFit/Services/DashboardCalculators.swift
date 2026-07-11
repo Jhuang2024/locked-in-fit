@@ -219,7 +219,7 @@ struct DashboardViewModel {
         let tefCalories = (settings?.applyTEF ?? true)
             ? NutritionCalculator.tef(protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat)
             : 0
-        let portionUplift = (settings?.portionEstimationAdjustment ?? .conservative).uplift
+        let portionUplift = (settings?.portionEstimationAdjustment ?? .off).uplift
         let calories = CalorieRemainingCalculator.summary(
             baseTarget: baseTarget,
             nutrition: nutrition,

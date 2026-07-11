@@ -231,9 +231,9 @@ struct SettingsView: View {
             Text("""
             Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.
 
-            Portion estimation adds a percentage on top of your logged food calories, since portions are easy to underestimate. It only inflates calories, not your macro targets:
-            • Off: trust your log exactly.
-            • Conservative (default): +5%.
+            Portion estimation adds a percentage on top of your logged food calories, since portions are easy to underestimate. Pick how much you tend to underestimate by. It only inflates calories, not your macro targets:
+            • Off (default): trust your log exactly.
+            • Conservative: +5%.
             • Moderate: +10%.
             • Full: +20%.
             """)
