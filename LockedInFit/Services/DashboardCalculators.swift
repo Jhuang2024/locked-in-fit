@@ -133,13 +133,16 @@ enum ActivityAdjustmentCalculator {
 struct CalorieRemainingSummary {
     let baseTarget: Double
     let adjustedTarget: Double
-    /// Consumed calories counted against the target: logged food plus the
-    /// hidden-oil midpoint.
+    /// Consumed calories counted against the target: logged food, the hidden-oil
+    /// midpoint, and the portion-underestimation uplift.
     let eaten: Double
     /// Logged food calories only, before hidden oil.
     let foodCalories: Double
     /// Hidden-oil midpoint applied on top of logged food.
     let hiddenOilCalories: Double
+    /// Extra calories added on top of logged food to offset portion-size
+    /// underestimation, per the user's portion-estimation setting.
+    let portionUpliftCalories: Double
     let exerciseAdjustment: Double
     /// Thermic effect of food from what's been eaten today: calories burned
     /// digesting, added back to what's left to eat. Zero when the user has
@@ -150,22 +153,27 @@ struct CalorieRemainingSummary {
 
 /// The one source of truth for "calories remaining". Every screen that shows
 /// remaining/eaten calories must go through this so dashboard, food log, and
-/// summaries never disagree: remaining = (target + exercise + TEF) − (food + hidden oil).
+/// summaries never disagree:
+/// remaining = (target + exercise + TEF) − (food + hidden oil + portion uplift).
 enum CalorieRemainingCalculator {
     static func summary(baseTarget: Double,
                         nutrition: DailyNutritionSummary,
                         activityAdjustment: ActivityAdjustmentSummary,
-                        tefCalories: Double = 0) -> CalorieRemainingSummary {
+                        tefCalories: Double = 0,
+                        portionUplift: Double = 0) -> CalorieRemainingSummary {
         let adjustedTarget = baseTarget + activityAdjustment.adjustmentCalories + tefCalories
+        let portionUpliftCalories = nutrition.calories * portionUplift
+        let eaten = nutrition.consumedCalories + portionUpliftCalories
         return CalorieRemainingSummary(
             baseTarget: baseTarget,
             adjustedTarget: adjustedTarget,
-            eaten: nutrition.consumedCalories,
+            eaten: eaten,
             foodCalories: nutrition.calories,
             hiddenOilCalories: nutrition.hiddenOilCalories,
+            portionUpliftCalories: portionUpliftCalories,
             exerciseAdjustment: activityAdjustment.adjustmentCalories,
             tefCalories: tefCalories,
-            remaining: adjustedTarget - nutrition.consumedCalories
+            remaining: adjustedTarget - eaten
         )
     }
 }
@@ -195,7 +203,9 @@ struct DashboardViewModel {
         let baseTarget = goal?.calorieTarget ?? maintenance
         let proteinTarget = goal?.proteinTarget ?? 140
         let stepTarget = goal?.stepTarget ?? 8000
-        let adjustmentMode = settings?.exerciseCalorieAdjustment ?? .conservative
+        // Tracked step/workout energy is credited in full; the honesty lever now
+        // lives on the food side (portion estimation) instead of discounting burn.
+        let adjustmentMode = ExerciseCalorieAdjustment.full
         let nutrition = DailyNutritionCalculator.summary(for: date, meals: meals)
         let bodyWeightKg = WeightTrendCalculator.currentTrendKg(entries: weights) ?? weights.last?.weightKg ?? 70
         let activity = ActivityAdjustmentCalculator.summary(
@@ -209,11 +219,13 @@ struct DashboardViewModel {
         let tefCalories = (settings?.applyTEF ?? true)
             ? NutritionCalculator.tef(protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat)
             : 0
+        let portionUplift = (settings?.portionEstimationAdjustment ?? .conservative).uplift
         let calories = CalorieRemainingCalculator.summary(
             baseTarget: baseTarget,
             nutrition: nutrition,
             activityAdjustment: activity,
-            tefCalories: tefCalories
+            tefCalories: tefCalories,
+            portionUplift: portionUplift
         )
         let todaySteps = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
         let todayWorkouts = workouts.filter {
@@ -231,7 +243,7 @@ struct DashboardViewModel {
         self.completedWorkoutsToday = todayWorkouts
         self.weeklyCalorieAverage = Self.weeklyCalorieAverage(meals: meals, date: date)
         self.lockedInScore = Analytics.lockedInScore(
-            todayCalories: nutrition.consumedCalories,
+            todayCalories: calories.eaten,
             calorieTarget: calories.adjustedTarget,
             todayProtein: nutrition.protein,
             proteinTarget: proteinTarget,

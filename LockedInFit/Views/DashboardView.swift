@@ -416,6 +416,11 @@ struct DashboardView: View {
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
+                        if viewModel.calories.portionUpliftCalories > 0 {
+                            Label("Portions add +\(Int(viewModel.calories.portionUpliftCalories.rounded())) kcal to eaten, an allowance for underestimating portion sizes.", systemImage: "fork.knife")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                         Text("Estimated maintenance: \(Int(maintenance)) kcal")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -426,8 +431,7 @@ struct DashboardView: View {
     }
 
     private var adjustmentLabel: String {
-        let prefix = settings?.exerciseCalorieAdjustment.label ?? ExerciseCalorieAdjustment.conservative.label
-        let base = "\(prefix): \(Int(viewModel.activity.adjustmentCalories.rounded())) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
+        let base = "Exercise: +\(Int(viewModel.activity.adjustmentCalories.rounded())) kcal added from \(viewModel.activity.sourceLabel.lowercased())"
         return viewModel.activity.isEstimated ? base + " (estimate)" : base
     }
 

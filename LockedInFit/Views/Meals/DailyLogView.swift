@@ -80,6 +80,11 @@ struct DailyLogView: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
+                    if calories.portionUpliftCalories > 0 {
+                        Label("Portions add +\(Int(calories.portionUpliftCalories.rounded())) kcal to eaten (portion-size allowance).", systemImage: "fork.knife")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                     if calories.tefCalories > 0 {
                         Text("TEF adds +\(Int(calories.tefCalories)) kcal to the day's target (burned digesting).")
                             .font(.caption)

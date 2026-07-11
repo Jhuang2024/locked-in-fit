@@ -64,7 +64,9 @@ final class UserSettings {
     /// Adaptive maintenance learned from intake + weight trend, updated over time.
     var adaptiveMaintenance: Double = 0
     var adaptiveMaintenanceUpdated: Date?
-    var exerciseCalorieAdjustmentRaw: String = ExerciseCalorieAdjustment.conservative.rawValue
+    var exerciseCalorieAdjustmentRaw: String = ExerciseCalorieAdjustment.full.rawValue
+    /// How much to inflate logged food calories for portion-size underestimation.
+    var portionEstimationAdjustmentRaw: String = PortionEstimationAdjustment.conservative.rawValue
     var sodiumLimitMg: Double = 2300
     // AI settings metadata. The API key itself lives in the Keychain only.
     var aiModelName: String = "openai/gpt-4o-mini"
@@ -108,8 +110,12 @@ final class UserSettings {
         set { activityAssumptionRaw = newValue.rawValue }
     }
     var exerciseCalorieAdjustment: ExerciseCalorieAdjustment {
-        get { ExerciseCalorieAdjustment(rawValue: exerciseCalorieAdjustmentRaw) ?? .conservative }
+        get { ExerciseCalorieAdjustment(rawValue: exerciseCalorieAdjustmentRaw) ?? .full }
         set { exerciseCalorieAdjustmentRaw = newValue.rawValue }
+    }
+    var portionEstimationAdjustment: PortionEstimationAdjustment {
+        get { PortionEstimationAdjustment(rawValue: portionEstimationAdjustmentRaw) ?? .conservative }
+        set { portionEstimationAdjustmentRaw = newValue.rawValue }
     }
     var bodyReminderFrequency: BodyReminderFrequency {
         get { BodyReminderFrequency(rawValue: bodyReminderFrequencyRaw) ?? .off }
