@@ -75,14 +75,9 @@ struct DailyLogView: View {
                         ProgressView(value: min(nutrition.sodium, sodiumLimit), total: sodiumLimit)
                             .tint(sodiumColor(for: nutrition.sodium))
                     }
-                    Text("Target = \(Int(calories.baseTarget)) base + \(Int(calories.exerciseAdjustment)) exercise + \(Int(calories.tefCalories)) TEF")
+                    Text(targetEquationText(calories: calories, nutrition: nutrition))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    if calories.hiddenOilCalories > 0 {
-                        Text("Eaten = \(Int(calories.foodCalories)) food + \(Int(calories.hiddenOilCalories)) hidden oil (estimated range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -130,6 +125,14 @@ struct DailyLogView: View {
         }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+    }
+
+    private func targetEquationText(calories: CalorieRemainingSummary, nutrition: DailyNutritionSummary) -> String {
+        var text = "Target = \(Int(calories.baseTarget)) base + \(Int(calories.exerciseAdjustment)) exercise + \(Int(calories.tefCalories)) TEF"
+        if calories.hiddenOilCalories > 0 {
+            text += " − \(Int(calories.hiddenOilCalories)) hidden oil (range \(Int(nutrition.hiddenOilLow))–\(Int(nutrition.hiddenOilHigh)))"
+        }
+        return text
     }
 
     private func sodiumColor(for sodium: Double) -> Color {

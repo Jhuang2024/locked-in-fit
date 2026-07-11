@@ -15,10 +15,10 @@ enum NotificationRulesEngine {
 
     struct Inputs {
         let nutrition: DailyNutritionSummary
-        /// Calories counted against the target: logged food plus the
-        /// hidden-oil midpoint (same figure the Dashboard's "Eaten" stat
-        /// shows, `CalorieRemainingSummary.eaten`), so these alerts and the
-        /// on-screen number never disagree.
+        /// Logged food calories only (same figure the Dashboard's "Eaten"
+        /// stat shows, `CalorieRemainingSummary.eaten`) — the hidden-oil
+        /// midpoint is subtracted from `adjustedCalorieTarget` instead, so
+        /// these alerts and the on-screen numbers never disagree.
         let eaten: Double
         /// Today's base calorie target (unadjusted), same number the
         /// Dashboard's macro rings are derived from.
@@ -49,8 +49,9 @@ enum NotificationRulesEngine {
                                      body: "\(Int(input.adjustedCalorieTarget - input.eaten)) kcal left before today's target."))
             }
 
-            // `eaten` already bakes in the hidden-oil midpoint; the remaining
-            // risk is only the upside above that midpoint, not the whole range.
+            // `adjustedCalorieTarget` already bakes in the hidden-oil
+            // midpoint (subtracted from the target); the remaining risk is
+            // only the upside above that midpoint, not the whole range.
             let oilUpside = max(0, input.nutrition.hiddenOilHigh - input.nutrition.hiddenOilCalories)
             let projected = input.eaten + oilUpside
             if ratio < exceededRatio, oilUpside > 0, projected > input.adjustedCalorieTarget {

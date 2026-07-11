@@ -617,16 +617,9 @@ struct DashboardView: View {
                     StatChip(label: "Base", value: "\(Int(viewModel.calories.baseTarget))")
                     StatChip(label: "Target", value: "\(Int(viewModel.calories.adjustedTarget))")
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Target = \(Int(viewModel.calories.baseTarget)) base + \(Int(viewModel.calories.exerciseAdjustment)) exercise + \(Int(viewModel.calories.tefCalories)) TEF")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    if viewModel.calories.hiddenOilCalories > 0 {
-                        Text("Eaten = \(Int(viewModel.calories.foodCalories)) food + \(Int(viewModel.calories.hiddenOilCalories)) hidden oil")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
-                }
+                Text(targetEquationText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Button {
                     withAnimation(.snappy) { showCalorieDetails.toggle() }
                 } label: {
@@ -649,7 +642,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.purple)
                         }
                         if viewModel.nutrition.hiddenOilHigh > 0 {
-                            Label("Hidden oil is an estimate for oil used in cooking that isn't itemized in your log, ranging \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)) kcal; the midpoint is used in Eaten above.", systemImage: "drop.fill")
+                            Label("Hidden oil subtracts \(Int(viewModel.calories.hiddenOilCalories)) kcal from today's target — an estimate for cooking oil that isn't itemized in your log, ranging \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)) kcal.", systemImage: "drop.fill")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
@@ -660,6 +653,14 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var targetEquationText: String {
+        var text = "Target = \(Int(viewModel.calories.baseTarget)) base + \(Int(viewModel.calories.exerciseAdjustment)) exercise + \(Int(viewModel.calories.tefCalories)) TEF"
+        if viewModel.calories.hiddenOilCalories > 0 {
+            text += " − \(Int(viewModel.calories.hiddenOilCalories)) hidden oil"
+        }
+        return text
     }
 
     private var adjustmentLabel: String {
