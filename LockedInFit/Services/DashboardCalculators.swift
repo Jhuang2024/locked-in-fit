@@ -111,7 +111,7 @@ struct CalorieRemainingSummary {
     /// rather than inflating "eaten", so eaten always matches what was
     /// actually logged.
     let adjustedTarget: Double
-    /// Logged food calories only — exactly what's in the food log, no
+    /// Logged food calories only: exactly what's in the food log, no
     /// hidden-oil estimate mixed in.
     let eaten: Double
     /// Logged food calories only, before hidden oil. Identical to `eaten`;

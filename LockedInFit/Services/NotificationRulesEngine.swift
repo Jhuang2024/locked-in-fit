@@ -16,7 +16,7 @@ enum NotificationRulesEngine {
     struct Inputs {
         let nutrition: DailyNutritionSummary
         /// Logged food calories only (same figure the Dashboard's "Eaten"
-        /// stat shows, `CalorieRemainingSummary.eaten`) — the hidden-oil
+        /// stat shows, `CalorieRemainingSummary.eaten`); the hidden-oil
         /// midpoint is subtracted from `adjustedCalorieTarget` instead, so
         /// these alerts and the on-screen numbers never disagree.
         let eaten: Double

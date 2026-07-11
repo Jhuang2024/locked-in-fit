@@ -644,7 +644,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.purple)
                         }
                         if viewModel.nutrition.hiddenOilHigh > 0 {
-                            Label("Hidden oil subtracts \(Int(viewModel.calories.hiddenOilCalories)) kcal from today's target — an estimate for cooking oil that isn't itemized in your log, ranging \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)) kcal.", systemImage: "drop.fill")
+                            Label("Hidden oil subtracts \(Int(viewModel.calories.hiddenOilCalories)) kcal from today's target, an estimate for cooking oil that isn't itemized in your log, ranging \(Int(viewModel.nutrition.hiddenOilLow))–\(Int(viewModel.nutrition.hiddenOilHigh)) kcal.", systemImage: "drop.fill")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }
