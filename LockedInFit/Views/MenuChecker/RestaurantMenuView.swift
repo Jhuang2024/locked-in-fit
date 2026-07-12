@@ -110,7 +110,8 @@ struct RestaurantMenuView: View {
                 NutritionSourceBadge(kind: restaurant.hasOfficialNutrition ? .official : .estimatedFromIngredients, compact: true)
                 if let fetchedAt {
                     Text("Menu updated \(CachedResult(value: 0, fetchedAt: fetchedAt).ageDescription)")
-                        .font(.caption2).foregroundStyle(isStale ? .orange : .tertiary)
+                        .font(.caption2)
+                        .foregroundStyle(isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
                 }
             }
         }
