@@ -116,7 +116,7 @@ struct DailyLogView: View {
             }
 
             Section {
-                NavigationLink(destination: MenuCheckerHomeView()) {
+                NavigationLink(value: MenuRoute.home) {
                     HStack {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {

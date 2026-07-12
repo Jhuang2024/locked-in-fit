@@ -7,6 +7,7 @@ import SwiftData
 /// own @Query set) on every render pass, which on iOS 26 livelocks the main
 /// thread in view-list flattening — the same issue SettingsRoute avoids.
 enum MenuRoute: Hashable {
+    case home
     case menu(Restaurant, GeoPoint?)
     case item(MenuItem, String) // item + restaurant name
 }
@@ -20,6 +21,8 @@ extension View {
     func menuCheckerNavigationDestinations() -> some View {
         navigationDestination(for: MenuRoute.self) { route in
             switch route {
+            case .home:
+                MenuCheckerHomeView()
             case .menu(let restaurant, let origin):
                 RestaurantMenuView(restaurant: restaurant, origin: origin)
             case .item(let item, let restaurantName):
