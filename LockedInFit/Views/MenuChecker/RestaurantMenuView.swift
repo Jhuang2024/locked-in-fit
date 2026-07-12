@@ -23,6 +23,10 @@ struct RestaurantMenuView: View {
     @State private var dietaryFilter: Set<DietaryTag> = []
     @State private var officialOnly = false
     @State private var showCart = false
+    @State private var dishDescription = ""
+    @State private var estimatingDish = false
+    @State private var dishError: String?
+    @State private var describedItem: MenuItem?
 
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     enum MenuSort: String, CaseIterable, Identifiable {
@@ -52,6 +56,7 @@ struct RestaurantMenuView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 headerCard
+                describeCard
                 switch loadState {
                 case .loading:
                     ProgressView("Loading menu…").frame(maxWidth: .infinity).padding(.vertical, 40)
@@ -84,6 +89,62 @@ struct RestaurantMenuView: View {
         .sheet(isPresented: $showCart) { MealCartView() }
         .task { await loadMenu() }
         .onAppear { recordRecent() }
+    }
+
+    // MARK: Describe a dish
+
+    private var describeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Describe a dish", systemImage: "text.bubble")
+                .font(.subheadline.weight(.semibold))
+            Text("Type anything on the menu and AI estimates its calories, macros, and scores for \(restaurant.name).")
+                .font(.caption).foregroundStyle(.secondary)
+            TextField("e.g. large pepperoni pizza slice, or chicken pad thai", text: $dishDescription, axis: .vertical)
+                .lineLimit(1...3)
+                .textFieldStyle(.roundedBorder)
+            Button {
+                estimateDish()
+            } label: {
+                if estimatingDish {
+                    HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Estimating…") }
+                } else {
+                    Label("Estimate this dish", systemImage: "wand.and.stars")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(estimatingDish || dishDescription.trimmingCharacters(in: .whitespaces).isEmpty)
+            if !KeychainService.hasAnyAIKey {
+                Text("Add an OpenRouter or BazaarLink key in Settings → AI Analysis to use this.")
+                    .font(.caption2).foregroundStyle(.orange)
+            }
+            if let dishError {
+                Text(dishError).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).cardBackground()
+        .sheet(item: $describedItem) { item in
+            NavigationStack {
+                MenuItemDetailView(item: item, restaurantName: restaurant.name)
+            }
+        }
+    }
+
+    private func estimateDish() {
+        let text = dishDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        estimatingDish = true
+        dishError = nil
+        Task {
+            defer { estimatingDish = false }
+            do {
+                let item = try await MenuDishEstimator.estimate(restaurant: restaurant, description: text, settings: settings)
+                describedItem = item
+                dishDescription = ""
+            } catch {
+                dishError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+        }
     }
 
     // MARK: Header
