@@ -81,23 +81,20 @@ struct SatietyScoreGauge: View {
     var body: some View {
         let color = satietyColor(score)
         VStack(spacing: 5) {
-            ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(color.opacity(0.14))
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(LinearGradient(colors: [color.opacity(0.75), color], startPoint: .bottom, endPoint: .top))
-                    .frame(height: max(6, size * CGFloat(max(0, min(1, score / 100)))))
+            ZStack {
+                Circle().stroke(color.opacity(0.16), lineWidth: 8)
+                Circle()
+                    .trim(from: 0, to: max(0, min(1, score / 100)))
+                    .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
                 VStack(spacing: -1) {
                     Image(systemName: "gauge.with.dots.needle.bottom.50percent")
                         .font(.system(size: size * 0.16)).foregroundStyle(color)
                     Text("\(Int(score.rounded()))")
                         .font(.system(size: size * 0.30, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
                 }
-                .padding(.bottom, 6)
             }
             .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             Text("SATIETY")
                 .font(.system(size: 10, weight: .heavy)).tracking(1)
                 .foregroundStyle(color)
