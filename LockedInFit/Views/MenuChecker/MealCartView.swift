@@ -161,7 +161,7 @@ struct CartLineRow: View {
         .sheet(isPresented: $showEdit) {
             if let spec = line.spec {
                 NavigationStack {
-                    MenuItemDetailView(item: spec.item, restaurantName: line.restaurantName, profile: profile,
+                    MenuItemDetailView(item: spec.item, restaurantName: line.restaurantName,
                                        initialConfig: spec.config, editingLine: line)
                 }
             }

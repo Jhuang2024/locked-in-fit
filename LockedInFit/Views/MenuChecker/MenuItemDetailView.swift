@@ -11,7 +11,6 @@ struct MenuItemDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     let restaurantName: String
-    let profile: ScoringProfile
     @State private var config: ItemConfiguration
     @State private var item: MenuItem
     @State private var showBreakdown = false
@@ -23,12 +22,22 @@ struct MenuItemDetailView: View {
     let editingLine: CartLine?
 
     @Query private var savedItems: [SavedMenuItemRecord]
+    @Query private var settingsList: [UserSettings]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
+    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
 
-    init(item: MenuItem, restaurantName: String, profile: ScoringProfile,
+    // Profile is computed HERE from @Query, not passed in. Passing a
+    // freshly-built ScoringProfile from the parent's navigationDestination
+    // closure changed the closure every render, which made SwiftUI re-seed and
+    // rebuild this destination on every frame — a livelock.
+    private var profile: ScoringProfile {
+        ScoringProfileBuilder.make(settings: settingsList.first, goal: goals.first, meals: meals)
+    }
+
+    init(item: MenuItem, restaurantName: String,
          initialConfig: ItemConfiguration = ItemConfiguration(),
          editingLine: CartLine? = nil, onAdded: (() -> Void)? = nil) {
         self.restaurantName = restaurantName
-        self.profile = profile
         self._item = State(initialValue: item)
         self._config = State(initialValue: initialConfig)
         self.editingLine = editingLine
@@ -41,7 +50,10 @@ struct MenuItemDetailView: View {
     private var isSaved: Bool { savedItems.contains { $0.itemID == item.id } }
 
     var body: some View {
-        ScrollView {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 scoreStrip

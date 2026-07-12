@@ -59,7 +59,13 @@ struct MenuCheckerHomeView: View {
     }
 
     var body: some View {
-        ScrollView {
+        // DEBUG diagnostic: if the view re-renders in a loop, the console prints
+        // which @State/@Query/observed property triggered each pass — the
+        // definitive way to name a runaway update. Remove once stable.
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 searchBar
                 locationRow
@@ -113,7 +119,7 @@ struct MenuCheckerHomeView: View {
             case .menu(let restaurant, let routeOrigin):
                 RestaurantMenuView(restaurant: restaurant, origin: routeOrigin)
             case .item(let item, let restaurantName):
-                MenuItemDetailView(item: item, restaurantName: restaurantName, profile: profile)
+                MenuItemDetailView(item: item, restaurantName: restaurantName)
             }
         }
         .task(id: searchToken) { await reload() }

@@ -46,7 +46,10 @@ struct RestaurantMenuView: View {
     private var isSaved: Bool { savedRestaurants.contains { $0.restaurantID == restaurant.id } }
 
     var body: some View {
-        ScrollView {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
+        return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 headerCard
                 switch loadState {
