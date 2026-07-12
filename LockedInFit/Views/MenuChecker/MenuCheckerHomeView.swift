@@ -76,6 +76,7 @@ struct MenuCheckerHomeView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Menu Checker")
+        .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showFilters = true } label: {
@@ -257,6 +258,11 @@ struct MenuCheckerHomeView: View {
                 let query = RestaurantQuery(text: searchText, origin: effectiveOrigin, filters: filters, worldwide: worldwide)
                 results = try await repo.search(query)
             }
+        } catch is CancellationError {
+            // Superseded by a newer search (the search token changed, e.g. the
+            // location just resolved). Not a real failure — keep current results.
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // Same as above, for providers that surface cancellation as URLError.
         } catch {
             errorText = (error as? MenuCheckerError)?.errorDescription ?? error.localizedDescription
             results = []

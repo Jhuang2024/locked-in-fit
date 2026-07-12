@@ -178,6 +178,7 @@ struct ManualLocationSheet: View {
             }
             .navigationTitle("Manual Location")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
