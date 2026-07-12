@@ -64,7 +64,8 @@ enum MenuCheckerProviderFactory {
     static func restaurantProvider(settings: UserSettings?) -> RestaurantProvider {
         CompositeRestaurantProvider()
     }
-    /// Official Nutritionix data → AI-estimated menu → sample, in that order.
+    /// Sample menus for sample restaurants → AI-estimated menu (OpenRouter /
+    /// BazaarLink) with on-device nutrition, otherwise unavailable.
     static func menuProvider(settings: UserSettings?) -> MenuProvider {
         CompositeMenuProvider()
     }

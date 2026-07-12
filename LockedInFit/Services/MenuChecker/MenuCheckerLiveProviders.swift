@@ -25,15 +25,15 @@ struct CompositeRestaurantProvider: RestaurantProvider {
     }
 }
 
-// MARK: - Menu retrieval (Nutritionix → AI estimate → sample)
+// MARK: - Menu retrieval (sample → AI estimate)
 
-/// Tries official Nutritionix data first, then an AI-estimated menu (via the
-/// OpenRouter/BazaarLink gateway), then the sample catalogue for sample
-/// restaurants. Sources are tagged honestly (official vs estimated) so the UI
-/// never presents an estimate as official.
+/// Uses the sample catalogue for sample restaurants, otherwise an AI-estimated
+/// menu (via the OpenRouter/BazaarLink gateway; the model suggests dish names,
+/// the on-device estimator computes nutrition). Everything is tagged honestly
+/// by source — nothing is presented as official unless it came from the sample
+/// chains.
 struct CompositeMenuProvider: MenuProvider {
-    let name = "Nutritionix + AI estimate"
-    private let nutritionix = NutritionixMenuProvider()
+    let name = "Sample + AI estimate"
     private let aiEstimator = AIMenuEstimator()
     private let sample = MockMenuProvider()
 
@@ -42,10 +42,6 @@ struct CompositeMenuProvider: MenuProvider {
         if restaurant.id.hasPrefix("sample:") {
             if let items = try? await sample.menu(for: restaurant), !items.isEmpty { return items }
         }
-        // Official branded/restaurant nutrition (chains).
-        if let items = try? await nutritionix.menu(for: restaurant), !items.isEmpty {
-            return items
-        }
         // AI-estimated menu, with nutrition computed by the local estimator.
         if KeychainService.hasAnyAIKey {
             if let items = try? await aiEstimator.menu(for: restaurant), !items.isEmpty {
@@ -53,71 +49,6 @@ struct CompositeMenuProvider: MenuProvider {
             }
         }
         throw MenuCheckerError.menuUnavailable
-    }
-}
-
-/// Builds an official menu from Nutritionix branded data. Returns an empty menu
-/// (not an error) when Nutritionix isn't configured or the restaurant isn't a
-/// recognized brand, so the composite can move on to estimation.
-struct NutritionixMenuProvider: MenuProvider {
-    let name = "Nutritionix"
-    /// Cap detail lookups so a menu load stays responsive.
-    var maxItems = 12
-
-    func menu(for restaurant: Restaurant) async throws -> [MenuItem] {
-        guard let client = NutritionixClient() else { return [] }
-        let response = try await client.instantSearch(restaurant.name)
-        let branded = response.branded ?? []
-        guard !branded.isEmpty else { return [] }
-
-        // Prefer items whose brand plausibly matches the restaurant name.
-        let key = normalized(restaurant.name)
-        let matches = branded.filter { b in
-            let brand = normalized(b.brand_name ?? "")
-            return !brand.isEmpty && (brand.contains(key) || key.contains(brand))
-        }
-        let chosen = Array((matches.isEmpty ? branded : matches).prefix(maxItems))
-
-        var items: [MenuItem] = []
-        for b in chosen {
-            guard let nixID = b.nix_item_id, let food = try? await client.item(nixItemID: nixID) else { continue }
-            items.append(makeItem(restaurant: restaurant, food: food))
-        }
-        return items
-    }
-
-    private func makeItem(restaurant: Restaurant, food: NutritionixFood) -> MenuItem {
-        let name = (food.food_name ?? "Item").capitalized
-        let itemID = restaurant.id + ":nx:" + SampleMenuData.slug(name)
-        // Decompose the name so oil / modification controls still work, but the
-        // official numbers are authoritative (officialNutrition, used verbatim).
-        let est = MenuNutritionEstimator.estimate(name: name, description: "")
-        var components = est.components
-        for i in components.indices { components[i].id = "\(itemID)#\(i)" }
-        let servingNote = [food.serving_qty.map { Formatters.trimmed($0) }, food.serving_unit]
-            .compactMap { $0 }.joined(separator: " ")
-        let description = [food.brand_name, servingNote.isEmpty ? nil : "Serving: \(servingNote)"]
-            .compactMap { $0 }.joined(separator: " · ")
-        return MenuItem(
-            id: itemID,
-            restaurantID: restaurant.id,
-            name: name,
-            itemDescription: description,
-            category: MenuCategory.from(name),
-            price: nil,
-            currencyCode: restaurant.currencyCode,
-            components: components,
-            modifications: MenuModificationFactory.standard(for: components),
-            dietaryTags: est.dietaryTags,
-            defaultOilLevel: est.defaultOilLevel,
-            sourceKind: .official,
-            baseConfidence: .high,
-            officialNutrition: food.resolvedNutrition,
-            servingBasis: .perServing)
-    }
-
-    private func normalized(_ s: String) -> String {
-        s.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 }
 

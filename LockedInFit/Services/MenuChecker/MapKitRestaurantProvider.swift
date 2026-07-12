@@ -5,7 +5,7 @@ import MapKit
 /// — it uses the device's built-in Maps access. Provides name, location,
 /// address, phone, website, and a coarse category; it does NOT provide menus,
 /// hours, price, or nutrition, so those are left empty/unknown and filled by the
-/// menu/nutrition providers (Nutritionix, then AI estimate).
+/// menu/nutrition providers (sample menus, then the AI estimate).
 struct MapKitRestaurantProvider: RestaurantProvider {
     let name = "Apple Maps"
 

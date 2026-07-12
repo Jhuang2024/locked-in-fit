@@ -196,9 +196,7 @@ struct RestaurantMenuView: View {
                         Label(category.label, systemImage: category.systemImage)
                             .font(.headline)
                         ForEach(categoryItems) { item in
-                            NavigationLink {
-                                MenuItemDetailView(item: item, restaurantName: restaurant.name, profile: profile)
-                            } label: {
+                            NavigationLink(value: MenuRoute.item(item, restaurant.name)) {
                                 MenuItemCardView(item: item, restaurantName: restaurant.name, profile: profile)
                             }
                             .buttonStyle(.plain)
@@ -216,7 +214,10 @@ struct RestaurantMenuView: View {
         let repo = MenuCheckerRepository(settings: settings)
         do {
             let result = try await repo.menu(for: restaurant)
-            items = result.items
+            // Unique ids only — duplicate ids in the category ForEach would make
+            // SwiftUI thrash the list.
+            var seen = Set<String>()
+            items = result.items.filter { seen.insert($0.id).inserted }
             fetchedAt = result.fetchedAt
             isStale = result.stale
             loadState = .loaded

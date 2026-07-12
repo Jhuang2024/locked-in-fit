@@ -105,6 +105,17 @@ struct MenuCheckerHomeView: View {
                 worldwide = false
             }
         }
+        // One lazy destination for the whole Menu Checker stack — restaurant
+        // menus and item details resolve here, so no destination view is ever
+        // built until it's actually pushed.
+        .navigationDestination(for: MenuRoute.self) { route in
+            switch route {
+            case .menu(let restaurant, let routeOrigin):
+                RestaurantMenuView(restaurant: restaurant, origin: routeOrigin)
+            case .item(let item, let restaurantName):
+                MenuItemDetailView(item: item, restaurantName: restaurantName, profile: profile)
+            }
+        }
         .task(id: searchToken) { await reload() }
         // Automatically use the device location on entry (prompts once if the
         // user hasn't decided yet; silently skips if they've denied it). The
@@ -182,7 +193,7 @@ struct MenuCheckerHomeView: View {
                                message: searchText.isEmpty ? "Nothing here. Try worldwide search or a different city." : "Nothing matched “\(searchText)”. Try another term or turn on worldwide search.")
             }
             ForEach(results) { r in
-                NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                NavigationLink(value: MenuRoute.menu(r, origin)) {
                     RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                 }
                 .buttonStyle(.plain)
@@ -229,7 +240,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Saved restaurants")
                     ForEach(savedRestaurants.prefix(5), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                            NavigationLink(value: MenuRoute.menu(r, origin)) {
                                 RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
@@ -247,9 +258,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Saved items")
                     ForEach(savedItems.prefix(6), id: \.persistentModelID) { record in
                         if let item = record.item {
-                            NavigationLink {
-                                MenuItemDetailView(item: item, restaurantName: record.restaurantName, profile: profile)
-                            } label: {
+                            NavigationLink(value: MenuRoute.item(item, record.restaurantName)) {
                                 HStack {
                                     Image(systemName: "bookmark.fill").foregroundStyle(.tint)
                                     VStack(alignment: .leading) {
@@ -276,7 +285,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Recently viewed")
                     ForEach(recents.prefix(6), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                            NavigationLink(value: MenuRoute.menu(r, origin)) {
                                 RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
@@ -306,17 +315,22 @@ struct MenuCheckerHomeView: View {
         let repo = MenuCheckerRepository(settings: settings)
         do {
             let trimmed = searchText.trimmingCharacters(in: .whitespaces)
+            let fetched: [Restaurant]
             if trimmed.isEmpty {
                 if let origin, !worldwide {
-                    results = try await repo.nearby(origin: origin, filters: filters)
+                    fetched = try await repo.nearby(origin: origin, filters: filters)
                 } else {
                     // Worldwide (or no origin): list everything, distance-sorted when known.
-                    results = try await repo.search(RestaurantQuery(text: "", origin: origin, filters: filters, worldwide: true))
+                    fetched = try await repo.search(RestaurantQuery(text: "", origin: origin, filters: filters, worldwide: true))
                 }
             } else {
                 let query = RestaurantQuery(text: trimmed, origin: origin, filters: filters, worldwide: worldwide)
-                results = try await repo.search(query)
+                fetched = try await repo.search(query)
             }
+            // Guarantee unique ids: duplicate ids in ForEach make SwiftUI thrash
+            // reconciling the list (a freeze), and provider results can collide.
+            var seen = Set<String>()
+            results = fetched.filter { seen.insert($0.id).inserted }
         } catch is CancellationError {
             // Superseded by a newer search (the search token changed, e.g. the
             // location just resolved). Not a real failure — keep current results.

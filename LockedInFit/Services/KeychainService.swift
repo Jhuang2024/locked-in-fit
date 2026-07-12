@@ -8,11 +8,6 @@ import Security
 enum KeychainService {
     static let openRouterKeyAccount = "openrouter_api_key"
     static let bazaarLinkKeyAccount = "bazaarlink_api_key"
-    // Nutritionix uses two credentials (App ID + App Key), sent as
-    // x-app-id / x-app-key headers. Menu Checker uses them for official
-    // restaurant/branded nutrition, falling back to the AI gateway estimate.
-    static let nutritionixAppIDAccount = "nutritionix_app_id"
-    static let nutritionixAppKeyAccount = "nutritionix_app_key"
     private static let service = "com.jerryhuang.LockedInFit"
 
     @discardableResult
@@ -74,22 +69,5 @@ enum KeychainService {
     /// checking bazaarLinkAPIKey alone to gate AI-dependent UI.
     static var hasAnyAIKey: Bool {
         openRouterAPIKey != nil || bazaarLinkAPIKey != nil
-    }
-
-    static var nutritionixAppID: String? {
-        guard let id = read(account: nutritionixAppIDAccount), !id.isEmpty,
-              id != "ENTER_NUTRITIONIX_APP_ID_HERE" else { return nil }
-        return id
-    }
-
-    static var nutritionixAppKey: String? {
-        guard let key = read(account: nutritionixAppKeyAccount), !key.isEmpty,
-              key != "ENTER_NUTRITIONIX_APP_KEY_HERE" else { return nil }
-        return key
-    }
-
-    /// Both Nutritionix credentials must be present for its endpoints to work.
-    static var hasNutritionixCredentials: Bool {
-        nutritionixAppID != nil && nutritionixAppKey != nil
     }
 }
