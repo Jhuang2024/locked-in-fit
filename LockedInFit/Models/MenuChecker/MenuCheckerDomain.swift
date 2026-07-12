@@ -179,7 +179,7 @@ struct GeoPoint: Codable, Equatable, Hashable {
 /// modifications, oil, and portion size are applied. This is the currency the
 /// whole feature passes around — cards, cart totals, and meal logging all read
 /// from it. Values here are *pre-rounding*; use `MenuValueRounding` for display.
-struct ResolvedNutrition: Codable, Equatable {
+struct ResolvedNutrition: Codable, Equatable, Hashable {
     var calories: Double = 0
     var protein: Double = 0
     var carbs: Double = 0

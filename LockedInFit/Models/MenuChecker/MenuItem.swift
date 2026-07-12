@@ -92,7 +92,7 @@ enum ComponentKind: String, Codable, CaseIterable {
 /// One internal component of a menu item, with its own macros and cooking
 /// method. The item's total nutrition is the sum of its components plus
 /// estimated cooking oil.
-struct MenuItemComponent: Identifiable, Codable, Equatable {
+struct MenuItemComponent: Identifiable, Codable, Equatable, Hashable {
     var id: String
     var name: String
     var kind: ComponentKind
@@ -123,7 +123,7 @@ struct MenuItemComponent: Identifiable, Codable, Equatable {
 }
 
 /// The effect a modification has on the item, resolved at estimate time.
-enum ModificationEffect: Codable, Equatable {
+enum ModificationEffect: Codable, Equatable, Hashable {
     /// Scale a specific component's macros (light sauce = 0.5, extra = 2.0).
     case scaleComponent(componentID: String, factor: Double)
     /// Drop a component entirely (no cheese, no sauce, remove ingredient).
@@ -139,7 +139,7 @@ enum ModificationEffect: Codable, Equatable {
 }
 
 /// A user-selectable modification on a menu item.
-struct MenuModification: Identifiable, Codable, Equatable {
+struct MenuModification: Identifiable, Codable, Equatable, Hashable {
     var id: String
     var label: String
     var effect: ModificationEffect
@@ -156,7 +156,7 @@ struct MenuModification: Identifiable, Codable, Equatable {
 
 /// A single menu item with everything needed to estimate, score, modify, and
 /// log it. Value type produced by a `MenuProvider`.
-struct MenuItem: Identifiable, Codable, Equatable {
+struct MenuItem: Identifiable, Codable, Equatable, Hashable {
     var id: String
     var restaurantID: String
     var name: String

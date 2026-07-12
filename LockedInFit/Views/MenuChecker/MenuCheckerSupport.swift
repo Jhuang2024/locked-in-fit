@@ -1,6 +1,17 @@
 import SwiftUI
 import SwiftData
 
+/// Value-based navigation routes for Menu Checker. Using `NavigationLink(value:)`
+/// with a single `navigationDestination(for:)` keeps destinations LAZY —
+/// eager `NavigationLink(destination:)` builds every destination view up-front
+/// on each body pass, which on iOS 26 feeds a self-sustaining update cycle that
+/// freezes the app (the same issue SettingsRoute exists to avoid). Restaurant /
+/// MenuItem are Hashable so they can ride along as route payloads.
+enum MenuRoute: Hashable {
+    case menu(Restaurant, GeoPoint?)
+    case item(MenuItem, String) // item + restaurant name
+}
+
 /// Builds a personalized `ScoringProfile` from the user's profile, active goal,
 /// and what they've already eaten today, so Menu Checker scores reflect the same
 /// remaining-macro picture the dashboard shows.

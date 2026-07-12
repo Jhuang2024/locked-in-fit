@@ -3,7 +3,7 @@ import Foundation
 /// Opening hours for a single weekday, in minutes-from-midnight local time.
 /// A `nil` interval means closed that day. Overnight spans (e.g. 18:00–02:00)
 /// are represented by `closeMinute < openMinute` and handled in `isOpen`.
-struct DayHours: Codable, Equatable {
+struct DayHours: Codable, Equatable, Hashable {
     var openMinute: Int
     var closeMinute: Int
 
@@ -29,7 +29,7 @@ struct DayHours: Codable, Equatable {
 }
 
 /// A week of opening hours keyed by `Calendar` weekday (1 = Sunday … 7 = Saturday).
-struct WeeklyHours: Codable, Equatable {
+struct WeeklyHours: Codable, Equatable, Hashable {
     /// weekday(1–7) -> hours, missing key = closed that day.
     var days: [Int: DayHours]
 
@@ -65,7 +65,7 @@ struct WeeklyHours: Codable, Equatable {
 
 /// A restaurant as returned by a `RestaurantProvider`. This is provider-agnostic:
 /// Google Places, Yelp, a nutrition database, or our mock all map into this shape.
-struct Restaurant: Identifiable, Codable, Equatable {
+struct Restaurant: Identifiable, Codable, Equatable, Hashable {
     /// Stable provider id, namespaced by provider to keep de-duplication sane.
     var id: String
     var name: String

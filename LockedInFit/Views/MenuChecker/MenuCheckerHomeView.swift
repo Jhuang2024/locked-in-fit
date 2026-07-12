@@ -104,6 +104,17 @@ struct MenuCheckerHomeView: View {
                 worldwide = false
             }
         }
+        // Single lazy destination for the whole Menu Checker stack — restaurant
+        // menus and item details pushed from here or from RestaurantMenuView all
+        // resolve through this, so no eager destination views are ever built.
+        .navigationDestination(for: MenuRoute.self) { route in
+            switch route {
+            case .menu(let restaurant, let routeOrigin):
+                RestaurantMenuView(restaurant: restaurant, origin: routeOrigin)
+            case .item(let item, let restaurantName):
+                MenuItemDetailView(item: item, restaurantName: restaurantName, profile: profile)
+            }
+        }
         .task(id: searchToken) { await reload() }
     }
 
@@ -170,7 +181,7 @@ struct MenuCheckerHomeView: View {
                                message: searchText.isEmpty ? "Nothing here. Try worldwide search or a different city." : "Nothing matched “\(searchText)”. Try another term or turn on worldwide search.")
             }
             ForEach(results) { r in
-                NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                NavigationLink(value: MenuRoute.menu(r, origin)) {
                     RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                 }
                 .buttonStyle(.plain)
@@ -217,7 +228,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Saved restaurants")
                     ForEach(savedRestaurants.prefix(5), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                            NavigationLink(value: MenuRoute.menu(r, origin)) {
                                 RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
@@ -235,9 +246,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Saved items")
                     ForEach(savedItems.prefix(6), id: \.persistentModelID) { record in
                         if let item = record.item {
-                            NavigationLink {
-                                MenuItemDetailView(item: item, restaurantName: record.restaurantName, profile: profile)
-                            } label: {
+                            NavigationLink(value: MenuRoute.item(item, record.restaurantName)) {
                                 HStack {
                                     Image(systemName: "bookmark.fill").foregroundStyle(.tint)
                                     VStack(alignment: .leading) {
@@ -264,7 +273,7 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Recently viewed")
                     ForEach(recents.prefix(6), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                            NavigationLink(value: MenuRoute.menu(r, origin)) {
                                 RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
