@@ -53,8 +53,9 @@ struct MenuCheckerHomeView: View {
         origin == nil && !worldwide && searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
     private var searchToken: String {
-        let o = origin.map { "\($0.latitude),\($0.longitude)" } ?? "none"
-        return "\(searchText)|\(worldwide)|\(o)|\(filters.isActive)"
+        // Round to ~100 m so GPS jitter doesn't re-fire the search every frame.
+        let o = origin.map { "\(Int(($0.latitude * 1000).rounded())),\(Int(($0.longitude * 1000).rounded()))" } ?? "none"
+        return "\(searchText.trimmingCharacters(in: .whitespaces).lowercased())|\(worldwide)|\(o)|\(filters.isActive)"
     }
 
     var body: some View {
@@ -116,6 +117,15 @@ struct MenuCheckerHomeView: View {
             }
         }
         .task(id: searchToken) { await reload() }
+        // Automatically use the device location on entry (prompts once if the
+        // user hasn't decided yet; silently skips if they've denied it). The
+        // resulting coordinate flows into searchToken and loads nearby.
+        .task { await autoLocate() }
+    }
+
+    private func autoLocate() async {
+        guard manualOrigin == nil, location.coordinate == nil, !location.isDenied else { return }
+        _ = await location.requestLocation()
     }
 
     // MARK: Search + location
@@ -149,7 +159,9 @@ struct MenuCheckerHomeView: View {
             }
             Spacer()
             Button("Use location") {
-                Task { manualOrigin = nil; _ = await location.requestLocation(); await reload() }
+                // Just request; the coordinate change re-fires the search via
+                // .task(id: searchToken) — no manual reload (that double-loaded).
+                Task { manualOrigin = nil; _ = await location.requestLocation() }
             }
             .font(.caption.weight(.semibold))
             Button("Set city") { showManualLocation = true }
@@ -204,7 +216,7 @@ struct MenuCheckerHomeView: View {
                 if !location.isDenied {
                     Button {
                         Task { manualOrigin = nil; _ = await location.requestLocation() }
-                    } label: { Label("Use location", systemImage: "location.fill") }
+                    } label: { Label("Use my location", systemImage: "location.fill") }
                         .buttonStyle(.borderedProminent).controlSize(.small)
                 }
                 Button { showManualLocation = true } label: { Label("Set city", systemImage: "building.2") }

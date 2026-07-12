@@ -2,10 +2,10 @@ import Foundation
 import CoreLocation
 import Combine
 
-/// Thin CoreLocation wrapper for Menu Checker. Permission is requested only when
-/// location is actually used (`requestWhenInUse`), and the whole feature still
-/// works via manual search if the user declines. Publishes the latest coordinate
-/// and authorization status for the UI to react to.
+/// Thin CoreLocation wrapper for Menu Checker. Permission is requested when the
+/// feature is first used (on entering Menu Checker, or via "Use location"), and
+/// the whole feature still works via manual search if the user declines.
+/// Publishes the latest coordinate and authorization status for the UI.
 @MainActor
 final class LocationService: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = LocationService()
@@ -16,7 +16,8 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     @Published private(set) var lastError: String?
 
     private let manager = CLLocationManager()
-    private var pendingContinuations: [CheckedContinuation<GeoPoint?, Never>] = []
+    private var locationContinuations: [CheckedContinuation<GeoPoint?, Never>] = []
+    private var authContinuations: [CheckedContinuation<Bool, Never>] = []
 
     override init() {
         authorization = manager.authorizationStatus
@@ -30,25 +31,43 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
 
     /// Ask for permission (first use only) and resolve one location fix. Returns
     /// nil if permission is denied or a fix can't be obtained — callers fall back
-    /// to manual search.
+    /// to manual search. Safe to call repeatedly; concurrent calls share the fix.
     func requestLocation() async -> GeoPoint? {
         if isDenied { return nil }
         if authorization == .notDetermined {
-            manager.requestWhenInUseAuthorization()
+            // Wait for the permission dialog result BEFORE requesting a fix, so
+            // we never fire requestLocation() against an undetermined status.
+            let granted = await requestAuthorization()
+            guard granted else { return nil }
+        } else if !isAuthorized {
+            return nil
         }
         isResolving = true
         lastError = nil
         return await withCheckedContinuation { continuation in
-            pendingContinuations.append(continuation)
+            locationContinuations.append(continuation)
             manager.requestLocation()
         }
     }
 
-    private func resolvePending(with point: GeoPoint?) {
+    private func requestAuthorization() async -> Bool {
+        await withCheckedContinuation { continuation in
+            authContinuations.append(continuation)
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    private func resolveLocation(with point: GeoPoint?) {
         isResolving = false
-        let continuations = pendingContinuations
-        pendingContinuations.removeAll()
+        let continuations = locationContinuations
+        locationContinuations.removeAll()
         for c in continuations { c.resume(returning: point) }
+    }
+
+    private func resolveAuthorization(granted: Bool) {
+        let continuations = authContinuations
+        authContinuations.removeAll()
+        for c in continuations { c.resume(returning: granted) }
     }
 
     // MARK: CLLocationManagerDelegate
@@ -58,14 +77,14 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         let point = GeoPoint(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
         Task { @MainActor in
             self.coordinate = point
-            self.resolvePending(with: point)
+            self.resolveLocation(with: point)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
             self.lastError = error.localizedDescription
-            self.resolvePending(with: self.coordinate)
+            self.resolveLocation(with: self.coordinate)
         }
     }
 
@@ -73,9 +92,10 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         let status = manager.authorizationStatus
         Task { @MainActor in
             self.authorization = status
-            if status == .denied || status == .restricted {
-                self.resolvePending(with: nil)
-            }
+            guard status != .notDetermined else { return }
+            let granted = status == .authorizedWhenInUse || status == .authorizedAlways
+            self.resolveAuthorization(granted: granted)
+            if !granted { self.resolveLocation(with: nil) }
         }
     }
 }
