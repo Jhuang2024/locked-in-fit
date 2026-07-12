@@ -16,6 +16,11 @@ struct AISettingsView: View {
     @State private var bazaarLinkKeyStored = KeychainService.bazaarLinkAPIKey != nil
     @State private var testResult: String?
     @State private var testing = false
+    @State private var nutritionixAppIDInput = ""
+    @State private var nutritionixAppKeyInput = ""
+    @State private var nutritionixStored = KeychainService.hasNutritionixCredentials
+    @State private var nutritionixTestResult: String?
+    @State private var nutritionixTesting = false
 
     private var settings: UserSettings? { settingsList.first }
     private var anyKeyStored: Bool { openRouterKeyStored || bazaarLinkKeyStored }
@@ -93,6 +98,61 @@ struct AISettingsView: View {
             }
 
             Section {
+                TextField("App ID", text: $nutritionixAppIDInput)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                SecureField("App Key", text: $nutritionixAppKeyInput)
+                    .textContentType(.password)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                HStack {
+                    Image(systemName: nutritionixStored ? "checkmark.seal.fill" : "xmark.seal")
+                        .foregroundStyle(nutritionixStored ? .green : .secondary)
+                    Text(nutritionixStored ? "Credentials saved in Keychain" : "No credentials saved")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button("Save Credentials") {
+                    let id = nutritionixAppIDInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let key = nutritionixAppKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !id.isEmpty, !key.isEmpty else { return }
+                    KeychainService.save(id, account: KeychainService.nutritionixAppIDAccount)
+                    KeychainService.save(key, account: KeychainService.nutritionixAppKeyAccount)
+                    nutritionixAppIDInput = ""
+                    nutritionixAppKeyInput = ""
+                    nutritionixStored = true
+                    nutritionixTestResult = nil
+                }
+                .disabled(nutritionixAppIDInput.trimmingCharacters(in: .whitespaces).isEmpty || nutritionixAppKeyInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button("Clear Credentials", role: .destructive) {
+                    KeychainService.delete(account: KeychainService.nutritionixAppIDAccount)
+                    KeychainService.delete(account: KeychainService.nutritionixAppKeyAccount)
+                    nutritionixStored = false
+                    nutritionixTestResult = nil
+                }
+                .disabled(!nutritionixStored)
+                Button {
+                    Task { await testNutritionix() }
+                } label: {
+                    if nutritionixTesting {
+                        HStack { ProgressView(); Text("Testing…") }
+                    } else {
+                        Label("Test Nutritionix", systemImage: "bolt.horizontal")
+                    }
+                }
+                .disabled(nutritionixTesting || !nutritionixStored)
+                if let nutritionixTestResult {
+                    Text(nutritionixTestResult)
+                        .font(.caption)
+                        .foregroundStyle(nutritionixTestResult.hasPrefix("Connected") ? .green : .secondary)
+                }
+            } header: {
+                Text("Nutritionix — Menu Checker official nutrition")
+            } footer: {
+                Text("Menu Checker uses Nutritionix for official restaurant and packaged-food nutrition. When Nutritionix has no data for an item, it falls back to your OpenRouter/BazaarLink AI estimate, then an on-device estimate. Get a free App ID + App Key at developer.nutritionix.com. Both are stored in the iOS Keychain, never in the database.")
+            }
+
+            Section {
                 if let settings {
                     @Bindable var settings = settings
                     TextField("Leave blank for automatic free routing", text: $settings.aiModelName)
@@ -143,6 +203,20 @@ struct AISettingsView: View {
             testResult = try await service.testConnection()
         } catch {
             testResult = "Failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func testNutritionix() async {
+        nutritionixTesting = true
+        defer { nutritionixTesting = false }
+        guard let client = NutritionixClient() else {
+            nutritionixTestResult = "No credentials saved."
+            return
+        }
+        do {
+            nutritionixTestResult = try await client.testConnection()
+        } catch {
+            nutritionixTestResult = "Failed: \(error.localizedDescription)"
         }
     }
 }

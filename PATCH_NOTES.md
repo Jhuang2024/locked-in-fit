@@ -109,6 +109,20 @@ stays fully editable afterwards. Nothing existing was removed or simplified.
 - Applies the same oil rules as Menu Checker (steamed/raw = zero added oil).
   Nothing is logged until you review and confirm.
 
+### Live data sources
+- **Restaurant discovery** uses **Apple Maps (`MKLocalSearch`)** — real nearby and
+  worldwide restaurant search, no API key required. The offline sample catalogue
+  is a fallback when Maps returns nothing (offline / unsupported region).
+- **Official nutrition** comes from **Nutritionix** when configured. Add your
+  Nutritionix App ID + App Key in *Settings → AI Analysis* (stored in the
+  Keychain), then *Test Nutritionix* — the same enter/save/test flow as the
+  OpenRouter and BazaarLink keys.
+- **Per-restaurant menu source order:** Nutritionix official → an AI-estimated
+  menu (via your OpenRouter/BazaarLink gateway; the model suggests dish names,
+  the on-device estimator computes the nutrition) → the local estimate. Every
+  item stays honestly labelled by source, and nothing is presented as official
+  unless it actually is.
+
 ### Architecture
 - Modular components behind protocols: location/restaurant search, restaurant
   provider, menu retrieval, nutrition-source selection, nutrition estimation,

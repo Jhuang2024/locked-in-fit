@@ -59,11 +59,14 @@ struct MockMenuProvider: MenuProvider {
 /// exists, but everything is behind protocols so a live provider (Google Places,
 /// Yelp, a nutrition DB) can be dropped in without touching callers.
 enum MenuCheckerProviderFactory {
+    /// Real discovery via Apple Maps (no key), with the offline sample catalogue
+    /// as a fallback when Maps returns nothing.
     static func restaurantProvider(settings: UserSettings?) -> RestaurantProvider {
-        MockRestaurantProvider()
+        CompositeRestaurantProvider()
     }
+    /// Official Nutritionix data → AI-estimated menu → sample, in that order.
     static func menuProvider(settings: UserSettings?) -> MenuProvider {
-        MockMenuProvider()
+        CompositeMenuProvider()
     }
 }
 
