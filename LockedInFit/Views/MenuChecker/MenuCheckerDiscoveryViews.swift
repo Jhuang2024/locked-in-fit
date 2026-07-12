@@ -212,6 +212,10 @@ struct ManualLocationSheet: View {
 enum CityLookup {
     struct City { var name: String; var point: GeoPoint }
     static let suggestions: [City] = [
+        City(name: "Nanchang", point: GeoPoint(latitude: 28.6820, longitude: 115.8579)),
+        City(name: "Shanghai", point: GeoPoint(latitude: 31.2304, longitude: 121.4737)),
+        City(name: "Beijing", point: GeoPoint(latitude: 39.9042, longitude: 116.4074)),
+        City(name: "Hong Kong", point: GeoPoint(latitude: 22.3193, longitude: 114.1694)),
         City(name: "New York", point: GeoPoint(latitude: 40.7549, longitude: -73.9880)),
         City(name: "London", point: GeoPoint(latitude: 51.5155, longitude: -0.1320)),
         City(name: "Tokyo", point: GeoPoint(latitude: 35.6717, longitude: 139.7640)),

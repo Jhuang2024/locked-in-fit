@@ -47,6 +47,19 @@ enum SampleMenuData {
              48.8558, 2.3588, .moderate, "EUR", official: false, avg: 62, diet: [.vegetarian]),
         make("olive", "Olive & Za", ["Mediterranean"], "55 King St", "Sydney", "Australia",
              -33.8690, 151.2050, .moderate, "AUD", official: false, avg: 72, diet: [.vegetarian, .vegan]),
+        // Nanchang (and nearby China) so "nearby" has genuinely close content.
+        make("nanchangnoodle", "Nanchang Rice Noodle House", ["Chinese", "Noodles"], "88 Bayi Ave", "Nanchang", "China",
+             28.6820, 115.8579, .budget, "CNY", official: false, avg: 56, diet: [.vegetarian]),
+        make("poyangbowls", "Poyang Green Bowls", ["Healthy", "Bowls"], "12 Honggutan", "Nanchang", "China",
+             28.6905, 115.8300, .moderate, "CNY", official: false, avg: 79, diet: [.vegetarian, .vegan]),
+        make("bayicafe", "Bayi Café", ["Café", "Breakfast"], "5 Zhongshan Rd", "Nanchang", "China",
+             28.6762, 115.8880, .moderate, "CNY", official: false, avg: 63, diet: [.vegetarian]),
+        make("tengwang", "Tengwang Sichuan Kitchen", ["Chinese", "Sichuan"], "300 Yanjiang Rd", "Nanchang", "China",
+             28.6650, 115.9000, .moderate, "CNY", official: false, avg: 52, diet: [.vegetarian]),
+        make("shanghaidragon", "Shanghai Dragon", ["Chinese"], "500 Nanjing Rd", "Shanghai", "China",
+             31.2304, 121.4737, .premium, "CNY", official: false, avg: 58, diet: [.vegetarian]),
+        make("hkdimsum", "HK Dim Sum House", ["Chinese", "Dim Sum"], "23 Nathan Rd", "Hong Kong", "China",
+             22.3193, 114.1694, .moderate, "HKD", official: false, avg: 60, diet: [.vegetarian]),
         // Publishes no readable menu — exercises the "menu unavailable" path.
         make("hiddentable", "The Hidden Table", ["Fine Dining"], "9 Torstraße", "Berlin", "Germany",
              52.5290, 13.4010, .luxury, "EUR", official: false, avg: nil, diet: []),
@@ -63,10 +76,6 @@ enum SampleMenuData {
                    hasOfficialNutrition: official, averageMenuHealthScore: avg,
                    providerName: "Locked In Sample", dietaryTags: diet, photoAssetName: nil)
     }
-
-    /// Default origin used when the user hasn't shared a location and hasn't set
-    /// a manual one — Midtown Manhattan, so nearby has content out of the box.
-    static let defaultOrigin = GeoPoint(latitude: 40.7549, longitude: -73.9880)
 
     // MARK: Menu templates by cuisine
 
@@ -160,6 +169,9 @@ enum SampleMenuData {
         "sample:goldendragon": "chinese",
         "sample:spice": "indian", "sample:casa": "mexican", "sample:bangkok": "thai",
         "sample:cornercafe": "cafe", "sample:olive": "mediterranean",
+        "sample:nanchangnoodle": "chinese", "sample:poyangbowls": "healthbowl",
+        "sample:bayicafe": "cafe", "sample:tengwang": "chinese",
+        "sample:shanghaidragon": "chinese", "sample:hkdimsum": "chinese",
         // hiddentable intentionally absent → no menu.
     ]
 

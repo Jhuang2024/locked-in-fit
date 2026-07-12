@@ -38,16 +38,23 @@ struct MenuCheckerHomeView: View {
     private var profile: ScoringProfile {
         ScoringProfileBuilder.make(settings: settings, goal: goals.first, meals: meals)
     }
-    private var effectiveOrigin: GeoPoint {
-        manualOrigin ?? location.coordinate ?? SampleMenuData.defaultOrigin
+    /// The location "nearby" is based on. No default — nil means we simply don't
+    /// know where the user is, so we prompt instead of inventing a location.
+    private var origin: GeoPoint? {
+        manualOrigin ?? location.coordinate
     }
     private var originLabel: String {
         if manualOrigin != nil { return manualCity.isEmpty ? "Custom location" : manualCity }
         if location.coordinate != nil { return "Your location" }
-        return "New York (sample)"
+        return "No location set"
+    }
+    /// True when we have nothing to base "nearby" on and the user isn't searching.
+    private var needsLocation: Bool {
+        origin == nil && !worldwide && searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
     private var searchToken: String {
-        "\(searchText)|\(worldwide)|\(effectiveOrigin.latitude),\(effectiveOrigin.longitude)|\(filters.isActive)"
+        let o = origin.map { "\($0.latitude),\($0.longitude)" } ?? "none"
+        return "\(searchText)|\(worldwide)|\(o)|\(filters.isActive)"
     }
 
     var body: some View {
@@ -61,7 +68,7 @@ struct MenuCheckerHomeView: View {
                 }
                 resultsHeader
                 if viewMode == .map {
-                    RestaurantMapView(restaurants: results, origin: effectiveOrigin, selected: $selectedOnMap)
+                    RestaurantMapView(restaurants: results, origin: origin, selected: $selectedOnMap)
                 } else {
                     resultsList
                 }
@@ -142,7 +149,7 @@ struct MenuCheckerHomeView: View {
 
     private var resultsHeader: some View {
         HStack {
-            SectionLabel(text: searchText.isEmpty ? (worldwide ? "Worldwide" : "Nearby") : "Results")
+            SectionLabel(text: searchText.isEmpty ? (worldwide ? "Worldwide" : (needsLocation ? "Discover" : "Nearby")) : "Results")
             if loading { ProgressView().controlSize(.mini) }
             Spacer()
             Picker("View", selection: $viewMode) {
@@ -155,18 +162,50 @@ struct MenuCheckerHomeView: View {
 
     private var resultsList: some View {
         LazyVStack(spacing: 12) {
-            if results.isEmpty && !loading {
+            if needsLocation {
+                locationPrompt
+            } else if results.isEmpty && !loading {
                 EmptyStateView(systemImage: "fork.knife.circle",
                                title: "No restaurants",
-                               message: searchText.isEmpty ? "No restaurants near this location. Try worldwide search or a manual city." : "Nothing matched “\(searchText)”. Try another term or turn on worldwide search.")
+                               message: searchText.isEmpty ? "Nothing here. Try worldwide search or a different city." : "Nothing matched “\(searchText)”. Try another term or turn on worldwide search.")
             }
             ForEach(results) { r in
-                NavigationLink { RestaurantMenuView(restaurant: r, origin: effectiveOrigin) } label: {
-                    RestaurantRowView(restaurant: r, origin: effectiveOrigin, imperial: settings?.usesImperial ?? false)
+                NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                    RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Shown when there's no location and no search — we don't invent a place.
+    private var locationPrompt: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "location.magnifyingglass")
+                .font(.system(size: 30)).foregroundStyle(.tint)
+            Text("Where are you eating?")
+                .font(.headline)
+            Text(location.isDenied
+                 ? "Location is off. Set a city or search worldwide to find restaurants."
+                 : "Share your location for nearby restaurants, set a city, or search worldwide.")
+                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                if !location.isDenied {
+                    Button {
+                        Task { manualOrigin = nil; _ = await location.requestLocation() }
+                    } label: { Label("Use location", systemImage: "location.fill") }
+                        .buttonStyle(.borderedProminent).controlSize(.small)
+                }
+                Button { showManualLocation = true } label: { Label("Set city", systemImage: "building.2") }
+                    .buttonStyle(.bordered).controlSize(.small)
+                Button { worldwide = true } label: { Label("Worldwide", systemImage: "globe") }
+                    .buttonStyle(.bordered).controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .padding(.horizontal, 12)
+        .cardBackground()
     }
 
     // MARK: Saved / recent
@@ -178,8 +217,8 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Saved restaurants")
                     ForEach(savedRestaurants.prefix(5), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: effectiveOrigin) } label: {
-                                RestaurantRowView(restaurant: r, origin: effectiveOrigin, imperial: settings?.usesImperial ?? false)
+                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                                RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
                         }
@@ -225,8 +264,8 @@ struct MenuCheckerHomeView: View {
                     SectionLabel(text: "Recently viewed")
                     ForEach(recents.prefix(6), id: \.persistentModelID) { record in
                         if let r = record.restaurant {
-                            NavigationLink { RestaurantMenuView(restaurant: r, origin: effectiveOrigin) } label: {
-                                RestaurantRowView(restaurant: r, origin: effectiveOrigin, imperial: settings?.usesImperial ?? false)
+                            NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
+                                RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                             }
                             .buttonStyle(.plain)
                         }
@@ -243,19 +282,27 @@ struct MenuCheckerHomeView: View {
     // MARK: Loading
 
     private func reload() async {
+        // Without a location and not searching, don't invent a place — prompt.
+        if needsLocation {
+            results = []
+            errorText = nil
+            return
+        }
         loading = true
         errorText = nil
         defer { loading = false }
         let repo = MenuCheckerRepository(settings: settings)
         do {
-            if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-                if worldwide {
-                    results = try await repo.search(RestaurantQuery(text: "", origin: effectiveOrigin, filters: filters, worldwide: true))
+            let trimmed = searchText.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                if let origin, !worldwide {
+                    results = try await repo.nearby(origin: origin, filters: filters)
                 } else {
-                    results = try await repo.nearby(origin: effectiveOrigin, filters: filters)
+                    // Worldwide (or no origin): list everything, distance-sorted when known.
+                    results = try await repo.search(RestaurantQuery(text: "", origin: origin, filters: filters, worldwide: true))
                 }
             } else {
-                let query = RestaurantQuery(text: searchText, origin: effectiveOrigin, filters: filters, worldwide: worldwide)
+                let query = RestaurantQuery(text: trimmed, origin: origin, filters: filters, worldwide: worldwide)
                 results = try await repo.search(query)
             }
         } catch is CancellationError {
