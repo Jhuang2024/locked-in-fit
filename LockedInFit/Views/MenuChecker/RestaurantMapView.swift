@@ -46,7 +46,7 @@ struct RestaurantMapView: View {
     }
 
     private func selectedCard(_ r: Restaurant) -> some View {
-        NavigationLink(value: MenuRoute.menu(r, origin)) {
+        NavigationLink { RestaurantMenuView(restaurant: r, origin: origin) } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(r.name).font(.subheadline.weight(.bold))

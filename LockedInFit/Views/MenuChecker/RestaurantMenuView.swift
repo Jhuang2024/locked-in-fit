@@ -196,7 +196,9 @@ struct RestaurantMenuView: View {
                         Label(category.label, systemImage: category.systemImage)
                             .font(.headline)
                         ForEach(categoryItems) { item in
-                            NavigationLink(value: MenuRoute.item(item, restaurant.name)) {
+                            NavigationLink {
+                                MenuItemDetailView(item: item, restaurantName: restaurant.name, profile: profile)
+                            } label: {
                                 MenuItemCardView(item: item, restaurantName: restaurant.name, profile: profile)
                             }
                             .buttonStyle(.plain)
