@@ -26,7 +26,7 @@ struct RestaurantMenuView: View {
     @State private var dishDescription = ""
     @State private var estimatingDish = false
     @State private var dishError: String?
-    @State private var describedItem: MenuItem?
+    @State private var describedDish: EstimatedDish?
 
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     enum MenuSort: String, CaseIterable, Identifiable {
@@ -74,6 +74,7 @@ struct RestaurantMenuView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(restaurant.name)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { toggleSaved() } label: {
@@ -123,9 +124,9 @@ struct RestaurantMenuView: View {
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).cardBackground()
-        .sheet(item: $describedItem) { item in
+        .sheet(item: $describedDish) { dish in
             NavigationStack {
-                MenuItemDetailView(item: item, restaurantName: restaurant.name)
+                DescribedDishView(dish: dish, restaurant: restaurant)
             }
         }
     }
@@ -138,8 +139,8 @@ struct RestaurantMenuView: View {
         Task {
             defer { estimatingDish = false }
             do {
-                let item = try await MenuDishEstimator.estimate(restaurant: restaurant, description: text, settings: settings)
-                describedItem = item
+                let dish = try await MenuDishEstimator.estimate(restaurant: restaurant, description: text, settings: settings)
+                describedDish = dish
                 dishDescription = ""
             } catch {
                 dishError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription

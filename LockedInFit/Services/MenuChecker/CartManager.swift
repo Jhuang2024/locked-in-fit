@@ -102,6 +102,28 @@ enum CartManager {
         try? context.save()
     }
 
+    /// Add a user-described, AI-estimated dish, grouped under its restaurant.
+    static func addDescribed(name: String, restaurant: Restaurant, nutrition: ResolvedNutrition,
+                             healthScore: Double, satietyScore: Double,
+                             confidence: NutritionConfidence, quantity: Int, context: ModelContext) {
+        let line = CartLine(restaurantID: restaurant.id, restaurantName: restaurant.name,
+                            itemName: name.isEmpty ? "Described dish" : name,
+                            currencyCode: restaurant.currencyCode, quantity: max(1, quantity))
+        line.unitCalories = nutrition.calories
+        line.unitProtein = nutrition.protein
+        line.unitCarbs = nutrition.carbs
+        line.unitFat = nutrition.fat
+        line.unitFiber = nutrition.fiber
+        line.unitSodium = nutrition.sodium
+        line.healthScore = healthScore
+        line.satietyScore = satietyScore
+        line.sourceKindRaw = (confidence == .low ? NutritionSourceKind.lowConfidenceEstimate : .estimatedFromIngredients).rawValue
+        line.confidenceRaw = confidence.rawValue
+        line.modificationSummary = "You described this"
+        context.insert(line)
+        try? context.save()
+    }
+
     static func setQuantity(_ line: CartLine, to quantity: Int, context: ModelContext) {
         line.quantity = max(1, quantity)
         try? context.save()
