@@ -1,6 +1,33 @@
 import Foundation
 import SwiftData
 
+/// Decodes and caches restaurant / menu-item snapshots so the SwiftUI body
+/// never re-runs `JSONDecoder` on every render pass. The saved/recent lists
+/// access `record.restaurant` inside `ForEach` (for the row AND the
+/// `NavigationLink(value:)` payload), which SwiftUI re-evaluates constantly —
+/// decoding there froze the main thread. Snapshots are immutable for a given
+/// id, so caching by id is safe. Main-thread-only access.
+enum MenuSnapshotCache {
+    private static var restaurants: [String: Restaurant] = [:]
+    private static var items: [String: MenuItem] = [:]
+
+    static func restaurant(id: String, data: Data) -> Restaurant? {
+        if let cached = restaurants[id] { return cached }
+        guard !data.isEmpty,
+              let decoded = try? JSONDecoder().decode(Restaurant.self, from: data) else { return nil }
+        restaurants[id] = decoded
+        return decoded
+    }
+
+    static func item(id: String, data: Data) -> MenuItem? {
+        if let cached = items[id] { return cached }
+        guard !data.isEmpty,
+              let decoded = try? JSONDecoder().decode(MenuItem.self, from: data) else { return nil }
+        items[id] = decoded
+        return decoded
+    }
+}
+
 /// A restaurant the user explicitly saved. Stores a full encoded `Restaurant`
 /// snapshot so saved restaurants render offline without re-querying a provider.
 @Model
@@ -21,10 +48,7 @@ final class SavedRestaurantRecord {
         self.snapshotData = (try? JSONEncoder().encode(restaurant)) ?? Data()
     }
 
-    var restaurant: Restaurant? {
-        guard !snapshotData.isEmpty else { return nil }
-        return try? JSONDecoder().decode(Restaurant.self, from: snapshotData)
-    }
+    var restaurant: Restaurant? { MenuSnapshotCache.restaurant(id: restaurantID, data: snapshotData) }
 }
 
 /// A menu item the user saved for quick re-logging later.
@@ -46,10 +70,7 @@ final class SavedMenuItemRecord {
         self.snapshotData = (try? JSONEncoder().encode(item)) ?? Data()
     }
 
-    var item: MenuItem? {
-        guard !snapshotData.isEmpty else { return nil }
-        return try? JSONDecoder().decode(MenuItem.self, from: snapshotData)
-    }
+    var item: MenuItem? { MenuSnapshotCache.item(id: itemID, data: snapshotData) }
 }
 
 /// A restaurant the user recently opened. Trimmed to a small rolling window by
@@ -68,8 +89,5 @@ final class RecentRestaurantRecord {
         self.snapshotData = (try? JSONEncoder().encode(restaurant)) ?? Data()
     }
 
-    var restaurant: Restaurant? {
-        guard !snapshotData.isEmpty else { return nil }
-        return try? JSONDecoder().decode(Restaurant.self, from: snapshotData)
-    }
+    var restaurant: Restaurant? { MenuSnapshotCache.restaurant(id: restaurantID, data: snapshotData) }
 }

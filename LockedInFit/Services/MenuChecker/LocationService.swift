@@ -76,8 +76,14 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         guard let loc = locations.last else { return }
         let point = GeoPoint(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
         Task { @MainActor in
-            self.coordinate = point
-            self.resolveLocation(with: point)
+            // Only republish when the fix moves meaningfully (~50 m); a stream of
+            // near-identical refinements would otherwise re-render the UI needlessly.
+            if let existing = self.coordinate, existing.distance(to: point) < 50 {
+                self.resolveLocation(with: existing)
+            } else {
+                self.coordinate = point
+                self.resolveLocation(with: point)
+            }
         }
     }
 
