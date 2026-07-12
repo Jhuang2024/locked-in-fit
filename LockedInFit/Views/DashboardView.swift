@@ -248,6 +248,7 @@ struct DashboardView: View {
             #else
             EmptyView()
             #endif
+        case .patchNotes: PatchNotesView()
         }
     }
 

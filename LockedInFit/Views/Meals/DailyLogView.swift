@@ -13,6 +13,7 @@ struct DailyLogView: View {
     @Query(sort: \StepEntry.date, order: .reverse) private var steps: [StepEntry]
     @Query(sort: \ActiveEnergyEntry.date, order: .reverse) private var activeEnergy: [ActiveEnergyEntry]
     @Query(filter: #Predicate<Workout> { $0.completed && !$0.isTemplate }) private var completedWorkouts: [Workout]
+    @Query private var cartLines: [CartLine]
 
     @State private var selectedDate = Date().startOfDay
     @State private var showAddMeal = false
@@ -22,6 +23,7 @@ struct DailyLogView: View {
         allMeals.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
     }
     private var sodiumLimit: Double { max(1, settingsList.first?.sodiumLimitMg ?? 2300) }
+    private var cartCount: Int { cartLines.count }
     /// Shared source of truth with the dashboard, evaluated for the selected day.
     private var dayModel: DashboardViewModel {
         DashboardViewModel(settings: settingsList.first,
@@ -114,6 +116,25 @@ struct DailyLogView: View {
             }
 
             Section {
+                NavigationLink(destination: MenuCheckerHomeView()) {
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Menu Checker")
+                                Text("Find restaurants, score menus, log a meal")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "menucard.fill").foregroundStyle(.tint)
+                        }
+                        Spacer()
+                        if cartCount > 0 {
+                            Text("\(cartCount)")
+                                .font(.caption2.weight(.bold)).foregroundStyle(.white)
+                                .padding(6).background(Color.red, in: Circle())
+                        }
+                    }
+                }
                 NavigationLink(destination: HealthScanListView()) {
                     Label("Health Scans", systemImage: "text.magnifyingglass")
                 }

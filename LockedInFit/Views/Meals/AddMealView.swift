@@ -22,6 +22,7 @@ struct AddMealView: View {
     @State private var mealDescription = ""
     @State private var estimating = false
     @State private var estimateError: String?
+    @State private var showSpeech = false
 
     private var settings: UserSettings? { settingsList.first }
 
@@ -49,6 +50,11 @@ struct AddMealView: View {
                         }
                     }
                     .disabled(estimating || mealDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button {
+                        showSpeech = true
+                    } label: {
+                        Label("Speak your meal", systemImage: "mic.fill")
+                    }
                     if let estimateError {
                         Text(estimateError)
                             .font(.caption)
@@ -57,7 +63,7 @@ struct AddMealView: View {
                 } header: {
                     Text("Describe It")
                 } footer: {
-                    Text("Describe the meal in plain language and its calories/macros get added to the totals below. Uses the same AI gateway as photo analysis (OpenRouter, falling back to BazaarLink; Settings → AI Analysis).")
+                    Text("Type or speak the meal in plain language and its calories/macros get added to the totals below. Typing uses the same AI gateway as photo analysis (OpenRouter, falling back to BazaarLink; Settings → AI Analysis); speech is parsed on-device with the same oil rules as Menu Checker.")
                 }
 
                 Section("From presets") {
@@ -103,6 +109,11 @@ struct AddMealView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(calories <= 0 && addedItems.isEmpty)
+                }
+            }
+            .sheet(isPresented: $showSpeech) {
+                SpeechMealDictationView { entries, detectedMealType in
+                    applyParsedEntries(entries, mealType: detectedMealType)
                 }
             }
             .sheet(isPresented: $showPresetPicker) {
@@ -158,6 +169,23 @@ struct AddMealView: View {
         recalcTotals()
         if notes.isEmpty { notes = estimate.notes }
         mealDescription = ""
+    }
+
+    /// Add speech-parsed foods into the manual meal — additive to typing, never a
+    /// replacement. The user has already reviewed and corrected these.
+    private func applyParsedEntries(_ entries: [ParsedMealEntry], mealType parsedType: MealType) {
+        guard !entries.isEmpty else { return }
+        mealType = parsedType
+        let baseOrder = addedItems.count
+        let items = entries.enumerated().map { index, entry in
+            FoodItem(name: entry.name, grams: entry.grams,
+                     calories: entry.nutrition.calories, protein: entry.nutrition.protein,
+                     carbs: entry.nutrition.carbs, fat: entry.nutrition.fat,
+                     fiber: entry.nutrition.fiber, sodium: entry.nutrition.sodium,
+                     cookingMethod: entry.method, confidence: 0.6, order: baseOrder + index)
+        }
+        addedItems.append(contentsOf: items)
+        recalcTotals()
     }
 
     /// Totals derive from the sum of `addedItems` whenever there's at least

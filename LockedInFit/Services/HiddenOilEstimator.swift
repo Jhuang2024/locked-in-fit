@@ -10,14 +10,18 @@ enum HiddenOilEstimator {
         // Base risk per ~150 g portion by cooking method.
         var base: (Double, Double)
         switch method {
-        case .steamed, .boiled, .raw:
+        case .steamed, .boiled, .poached, .raw:
             base = (0, 8)
         case .soup:
             base = (0, 25)
-        case .grilled, .baked:
+        case .grilled, .baked, .roasted:
             base = (5, 35)
+        case .sauteed:
+            base = (18, 65)
         case .braised:
             base = (20, 75)
+        case .panFried:
+            base = (28, 85)
         case .stirFried:
             base = (30, 95)
         case .deepFried:
@@ -61,10 +65,12 @@ enum HiddenOilEstimator {
 
     static func riskLabel(for method: CookingMethod) -> String {
         switch method {
-        case .steamed, .boiled, .raw: return "Low oil risk"
+        case .steamed, .boiled, .poached, .raw: return "Low oil risk"
         case .soup: return "Low–medium oil risk"
-        case .grilled, .baked: return "Medium oil risk"
+        case .grilled, .baked, .roasted: return "Medium oil risk"
+        case .sauteed: return "Medium–high oil risk"
         case .braised: return "Medium–high oil risk"
+        case .panFried: return "Medium–high oil risk"
         case .stirFried: return "Medium–high oil risk"
         case .deepFried: return "Very high oil risk"
         case .restaurantHighOil: return "High oil risk"

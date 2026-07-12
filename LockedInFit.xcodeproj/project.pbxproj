@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		A10000000000000000000005 /* LockedInFit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LockedInFit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1000000000000000000002 /* LockedInFitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LockedInFitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -20,10 +21,26 @@
 			path = LockedInFit;
 			sourceTree = "<group>";
 		};
+		B1000000000000000000003 /* LockedInFitTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = LockedInFitTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1000000000000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -37,6 +54,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000001 /* LockedInFit */,
+				B1000000000000000000003 /* LockedInFitTests */,
 				A10000000000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000005 /* LockedInFit.app */,
+				B1000000000000000000002 /* LockedInFitTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -74,7 +93,48 @@
 			productReference = A10000000000000000000005 /* LockedInFit.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B1000000000000000000001 /* LockedInFitTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1000000000000000000009 /* Build configuration list for PBXNativeTarget "LockedInFitTests" */;
+			buildPhases = (
+				B1000000000000000000004 /* Sources */,
+				B1000000000000000000005 /* Frameworks */,
+				B1000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B1000000000000000000007 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B1000000000000000000003 /* LockedInFitTests */,
+			);
+			name = LockedInFitTests;
+			packageProductDependencies = (
+			);
+			productName = LockedInFitTests;
+			productReference = B1000000000000000000002 /* LockedInFitTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		B1000000000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000010 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000006;
+			remoteInfo = LockedInFit;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		B1000000000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000006 /* LockedInFit */;
+			targetProxy = B1000000000000000000008 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		A10000000000000000000010 /* Project object */ = {
@@ -86,6 +146,10 @@
 				TargetAttributes = {
 					A10000000000000000000006 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					B1000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = A10000000000000000000006;
 					};
 				};
 			};
@@ -104,6 +168,7 @@
 			projectRoot = "";
 			targets = (
 				A10000000000000000000006 /* LockedInFit */,
+				B1000000000000000000001 /* LockedInFitTests */,
 			);
 		};
 /* End PBXProject section */
@@ -116,10 +181,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B1000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1000000000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -262,7 +341,10 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Locked In Fit uses the camera to photograph meals and product labels for calorie/health scoring and to take progress photos.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Locked In Fit reads steps, body mass, body fat percentage, and active energy from Apple Health to track your progress.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Locked In Fit can write body weight entries you log to Apple Health.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Locked In Fit uses your location in Menu Checker to find nearby restaurants and show how far away they are. You can also search by city instead.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Locked In Fit uses the microphone so you can describe a meal out loud instead of typing it.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Locked In Fit lets you pick meal, product, and progress photos from your library.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Locked In Fit transcribes your spoken meal description to estimate its nutrition. You confirm the result before anything is logged.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -301,7 +383,10 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Locked In Fit uses the camera to photograph meals and product labels for calorie/health scoring and to take progress photos.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Locked In Fit reads steps, body mass, body fat percentage, and active energy from Apple Health to track your progress.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Locked In Fit can write body weight entries you log to Apple Health.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Locked In Fit uses your location in Menu Checker to find nearby restaurants and show how far away they are. You can also search by city instead.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Locked In Fit uses the microphone so you can describe a meal out loud instead of typing it.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Locked In Fit lets you pick meal, product, and progress photos from your library.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Locked In Fit transcribes your spoken meal description to estimate its nutrition. You confirm the result before anything is logged.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -325,6 +410,46 @@
 			};
 			name = Release;
 		};
+		B100000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jerryhuang.LockedInFitTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LockedInFit.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LockedInFit";
+			};
+			name = Debug;
+		};
+		B100000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jerryhuang.LockedInFitTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LockedInFit.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LockedInFit";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -342,6 +467,15 @@
 			buildConfigurations = (
 				A10000000000000000000014 /* Debug */,
 				A10000000000000000000015 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B1000000000000000000009 /* Build configuration list for PBXNativeTarget "LockedInFitTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B100000000000000000000A /* Debug */,
+				B100000000000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -122,7 +122,8 @@ enum MovementPattern: String, Codable, CaseIterable, Identifiable {
 }
 
 enum CookingMethod: String, Codable, CaseIterable, Identifiable {
-    case steamed, boiled, soup, grilled, baked, raw
+    case steamed, boiled, poached, soup, grilled, baked, roasted, raw, sauteed
+    case panFried = "pan-fried"
     case stirFried = "stir-fried"
     case deepFried = "deep-fried"
     case braised
@@ -134,9 +135,35 @@ enum CookingMethod: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .stirFried: return "Stir-fried"
         case .deepFried: return "Deep-fried"
+        case .panFried: return "Pan-fried"
+        case .sauteed: return "Sautéed"
         case .restaurantHighOil: return "Restaurant (High Oil)"
         default: return rawValue.capitalized
         }
+    }
+
+    /// Parse a free-text cooking method / dish word into a method. Used by menu
+    /// nutrition estimation and speech parsing so "pan seared", "stir fry",
+    /// "sashimi", etc. all resolve consistently.
+    static func detect(in text: String) -> CookingMethod? {
+        let l = text.lowercased()
+        // Order matters: check the most oil-relevant, specific words first.
+        if l.contains("deep fried") || l.contains("deep-fried") || l.contains("deep fry") { return .deepFried }
+        if l.contains("stir fry") || l.contains("stir-fry") || l.contains("stir fried") || l.contains("stir-fried") { return .stirFried }
+        if l.contains("pan fried") || l.contains("pan-fried") || l.contains("pan sear") || l.contains("pan-sear") { return .panFried }
+        if l.contains("deep") && l.contains("fried") { return .deepFried }
+        if l.contains("fried") || l.contains("crispy") || l.contains("tempura") || l.contains("katsu") || l.contains("schnitzel") { return .deepFried }
+        if l.contains("steam") { return .steamed }
+        if l.contains("raw") || l.contains("sashimi") || l.contains("tartare") || l.contains("ceviche") || l.contains("carpaccio") { return .raw }
+        if l.contains("poach") { return .poached }
+        if l.contains("boil") { return .boiled }
+        if l.contains("soup") || l.contains("broth") || l.contains("stew") { return .soup }
+        if l.contains("grill") || l.contains("char") || l.contains("bbq") || l.contains("barbecue") { return .grilled }
+        if l.contains("roast") { return .roasted }
+        if l.contains("bake") || l.contains("baked") { return .baked }
+        if l.contains("saute") || l.contains("sauté") { return .sauteed }
+        if l.contains("braise") { return .braised }
+        return nil
     }
 }
 

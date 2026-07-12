@@ -27,6 +27,7 @@ enum SettingsRoute: Hashable {
     case googleCalendar
     case backups
     case diagnostics
+    case patchNotes
 }
 
 // Shared, file-scope fetch descriptors: never rebuilt per view init, so
@@ -146,6 +147,9 @@ struct SettingsView: View {
             Section {
                 LabeledContent("Storage", value: "On-device only")
                 LabeledContent("Version", value: "1.0")
+                NavigationLink(value: SettingsRoute.patchNotes) {
+                    Label("What's New", systemImage: "sparkles")
+                }
             } footer: {
                 Text("Locked In Fit is local-first. No accounts, no cloud, no analytics. The only network call is meal analysis via OpenRouter or BazaarLink when you enable it.")
             }
