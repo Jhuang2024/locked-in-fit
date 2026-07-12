@@ -9,8 +9,6 @@ import CoreLocation
 struct MenuCheckerHomeView: View {
     @Environment(\.modelContext) private var context
     @Query private var settingsList: [UserSettings]
-    @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
-    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query private var cartLines: [CartLine]
     @Query(sort: \SavedRestaurantRecord.savedAt, order: .reverse) private var savedRestaurants: [SavedRestaurantRecord]
     @Query(sort: \SavedMenuItemRecord.savedAt, order: .reverse) private var savedItems: [SavedMenuItemRecord]
@@ -35,9 +33,6 @@ struct MenuCheckerHomeView: View {
     enum ViewMode: String, CaseIterable { case list, map }
 
     private var settings: UserSettings? { settingsList.first }
-    private var profile: ScoringProfile {
-        ScoringProfileBuilder.make(settings: settings, goal: goals.first, meals: meals)
-    }
     /// The location "nearby" is based on. No default — nil means we simply don't
     /// know where the user is, so we prompt instead of inventing a location.
     private var origin: GeoPoint? {
@@ -109,17 +104,6 @@ struct MenuCheckerHomeView: View {
             ManualLocationSheet(city: $manualCity) { resolved in
                 manualOrigin = resolved
                 worldwide = false
-            }
-        }
-        // One lazy destination for the whole Menu Checker stack — restaurant
-        // menus and item details resolve here, so no destination view is ever
-        // built until it's actually pushed.
-        .navigationDestination(for: MenuRoute.self) { route in
-            switch route {
-            case .menu(let restaurant, let routeOrigin):
-                RestaurantMenuView(restaurant: restaurant, origin: routeOrigin)
-            case .item(let item, let restaurantName):
-                MenuItemDetailView(item: item, restaurantName: restaurantName)
             }
         }
         .task(id: searchToken) { await reload() }

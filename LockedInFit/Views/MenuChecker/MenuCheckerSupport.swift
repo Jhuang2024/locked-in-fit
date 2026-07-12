@@ -11,6 +11,24 @@ enum MenuRoute: Hashable {
     case item(MenuItem, String) // item + restaurant name
 }
 
+extension View {
+    /// Registers the Menu Checker navigation destinations. Attach at the Log
+    /// tab's NavigationStack ROOT (DailyLogView): value-based destinations are
+    /// only reliably found when declared on the stack root, so links from any
+    /// pushed Menu Checker screen (home, restaurant menu, item detail) resolve.
+    /// Destinations are built lazily, only when a route is actually pushed.
+    func menuCheckerNavigationDestinations() -> some View {
+        navigationDestination(for: MenuRoute.self) { route in
+            switch route {
+            case .menu(let restaurant, let origin):
+                RestaurantMenuView(restaurant: restaurant, origin: origin)
+            case .item(let item, let restaurantName):
+                MenuItemDetailView(item: item, restaurantName: restaurantName)
+            }
+        }
+    }
+}
+
 /// Builds a personalized `ScoringProfile` from the user's profile, active goal,
 /// and what they've already eaten today, so Menu Checker scores reflect the same
 /// remaining-macro picture the dashboard shows.

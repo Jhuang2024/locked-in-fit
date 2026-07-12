@@ -144,6 +144,9 @@ struct DailyLogView: View {
             }
         }
         .navigationTitle("Food Log")
+        // Registered at the Log tab's NavigationStack root so Menu Checker's
+        // value-based links resolve from every pushed screen.
+        .menuCheckerNavigationDestinations()
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { showPhotoAnalysis = true } label: { Image(systemName: "camera") }
