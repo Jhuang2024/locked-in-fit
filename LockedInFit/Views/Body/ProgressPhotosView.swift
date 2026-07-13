@@ -78,6 +78,7 @@ struct NewProgressPhotoView: View {
             }
             .navigationTitle("New Progress Photos")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

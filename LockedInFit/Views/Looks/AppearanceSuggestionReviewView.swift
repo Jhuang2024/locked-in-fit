@@ -244,6 +244,7 @@ private struct SuggestionEditView: View {
             }
             .navigationTitle("Edit Suggestion")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }

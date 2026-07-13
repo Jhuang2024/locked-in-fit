@@ -55,7 +55,7 @@ struct DashboardView: View {
     @State private var healthKit = HealthKitManager.shared
     @State private var activeWorkout: Workout?
     /// True when `activeWorkout` was just created via createBlankWorkout()
-    /// and hasn't been saved yet — see WorkoutLogView's Cancel/Save toolbar.
+    /// and hasn't been saved yet. See WorkoutLogView's Cancel/Save toolbar.
     @State private var activeWorkoutIsDraft = false
     @State private var actionTick = 0
     @State private var showCalorieDetails = false
@@ -176,7 +176,7 @@ struct DashboardView: View {
     /// Split into staged sub-expressions (`dashboardWithTriggers` →
     /// `dashboardCore`, plus the destination switch as its own function) so
     /// the compiler never has to type-check the whole modifier chain as one
-    /// expression — the single-expression combination is what repeatedly
+    /// expression: the single-expression combination is what repeatedly
     /// blows past its time limit as triggers get added.
     private var dashboardCore: some View {
         dashboardWithTriggers
@@ -190,7 +190,7 @@ struct DashboardView: View {
             }
             // Lazy, value-based destinations for the whole Settings area.
             // Each screen is constructed exactly once when its route is
-            // pushed — never stored inside a NavigationLink value, never
+            // pushed: never stored inside a NavigationLink value, never
             // rebuilt by toolbar/navigation re-resolution. See SettingsRoute
             // for the update-cycle bug this exists to prevent.
             .navigationDestination(for: SettingsRoute.self) { route in
@@ -204,7 +204,7 @@ struct DashboardView: View {
     private var dashboardWithTriggers: some View {
         dashboardScrollView
             // A faint brand glow bleeding down from the top instead of a
-            // flat fill — on the committed dark look this gives the page
+            // flat fill: on the committed dark look this gives the page
             // an ambient light source the cards sit under, rather than
             // gray boxes floating on plain black.
             .background {

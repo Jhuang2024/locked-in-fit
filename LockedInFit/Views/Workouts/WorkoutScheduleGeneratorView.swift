@@ -92,6 +92,7 @@ struct WorkoutScheduleGeneratorView: View {
             }
             .navigationTitle("Generate Schedule")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

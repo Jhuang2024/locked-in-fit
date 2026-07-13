@@ -288,7 +288,7 @@ enum ExerciseCalorieAdjustment: String, Codable, CaseIterable, Identifiable {
 
 /// How much to inflate logged food calories to offset the well-documented
 /// tendency to underestimate portion sizes. Applied to logged food calories
-/// only — hidden cooking oil is estimated separately.
+/// only; hidden cooking oil is estimated separately.
 enum PortionEstimationAdjustment: String, Codable, CaseIterable, Identifiable {
     case off, conservative, moderate, full
 

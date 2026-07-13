@@ -36,7 +36,7 @@ enum CardMetrics {
 /// is six unconnected hues with no visual relationship to each other or to
 /// the app); a single hue that deepens as it climbs reads as one deliberate
 /// scale. `elite` is the one deliberate break from that rule, reserved for
-/// the single top tier — the "you made it" color premium apps use once,
+/// the single top tier: the "you made it" color premium apps use once,
 /// not a rung on the same ramp.
 enum BrandPalette {
     static let accent = Color.accentColor
@@ -52,7 +52,7 @@ enum BrandPalette {
     static let elite = Color(red: 0.93, green: 0.73, blue: 0.24)
 
     /// Subtle diagonal brand gradient for the one or two surfaces per screen
-    /// that should visually lead — not applied to ordinary cards, which
+    /// that should visually lead, not applied to ordinary cards, which
     /// would flatten the effect back into "everything looks the same".
     static var heroGradient: LinearGradient {
         LinearGradient(colors: [accent, accent.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -64,7 +64,7 @@ enum BrandPalette {
 /// A brief, index-staggered rise-and-fade the first time a card appears, so
 /// a screen full of stacked cards feels composed rather than dropped in all
 /// at once as a single static layout. Purely a one-shot `onAppear` animation
-/// on local `@State` — no ongoing cost once settled, no effect on layout or
+/// on local `@State`: no ongoing cost once settled, no effect on layout or
 /// hit-testing before/after.
 struct CardEntrance: ViewModifier {
     let index: Int

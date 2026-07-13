@@ -59,6 +59,7 @@ struct BodyCheckInView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
+            .keyboardDoneToolbar()
             .sheet(isPresented: $showSuggestionReview, onDismiss: { dismiss() }) {
                 NavigationStack { AppearanceSuggestionReviewView() }
             }

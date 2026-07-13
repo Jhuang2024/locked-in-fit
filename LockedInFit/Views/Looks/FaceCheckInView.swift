@@ -94,6 +94,7 @@ struct FaceCheckInView: View {
         .sheet(isPresented: $showSuggestionReview, onDismiss: { dismiss() }) {
             NavigationStack { AppearanceSuggestionReviewView() }
         }
+        .keyboardDoneToolbar()
     }
 
     // MARK: - Capture

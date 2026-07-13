@@ -41,6 +41,7 @@ struct GoogleCalendarConnectView: View {
         }
         .navigationTitle("Google Calendar")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneToolbar()
         .onAppear {
             clientIDInput = service.clientID ?? ""
             ensureConnectionState()

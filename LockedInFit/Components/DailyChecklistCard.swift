@@ -264,6 +264,7 @@ struct ChecklistItemEditView: View {
             }
             .navigationTitle(item == nil ? "New Checklist Item" : "Edit Item")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
