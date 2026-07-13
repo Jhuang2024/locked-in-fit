@@ -327,7 +327,7 @@ struct DashboardView: View {
     /// @MainActor explicitly (not left to SDK inference): this reads
     /// main-context models (settings, schedules, meals, checklist) between
     /// awaits, and as a nonisolated async method it would run on a
-    /// background executor — cross-thread model access that can deadlock
+    /// background executor: cross-thread model access that can deadlock
     /// the store against whatever the main thread is fetching.
     @MainActor
     private func refreshReminderSchedules() async {
@@ -759,7 +759,7 @@ struct DashboardView: View {
         return "\(Int(abs(remaining))) mg over today's sodium limit"
     }
 
-    /// "10k" for round-thousand step goals, otherwise the exact number —
+    /// "10k" for round-thousand step goals, otherwise the exact number:
     /// the goal lives in the chip's label so the value can be just today's
     /// count. "208/10000" crammed into one heavy value overflowed the chip
     /// and read as two numbers fighting for the same slot.
@@ -962,7 +962,7 @@ struct DashboardView: View {
     }
 
     private func createBlankWorkout() {
-        // Not inserted here — only Save/Finish in WorkoutLogView commits a
+        // Not inserted here: only Save/Finish in WorkoutLogView commits a
         // blank workout to the store, so backing out via Cancel never
         // leaves a stray entry in history.
         activeWorkoutIsDraft = true

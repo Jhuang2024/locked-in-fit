@@ -4,7 +4,7 @@ import SwiftData
 /// AI Analysis settings: two gateway keys (Keychain), one shared model
 /// override, test, clear. AIGatewayClient tries OpenRouter first, falling
 /// back to BazaarLink, so either key alone (or both) keeps every AI
-/// feature working — a provider having a bad day doesn't take AI analysis
+/// feature working: a provider having a bad day doesn't take AI analysis
 /// down with it.
 struct AISettingsView: View {
     @Environment(\.modelContext) private var context
@@ -52,7 +52,7 @@ struct AISettingsView: View {
                 }
                 .disabled(!openRouterKeyStored)
             } header: {
-                Text("OpenRouter API Key — default")
+                Text("OpenRouter API Key (default)")
             } footer: {
                 Text("Tried first for every AI feature. Paste your OpenRouter key (starts with sk-or-) once; it's stored in the iOS Keychain, never in the database or UserDefaults. Get a key at openrouter.ai.")
             }
@@ -87,9 +87,9 @@ struct AISettingsView: View {
                 }
                 .disabled(!bazaarLinkKeyStored)
             } header: {
-                Text("BazaarLink API Key — fallback")
+                Text("BazaarLink API Key (fallback)")
             } footer: {
-                Text("Used only if OpenRouter has no key saved, or an OpenRouter request fails. Paste your BazaarLink key (starts with sk-bl-) once. Get a key at bazaarlink.ai. Every AI feature (meal photos, descriptions, product scans, workout calories, appearance analysis) uses whichever key actually works — there is no offline mock mode.")
+                Text("Used only if OpenRouter has no key saved, or an OpenRouter request fails. Paste your BazaarLink key (starts with sk-bl-) once. Get a key at bazaarlink.ai. Every AI feature (meal photos, descriptions, product scans, workout calories, appearance analysis) uses whichever key actually works; there is no offline mock mode.")
             }
 
             Section {
@@ -102,7 +102,7 @@ struct AISettingsView: View {
             } header: {
                 Text("Model")
             } footer: {
-                Text("Empty routes every request to a free model automatically — OpenRouter's openrouter/free or BazaarLink's auto:free, whichever provider ends up serving the request — zero cost. If photo features (meal photos, scans, appearance) error because the free model can't read images, enter a vision-capable model ID here instead, e.g. gpt-4o-mini. Note OpenRouter model IDs use a provider/model form (openai/gpt-4o-mini) while BazaarLink uses plain names (gpt-4o-mini); an override is tried as-is on whichever provider answers, so pick an ID that's valid on the provider you expect to use.")
+                Text("Empty routes every request to a free model automatically (OpenRouter's openrouter/free or BazaarLink's auto:free, whichever provider ends up serving the request) at zero cost. If photo features (meal photos, scans, appearance) error because the free model can't read images, enter a vision-capable model ID here instead, e.g. gpt-4o-mini. Note OpenRouter model IDs use a provider/model form (openai/gpt-4o-mini) while BazaarLink uses plain names (gpt-4o-mini); an override is tried as-is on whichever provider answers, so pick an ID that's valid on the provider you expect to use.")
             }
 
             Section {

@@ -57,7 +57,7 @@ final class MenuOilEstimatorTests: XCTestCase {
         XCTAssertEqual(e.grams, 0)
     }
 
-    // MARK: Raw salad with dressing — dressing counted separately, salad zero
+    // MARK: Raw salad with dressing: dressing counted separately, salad zero
 
     func testRawSaladWithDressingCountsDressingSeparately() {
         let est = MenuNutritionEstimator.estimate(name: "Garden Salad",
@@ -72,7 +72,7 @@ final class MenuOilEstimatorTests: XCTestCase {
         XCTAssertTrue(resolved.breakdown.componentLines.contains { $0.label.lowercased().contains("vinaigrette") })
     }
 
-    // MARK: Steamed fish with chilli oil — chilli oil counted, no cooking oil
+    // MARK: Steamed fish with chilli oil: chilli oil counted, no cooking oil
 
     func testSteamedFishWithChilliOilCountsChilliOilOnly() {
         let est = MenuNutritionEstimator.estimate(name: "Steamed Fish with Chilli Oil",

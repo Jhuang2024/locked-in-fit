@@ -4,7 +4,7 @@ import SwiftData
 /// Decodes and caches restaurant / menu-item snapshots so the SwiftUI body
 /// never re-runs `JSONDecoder` on every render pass. The saved/recent lists
 /// access `record.restaurant` inside `ForEach` (for the row AND the
-/// `NavigationLink(value:)` payload), which SwiftUI re-evaluates constantly —
+/// `NavigationLink(value:)` payload), which SwiftUI re-evaluates constantly;
 /// decoding there froze the main thread. Snapshots are immutable for a given
 /// id, so caching by id is safe. Main-thread-only access.
 enum MenuSnapshotCache {

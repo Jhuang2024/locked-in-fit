@@ -127,7 +127,7 @@ enum MenuHealthScoreCalculator {
         if s.sodiumPer100kcal >= 200 { reasons.append("Very high in sodium") }
         else if s.sodiumPer100kcal >= 150 { reasons.append("High in sodium") }
 
-        // Calorie density — gentle, not dominant.
+        // Calorie density: gentle, not dominant.
         if s.caloriesPerGram > 3.2 { score -= 5 }
         else if s.caloriesPerGram < 1.2 && s.calories > 120 { score += 3 }
 

@@ -120,7 +120,7 @@ struct AddMealView: View {
                 PresetPickerView { preset in
                     // Seed grams from the preset's own reference weight so
                     // grams and calories describe the same amount of food
-                    // from the moment the item is created — FoodItemEditorRow
+                    // from the moment the item is created: FoodItemEditorRow
                     // scales proportionally from whatever grams starts at,
                     // so a mismatched starting pair (e.g. grams: 0 next to
                     // the preset's full calories) throws every later edit
@@ -158,7 +158,7 @@ struct AddMealView: View {
 
     private func applyEstimate(_ estimate: MealEstimate) {
         // Defaults to a matching preset's saved numbers over the AI's fresh
-        // guess for the same food name — see FoodItemEstimate.makeFoodItem.
+        // guess for the same food name: see FoodItemEstimate.makeFoodItem.
         // Order continues from whatever's already in addedItems (manual
         // entry or an earlier "Estimate Calories" pass can precede this).
         let baseOrder = addedItems.count
@@ -171,7 +171,7 @@ struct AddMealView: View {
         mealDescription = ""
     }
 
-    /// Add speech-parsed foods into the manual meal — additive to typing, never a
+    /// Add speech-parsed foods into the manual meal: additive to typing, never a
     /// replacement. The user has already reviewed and corrected these.
     private func applyParsedEntries(_ entries: [ParsedMealEntry], mealType parsedType: MealType) {
         guard !entries.isEmpty else { return }

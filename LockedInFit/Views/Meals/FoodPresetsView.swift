@@ -130,7 +130,7 @@ struct PresetEditorView: View {
 
     private func save() {
         // Untrimmed whitespace here is invisible in the UI but permanent in
-        // the stored name/category — a preset saved with a trailing space
+        // the stored name/category: a preset saved with a trailing space
         // would never again match FoodPresetSyncService.matchingPreset
         // (which normalizes what it's comparing against, but can't fix what
         // got stored), and an untrimmed category silently starts its own

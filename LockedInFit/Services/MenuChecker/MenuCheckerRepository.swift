@@ -10,7 +10,7 @@ struct MenuCheckerRepository {
     /// How long a cached menu is treated as current before we mark it stale.
     var menuMaxAge: TimeInterval = 60 * 30
     /// How long a persisted menu is reused before we re-fetch (and re-spend an AI
-    /// call). Infinite by default — a restaurant's menu rarely changes and each
+    /// call). Infinite by default; a restaurant's menu rarely changes and each
     /// re-fetch costs credits, so a cached menu is kept for good. The user can
     /// pull the menu screen's refresh button to force a fresh fetch on demand.
     var menuPersistentMaxAge: TimeInterval = .infinity
@@ -43,7 +43,7 @@ struct MenuCheckerRepository {
     /// they came from a stale cache (so the UI can show a "may be out of date"
     /// note) and when they were fetched.
     func menu(for restaurant: Restaurant, forceRefresh: Bool = false) async throws -> (items: [MenuItem], fetchedAt: Date, stale: Bool) {
-        // Sample restaurants are free and deterministic — never persisted.
+        // Sample restaurants are free and deterministic: never persisted.
         let usesCredits = !restaurant.id.hasPrefix("sample:")
         if !forceRefresh {
             if let cached = await cache.menu(for: restaurant.id) {
@@ -63,7 +63,7 @@ struct MenuCheckerRepository {
         return (items, .now, false)
     }
 
-    /// Average Health Score across a menu for a given profile — used to fill in
+    /// Average Health Score across a menu for a given profile, used to fill in
     /// the restaurant's headline "avg menu health" figure from real items.
     static func averageHealthScore(items: [MenuItem], profile: ScoringProfile) -> Double? {
         guard !items.isEmpty else { return nil }

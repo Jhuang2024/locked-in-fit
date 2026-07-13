@@ -1,8 +1,8 @@
 import Foundation
 import MapKit
 
-/// Real restaurant discovery via Apple Maps (`MKLocalSearch`). Needs no API key
-/// — it uses the device's built-in Maps access. Provides name, location,
+/// Real restaurant discovery via Apple Maps (`MKLocalSearch`). Needs no API key;
+/// it uses the device's built-in Maps access. Provides name, location,
 /// address, phone, website, and a coarse category; it does NOT provide menus,
 /// hours, price, or nutrition, so those are left empty/unknown and filled by the
 /// menu/nutrition providers (sample menus, then the AI estimate).

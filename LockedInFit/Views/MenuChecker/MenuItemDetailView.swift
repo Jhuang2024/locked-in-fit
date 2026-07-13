@@ -4,7 +4,7 @@ import SwiftData
 /// Full menu-item screen: live nutrition, Health/Satiety breakdowns, oil and
 /// portion controls, modifications, source & confidence, and add-to-cart. Every
 /// control re-resolves the item immediately so the numbers and scores always
-/// reflect the current configuration — the user can correct assumptions before
+/// reflect the current configuration; the user can correct assumptions before
 /// adding it.
 struct MenuItemDetailView: View {
     @Environment(\.modelContext) private var context
@@ -29,7 +29,7 @@ struct MenuItemDetailView: View {
     // Profile is computed HERE from @Query, not passed in. Passing a
     // freshly-built ScoringProfile from the parent's navigationDestination
     // closure changed the closure every render, which made SwiftUI re-seed and
-    // rebuild this destination on every frame — a livelock.
+    // rebuild this destination on every frame: a livelock.
     private var profile: ScoringProfile {
         ScoringProfileBuilder.make(settings: settingsList.first, goal: goals.first, meals: meals)
     }
@@ -263,7 +263,7 @@ struct MenuItemDetailView: View {
         case .official: return "These are the restaurant's official published nutrition facts, shown as-is."
         case .restaurantProvided: return "Derived from the restaurant's listed ingredients."
         case .estimatedFromIngredients: return "Estimated from the dish description, likely ingredients, cooking method, and a typical restaurant portion."
-        case .lowConfidenceEstimate: return "A rough estimate — we had little to go on. Adjust the components if you know better."
+        case .lowConfidenceEstimate: return "A rough estimate: we had little to go on. Adjust the components if you know better."
         }
     }
 

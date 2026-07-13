@@ -12,7 +12,7 @@ enum NutritionSourceKind: String, Codable, CaseIterable, Identifiable {
     case restaurantProvided = "restaurant_provided"
     /// Estimated from dish description, likely ingredients, and portion size.
     case estimatedFromIngredients = "estimated_from_ingredients"
-    /// Very little to go on — a rough guess flagged clearly to the user.
+    /// Very little to go on: a rough guess flagged clearly to the user.
     case lowConfidenceEstimate = "low_confidence_estimate"
 
     var id: String { rawValue }
@@ -50,7 +50,7 @@ enum NutritionSourceKind: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Coarse confidence tier shown alongside every estimate. We never show fake
-/// precision — confidence is high/medium/low, not a percentage.
+/// precision: confidence is high/medium/low, not a percentage.
 enum NutritionConfidence: String, Codable, CaseIterable, Identifiable {
     case high, medium, low
 
@@ -75,7 +75,7 @@ enum NutritionConfidence: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Lower of two confidences — combining components can only reduce certainty.
+    /// Lower of two confidences: combining components can only reduce certainty.
     static func min(_ a: NutritionConfidence, _ b: NutritionConfidence) -> NutritionConfidence {
         NutritionConfidence(scalar: Swift.min(a.scalar, b.scalar))
     }
@@ -93,8 +93,8 @@ enum PriceLevel: Int, Codable, CaseIterable, Identifiable, Comparable {
     var id: Int { rawValue }
     static func < (lhs: PriceLevel, rhs: PriceLevel) -> Bool { lhs.rawValue < rhs.rawValue }
 
-    /// "$$$" style glyph. Unknown renders as an em dash.
-    var glyphs: String { self == .unknown ? "—" : String(repeating: "$", count: rawValue) }
+    /// "$$$" style glyph. Unknown renders as a dash.
+    var glyphs: String { self == .unknown ? "-" : String(repeating: "$", count: rawValue) }
     var label: String {
         switch self {
         case .unknown: return "Price unknown"
@@ -177,7 +177,7 @@ struct GeoPoint: Codable, Equatable, Hashable {
 
 /// A fully computed nutrition line for one serving of an item after
 /// modifications, oil, and portion size are applied. This is the currency the
-/// whole feature passes around — cards, cart totals, and meal logging all read
+/// whole feature passes around: cards, cart totals, and meal logging all read
 /// from it. Values here are *pre-rounding*; use `MenuValueRounding` for display.
 struct ResolvedNutrition: Codable, Equatable, Hashable {
     var calories: Double = 0
@@ -229,7 +229,7 @@ enum MenuValueRounding {
     static func grams(_ value: Double) -> Double { value.rounded() }
     static func sodium(_ value: Double) -> Double { (value / 5).rounded() * 5 }
 
-    /// Round an entire line for display. Only applied to estimates — official
+    /// Round an entire line for display. Only applied to estimates; official
     /// nutrition is shown exactly as provided.
     static func round(_ n: ResolvedNutrition, roundCalories: Bool = true) -> ResolvedNutrition {
         ResolvedNutrition(

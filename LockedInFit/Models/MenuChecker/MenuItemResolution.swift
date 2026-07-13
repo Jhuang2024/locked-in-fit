@@ -24,7 +24,7 @@ struct ItemConfiguration: Codable, Equatable {
 }
 
 /// A transparent record of how an estimate was computed, stored so the user can
-/// inspect and correct it. Never thrown away — the detail screen renders this.
+/// inspect and correct it. Never thrown away: the detail screen renders this.
 struct NutritionEstimateBreakdown: Codable, Equatable {
     struct Line: Codable, Equatable {
         var label: String

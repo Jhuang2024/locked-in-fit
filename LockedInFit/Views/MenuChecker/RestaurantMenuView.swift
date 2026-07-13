@@ -286,7 +286,7 @@ struct RestaurantMenuView: View {
         let repo = MenuCheckerRepository(settings: settings)
         do {
             let result = try await repo.menu(for: restaurant, forceRefresh: forceRefresh)
-            // Unique ids only — duplicate ids in the category ForEach would make
+            // Unique ids only: duplicate ids in the category ForEach would make
             // SwiftUI thrash the list.
             var seen = Set<String>()
             items = result.items.filter { seen.insert($0.id).inserted }

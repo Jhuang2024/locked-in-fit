@@ -131,7 +131,7 @@ final class WorkoutSet {
 
 /// A saved exercise, analogous to FoodPreset: everything usually logged for
 /// a pre-existing exercise (its classification plus a typical prescription),
-/// so re-adding the same exercise later — by picking it or describing it —
+/// so re-adding the same exercise later (by picking it or describing it)
 /// doesn't require re-entering or re-estimating the same numbers. Built
 /// automatically from what's actually logged (see ExercisePresetSyncService)
 /// as well as manually from the Exercise Presets screen.

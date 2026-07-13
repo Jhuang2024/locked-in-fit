@@ -19,7 +19,7 @@ struct GoalEditView: View {
 
     /// Queried here rather than passed in: this view is reached via the
     /// value-based SettingsRoute.goalEdit (no payload), so it looks up the
-    /// active goal itself — same source of truth SettingsView's row uses.
+    /// active goal itself, the same source of truth SettingsView's row uses.
     private var goal: Goal? { activeGoals.first }
 
     @State private var phase: GoalPhase = .cut
@@ -39,7 +39,7 @@ struct GoalEditView: View {
 
     // No NavigationStack here, deliberately. This view used to be presented
     // as a sheet (where owning a stack is correct), but it is now PUSHED
-    // from SettingsView inside the Today tab's NavigationStack — and a
+    // from SettingsView inside the Today tab's NavigationStack; and a
     // nested NavigationStack inside a pushed destination made SwiftUI cycle
     // updates between parent and child forever on iOS 26: the render-loop
     // detector showed SettingsView.body and GoalEditView.body re-evaluating

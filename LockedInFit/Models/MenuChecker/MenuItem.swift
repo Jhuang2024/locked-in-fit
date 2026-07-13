@@ -134,7 +134,7 @@ enum ModificationEffect: Codable, Equatable, Hashable {
     case scalePortion(factor: Double)
     /// Override the oil assumption for the whole item.
     case setOil(OilLevel)
-    /// Purely informational (e.g. "sauce on the side") — no nutrition change.
+    /// Purely informational (e.g. "sauce on the side"): no nutrition change.
     case none
 }
 

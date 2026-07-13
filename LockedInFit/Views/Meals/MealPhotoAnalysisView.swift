@@ -17,7 +17,7 @@ struct MealPhotoAnalysisView: View {
 
     private var settings: UserSettings? { settingsList.first }
     /// Reflects an explicit Settings override if set, otherwise says so
-    /// plainly — AIGatewayClient resolves the actual free-routing model per
+    /// plainly: AIGatewayClient resolves the actual free-routing model per
     /// provider at call time, so there's no single fixed ID to name here.
     private var modelDescription: String {
         AIServiceFactory.modelName(settings: settings) ?? "auto-selected free model"

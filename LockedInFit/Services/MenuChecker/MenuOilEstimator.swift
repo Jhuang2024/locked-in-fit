@@ -10,14 +10,14 @@ struct OilEstimate: Equatable {
     var isZero: Bool { grams == 0 && calories == 0 }
 }
 
-/// The Menu Checker oil model. Estimates *added cooking oil* only — never the
+/// The Menu Checker oil model. Estimates *added cooking oil* only: never the
 /// fat already inside sauces, dressings, cheese, or the food itself (those carry
 /// their own macros). This is the single source of truth for oil across Menu
 /// Checker and speech meal dictation.
 ///
 /// ## Absolute rule
 /// Anything identified as **steamed** or **raw** receives exactly **0** oil
-/// calories and **0** grams of added oil fat — no range, no "restaurants might".
+/// calories and **0** grams of added oil fat: no range, no "restaurants might".
 /// Oil only enters such a dish through a separately listed oily sauce, dressing,
 /// marinade, or topping, which is a different component and estimated on its own.
 enum MenuOilEstimator {
@@ -33,7 +33,7 @@ enum MenuOilEstimator {
         let l = foodName.lowercased()
         switch method {
         case .steamed, .raw:
-            return 0 // absolute rule — enforced again in `estimate` as a guard
+            return 0 // absolute rule, enforced again in `estimate` as a guard
         case .boiled, .poached:
             return 0 // default zero unless an oily component is listed separately
         case .soup:
@@ -85,11 +85,11 @@ enum MenuOilEstimator {
     ///
     /// - Parameters:
     ///   - foodName: item/component name, used for food-specific absorption.
-    ///   - method: cooking method — the absolute rule keys off `.steamed` / `.raw`.
+    ///   - method: cooking method; the absolute rule keys off `.steamed` / `.raw`.
     ///   - grams: portion weight of the component.
     ///   - level: user-facing oil assumption (none/light/standard/heavy/custom).
     ///   - customGrams: explicit oil grams when `level == .custom`.
-    ///   - carriesOwnFat: true for sauces/dressings/cheese — such components must
+    ///   - carriesOwnFat: true for sauces/dressings/cheese; such components must
     ///     not receive additional cooking oil (their fat is already counted).
     static func estimate(foodName: String,
                          method: CookingMethod,
@@ -105,7 +105,7 @@ enum MenuOilEstimator {
         }
 
         // Components that already include their own fat (sauces, cheese…) never
-        // get cooking oil piled on top — that would double-count.
+        // get cooking oil piled on top: that would double-count.
         if carriesOwnFat {
             return OilEstimate(grams: 0, calories: 0, detail: "Fat already counted in this component")
         }

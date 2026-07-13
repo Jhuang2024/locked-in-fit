@@ -34,7 +34,7 @@ struct FoodProfile {
 }
 
 /// A small but broad nutrition table for menu / speech estimation. Not meant to
-/// be exhaustive — it's a reusable base the estimator draws on, deliberately
+/// be exhaustive; it's a reusable base the estimator draws on, deliberately
 /// data-driven rather than hardcoded per restaurant item.
 enum FoodNutritionTable {
     static let veg: [DietaryTag] = [.vegetarian, .vegan]

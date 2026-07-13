@@ -1,12 +1,12 @@
 import Foundation
 
 /// On-disk cache of fetched menus, so reconstructing a restaurant's menu costs at
-/// most one AI call per TTL — even across app launches. The in-memory
+/// most one AI call per TTL, even across app launches. The in-memory
 /// `MenuCheckerCache` only survives the current session; this backs it with the
 /// Caches directory (which the OS may evict under storage pressure, which is
-/// fine — a miss just re-fetches). Keyed by a stable hash of the restaurant id so
-/// filenames are fixed-length and launch-stable (Swift's `hashValue` is NOT —
-/// it's per-process randomised — so we hash deterministically here).
+/// fine; a miss just re-fetches). Keyed by a stable hash of the restaurant id so
+/// filenames are fixed-length and launch-stable (Swift's `hashValue` is NOT;
+/// it's per-process randomised, so we hash deterministically here).
 enum MenuDiskCache {
     private struct Payload: Codable {
         var fetchedAt: Date

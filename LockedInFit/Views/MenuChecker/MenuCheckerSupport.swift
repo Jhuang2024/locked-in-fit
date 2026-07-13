@@ -5,7 +5,7 @@ import SwiftData
 /// a single `navigationDestination(for:)` keeps destinations LAZY: eager
 /// `NavigationLink(destination:)` builds every destination view (each with its
 /// own @Query set) on every render pass, which on iOS 26 livelocks the main
-/// thread in view-list flattening — the same issue SettingsRoute avoids.
+/// thread in view-list flattening: the same issue SettingsRoute avoids.
 enum MenuRoute: Hashable {
     case home
     case menu(Restaurant, GeoPoint?)

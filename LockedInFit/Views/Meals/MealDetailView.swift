@@ -119,7 +119,7 @@ struct MealDetailView: View {
     /// Recomputes the meal's totals from its food items, same as
     /// MealDraftEditor's pre-save version, so editing a food item's grams,
     /// calories, macros, or cooking method (which itself scales grams'
-    /// nutrients — see FoodItemEditorRow) here after the meal is already
+    /// nutrients; see FoodItemEditorRow) here after the meal is already
     /// saved keeps Totals, the food log, and the dashboard's eaten/remaining
     /// figures in sync instead of showing whatever was true at save time.
     private func recalcTotals() {

@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// The meal cart — a temporary, persistent list of what the user ate or plans to
+/// The meal cart: a temporary, persistent list of what the user ate or plans to
 /// eat. Grouped by restaurant, with per-item macros, live totals, combined
 /// Health/Satiety, warnings, and confidence. Not a checkout: the terminal action
 /// is "Log This Meal", which writes into the normal food history.

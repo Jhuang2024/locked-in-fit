@@ -23,7 +23,7 @@ struct LockedInFitApp: App {
         // Resolve the shared App Group container immediately (background
         // queue, non-blocking, duration logged). Backup mirrors are written
         // there so they survive the container wipes that updates can cause,
-        // and the restore pickers need it resolved to SHOW those mirrors —
+        // and the restore pickers need it resolved to SHOW those mirrors,
         // including on the very first launch after such a wipe.
         AppGroupContainerLocator.beginResolvingContainer()
 
@@ -65,7 +65,7 @@ struct LockedInFitApp: App {
         // @ModelActor context, but background-context WRITES are the one
         // SwiftData pattern this app has actually seen deadlock in the
         // wild (the main thread's next store access hangs permanently
-        // right after a background save — confirmed twice by the hang
+        // right after a background save, confirmed twice by the hang
         // watchdog before all cross-context writes were removed). The
         // PerfLog line proves this costs single-digit-to-low-double-digit
         // milliseconds at launch; if sleep history ever grows enough for
@@ -104,8 +104,8 @@ struct LockedInFitApp: App {
                 .fontDesign(.rounded)
         }
         .modelContainer(container)
-        // Backgrounding is the moment right before an app update — the exact
-        // event local backups exist to survive — so capture the latest state
+        // Backgrounding is the moment right before an app update (the exact
+        // event local backups exist to survive), so capture the latest state
         // here. Unlike an earlier design that ran the whole JSON snapshot
         // synchronously on the main thread (and blocked resigning active),
         // this does a cheap main-context save so the snapshot sees the last
@@ -192,12 +192,12 @@ struct RootTabView: View {
         // Belt-and-suspenders safety net, independent of any per-screen
         // onChange wiring. DashboardView's onChange triggers only cover the
         // handful of @Query properties it happens to watch (meals, workouts,
-        // steps, sleep, weight...) — editing a measurement, a progress
+        // steps, sleep, weight...): editing a measurement, a progress
         // photo, a food preset, a health scan, or a workout schedule never
         // touches any of those, so a change made anywhere else could sit
         // unbacked-up for however long the app stays open. Pinging every 60s
         // guarantees SOME trigger lands inside every 5-minute throttle
-        // window regardless of which screen/model was actually edited — and
+        // window regardless of which screen/model was actually edited, and
         // it's cheap: scheduleBackupSoon's own throttle still caps real
         // writes to once per 5 minutes, and the content-hash dedupe in
         // performBackup makes a no-change tick free. Same loop also samples

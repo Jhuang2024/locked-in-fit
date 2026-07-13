@@ -5,7 +5,7 @@ import AVFoundation
 /// Live speech-to-text for meal dictation, behind a small state machine so the
 /// UI can react cleanly. Permission (mic + speech recognition) is requested only
 /// when dictation is first used; if denied or unavailable, the caller keeps
-/// typing — dictation is strictly additive to manual entry.
+/// typing; dictation is strictly additive to manual entry.
 @MainActor
 final class SpeechDictationController: ObservableObject {
 

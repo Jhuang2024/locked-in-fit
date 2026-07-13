@@ -12,7 +12,7 @@ struct CartItemSpec: Codable, Equatable {
 }
 
 /// One line in the persistent meal cart. The set of all `CartLine` rows *is* the
-/// cart — there is no parent entity — so the cart survives leaving the screen or
+/// cart (there is no parent entity), so the cart survives leaving the screen or
 /// the app being killed, and can freely mix items from multiple restaurants.
 ///
 /// Cached per-unit macros/scores are denormalized onto the row for fast totals

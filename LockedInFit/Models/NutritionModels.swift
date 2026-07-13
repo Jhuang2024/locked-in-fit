@@ -44,7 +44,7 @@ final class MealLog {
 
     /// Sorted by `order`: a SwiftData to-many relationship typed as an array
     /// (`[FoodItem]?`) does not actually guarantee stable insertion order
-    /// across fetches/saves the way a plain Swift array would — without an
+    /// across fetches/saves the way a plain Swift array would: without an
     /// explicit order field, items can silently reshuffle after a save and
     /// reload. Same fix already applied to Exercise/WorkoutSet; FoodItem
     /// never got it.
@@ -217,7 +217,7 @@ final class FoodPreset {
 
     /// `referenceGrams` when known, otherwise a best-effort parse of a
     /// leading number out of `serving` (e.g. "150 g", written automatically
-    /// by `FoodPresetSyncService` before this field existed) — so presets
+    /// by `FoodPresetSyncService` before this field existed), so presets
     /// saved by earlier app versions still scale correctly instead of
     /// falling back to unscaled substitution forever.
     var effectiveReferenceGrams: Double {

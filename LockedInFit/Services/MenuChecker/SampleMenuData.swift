@@ -60,7 +60,7 @@ enum SampleMenuData {
              31.2304, 121.4737, .premium, "CNY", official: false, avg: 58, diet: [.vegetarian]),
         make("hkdimsum", "HK Dim Sum House", ["Chinese", "Dim Sum"], "23 Nathan Rd", "Hong Kong", "China",
              22.3193, 114.1694, .moderate, "HKD", official: false, avg: 60, diet: [.vegetarian]),
-        // Publishes no readable menu — exercises the "menu unavailable" path.
+        // Publishes no readable menu: exercises the "menu unavailable" path.
         make("hiddentable", "The Hidden Table", ["Fine Dining"], "9 Torstraße", "Berlin", "Germany",
              52.5290, 13.4010, .luxury, "EUR", official: false, avg: nil, diet: []),
     ]

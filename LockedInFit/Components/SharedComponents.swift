@@ -89,7 +89,7 @@ extension View {
 // MARK: - RollingNumberText
 
 /// A number that interpolates through intermediate values instead of
-/// snapping — SwiftUI animates `animatableData`, re-rendering the text at
+/// snapping: SwiftUI animates `animatableData`, re-rendering the text at
 /// each intermediate value, so wrapping a change in an animation (or
 /// attaching `.animation(_:value:)` above this view) makes the number
 /// visibly count up/down. Inherits font/color from the environment like
@@ -114,7 +114,7 @@ struct RollingNumberText: View, Animatable {
 /// glow bleeding down from the top, so every hub screen sits under the
 /// same ambient light source instead of each being its own flat gray
 /// void. One modifier everywhere is also what makes the screens read as
-/// one product — see the design rule that every screen should feel
+/// one product: see the design rule that every screen should feel
 /// related to every other screen.
 struct BrandScreenBackground: ViewModifier {
     func body(content: Content) -> some View {
@@ -137,9 +137,9 @@ extension View {
 /// Consistent card chrome used across every card in the app. Built for the
 /// app's committed dark look (see INFOPLIST_KEY_UIUserInterfaceStyle): a
 /// soft fill with a faint top-edge "sheen" gradient so each card reads as a
-/// lit surface with depth rather than a flat gray rectangle — the single
+/// lit surface with depth rather than a flat gray rectangle, the single
 /// biggest tell separating premium dark UIs (Whoop, Oura) from default
-/// dark-mode grays — plus a hairline border whose top edge is slightly
+/// dark-mode grays, plus a hairline border whose top edge is slightly
 /// brighter than its sides, mimicking how light actually falls on a raised
 /// surface. Still renders sensibly in light mode (the sheen fades to
 /// near-invisible) in case the forced style is ever reverted.
@@ -173,12 +173,12 @@ extension View {
 }
 
 /// The elevated counterpart to CardBackground: a translucent brand-tinted
-/// wash over the same neutral base (not a solid fill — AccentColor is a
+/// wash over the same neutral base (not a solid fill: AccentColor is a
 /// bright, light green, so a solid fill would fight legibility for
 /// .primary/.secondary text that assumes a neutral background), plus a
 /// colored border and glow shadow instead of the barely-visible neutral
 /// shadow every ordinary card uses. Reserved for the one hero surface per
-/// screen (the Today dashboard's score card) — using it more broadly would
+/// screen (the Today dashboard's score card); using it more broadly would
 /// just flatten the effect back into "everything looks the same", the
 /// exact problem it exists to fix.
 struct HeroCardBackground: ViewModifier {
@@ -341,7 +341,7 @@ struct ScoreRingView: View {
                     .trim(from: 0, to: appeared ? progress : 0)
                     .stroke(color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    // A completed ring earns a glow — the milestone reads in
+                    // A completed ring earns a glow: the milestone reads in
                     // the lighting, not just the number.
                     .shadow(color: color.opacity(isFull && appeared ? 0.55 : 0), radius: 10)
                 VStack(spacing: 0) {
@@ -401,7 +401,7 @@ struct ChartCard<Content: View>: View {
 /// focal point of what it's next to (empty states, hero surfaces) so it
 /// reads as a designed element rather than a bare system icon floating on
 /// the page background. Not used for the small header icons inside
-/// DashboardCard — those are deliberately minimal secondary labels, and a
+/// DashboardCard; those are deliberately minimal secondary labels, and a
 /// badge there would fight the label instead of supporting it.
 struct IconBadge: View {
     let systemImage: String

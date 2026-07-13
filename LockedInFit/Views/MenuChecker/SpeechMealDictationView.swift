@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Speech-driven meal capture: describe a meal out loud, review the parsed foods,
-/// correct anything, and confirm. Deliberately never logs on its own — it hands
+/// correct anything, and confirm. Deliberately never logs on its own: it hands
 /// an editable preview back to the caller (the manual Add Meal flow), which stays
 /// fully usable by typing. Applies the same oil rules as Menu Checker.
 struct SpeechMealDictationView: View {
@@ -122,7 +122,7 @@ struct SpeechMealDictationView: View {
                 Text("Mentioned: \(preview.mentionedBrands.joined(separator: ", "))")
             }
             if !preview.uncertainTerms.isEmpty {
-                Text("Flagged as uncertain — tap to set nutrition or delete: \(preview.uncertainTerms.joined(separator: ", "))")
+                Text("Flagged as uncertain; tap to set nutrition or delete: \(preview.uncertainTerms.joined(separator: ", "))")
                     .foregroundStyle(.orange)
             }
         }

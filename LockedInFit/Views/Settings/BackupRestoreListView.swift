@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Picker over every available backup — the local rotation plus the App
-/// Group mirrors that survive reinstalls — instead of blindly restoring the
+/// Picker over every available backup (the local rotation plus the App
+/// Group mirrors that survive reinstalls) instead of blindly restoring the
 /// newest. This distinction is the whole point: after an update wipes the
 /// app container, the NEWEST backup is usually a backup of the post-wipe,
 /// nearly-empty state (the app resumed auto-backing-up immediately), while
@@ -43,7 +43,7 @@ struct BackupRestoreListView: View {
             } header: {
                 Text("Choose a backup")
             } footer: {
-                Text("Sorted most-complete first. Restoring merges the backup's records into what's on the device now; nothing is deleted. If an app update wiped your data, pick the entry with the most records — not necessarily the newest one.")
+                Text("Sorted most-complete first. Restoring merges the backup's records into what's on the device now; nothing is deleted. If an app update wiped your data, pick the entry with the most records, not necessarily the newest one.")
             }
 
             if let result {
@@ -59,8 +59,8 @@ struct BackupRestoreListView: View {
         .task {
             // The shared-container mirrors are the backups most likely to
             // matter (they survive the wipes), so make sure the container
-            // is resolved — and keep re-loading while the background
-            // lookup runs — before concluding "no backups".
+            // is resolved (and keep re-loading while the background
+            // lookup runs) before concluding "no backups".
             AppGroupContainerLocator.beginResolvingContainer()
             load()
             for _ in 0..<20 {

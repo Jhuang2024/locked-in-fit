@@ -5,7 +5,7 @@ import PhotosUI
 /// The "Log This Meal" flow. Classifies the cart as breakfast/lunch/dinner/snack,
 /// lets the user set date/time, name, notes, portion eaten, save-as-reusable, and
 /// a photo, then logs the whole cart into the normal food history. Double taps
-/// can't create two meals — the button disables and the logger de-duplicates.
+/// can't create two meals: the button disables and the logger de-duplicates.
 struct LogCartView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -44,7 +44,7 @@ struct LogCartView: View {
                 } header: {
                     Text("Classify")
                 } footer: {
-                    Text("Defaults to now — change the date to log a past meal.")
+                    Text("Defaults to now. Change the date to log a past meal.")
                 }
 
                 Section("Totals to log") {

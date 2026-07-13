@@ -30,7 +30,7 @@ struct MealEstimate: Codable {
         var confidence: Double
 
         /// Builds a FoodItem from this AI estimate, except when a food
-        /// preset already exists under the same name — then the preset's
+        /// preset already exists under the same name; then the preset's
         /// own saved nutrition numbers win over the AI's fresh guess for
         /// that food, since a value you've already saved (and presumably
         /// checked) is more trustworthy than a new estimate for something

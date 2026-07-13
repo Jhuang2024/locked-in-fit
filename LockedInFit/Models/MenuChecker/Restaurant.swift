@@ -35,7 +35,7 @@ struct WeeklyHours: Codable, Equatable, Hashable {
 
     init(days: [Int: DayHours] = [:]) { self.days = days }
 
-    /// Same hours every day of the week — the common case for our sample data.
+    /// Same hours every day of the week: the common case for our sample data.
     static func everyDay(open: Int, close: Int) -> WeeklyHours {
         var d: [Int: DayHours] = [:]
         for wd in 1...7 { d[wd] = DayHours(openMinute: open, closeMinute: close) }
@@ -85,7 +85,7 @@ struct Restaurant: Identifiable, Codable, Equatable, Hashable {
     /// Average health score across the menu, 0–100. Filled in once the menu is
     /// loaded; `nil` until then.
     var averageMenuHealthScore: Double?
-    /// Which provider produced this record — used for attribution and merging.
+    /// Which provider produced this record: used for attribution and merging.
     var providerName: String
     /// Dietary properties the restaurant broadly supports (has vegan options…).
     var dietaryTags: [DietaryTag]

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Applies an `ItemConfiguration` (modifications, oil, portion, quantity) to a
-/// `MenuItem` for a given `ScoringProfile` and produces a fully `ResolvedMenuItem`
-/// — nutrition, Health/Satiety scores, a transparent breakdown, and warnings.
+/// `MenuItem` for a given `ScoringProfile` and produces a fully `ResolvedMenuItem`:
+/// nutrition, Health/Satiety scores, a transparent breakdown, and warnings.
 ///
 /// Two nutrition paths, chosen by source:
 /// - **Official**: the restaurant's published macros are used verbatim. We never
@@ -162,7 +162,7 @@ enum MenuItemResolver {
 
     /// Official path: start from the published macros verbatim, then apply only
     /// the explicit macro deltas from modification components. No cooking oil is
-    /// ever added here — the official numbers already include it.
+    /// ever added here; the official numbers already include it.
     private static func officialNutrition(item: MenuItem,
                                           config: ItemConfiguration,
                                           components: [MenuItemComponent],

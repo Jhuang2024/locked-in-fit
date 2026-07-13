@@ -33,7 +33,7 @@ struct MenuCheckerHomeView: View {
     enum ViewMode: String, CaseIterable { case list, map }
 
     private var settings: UserSettings? { settingsList.first }
-    /// The location "nearby" is based on. No default — nil means we simply don't
+    /// The location "nearby" is based on. No default: nil means we simply don't
     /// know where the user is, so we prompt instead of inventing a location.
     private var origin: GeoPoint? {
         manualOrigin ?? location.coordinate
@@ -55,7 +55,7 @@ struct MenuCheckerHomeView: View {
 
     var body: some View {
         // DEBUG diagnostic: if the view re-renders in a loop, the console prints
-        // which @State/@Query/observed property triggered each pass — the
+        // which @State/@Query/observed property triggered each pass: the
         // definitive way to name a runaway update. Remove once stable.
         #if DEBUG
         let _ = Self._printChanges()
@@ -144,13 +144,13 @@ struct MenuCheckerHomeView: View {
             Image(systemName: "location.circle.fill").foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 1) {
                 Text(originLabel).font(.subheadline.weight(.semibold))
-                Text(location.isDenied ? "Location off — using search & manual city"
+                Text(location.isDenied ? "Location off: using search & manual city"
                      : "Nearby is based on this location").font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
             Button("Use location") {
                 // Just request; the coordinate change re-fires the search via
-                // .task(id: searchToken) — no manual reload (that double-loaded).
+                // .task(id: searchToken); no manual reload (that double-loaded).
                 Task { manualOrigin = nil; _ = await location.requestLocation() }
             }
             .font(.caption.weight(.semibold))
@@ -191,7 +191,7 @@ struct MenuCheckerHomeView: View {
         }
     }
 
-    /// Shown when there's no location and no search — we don't invent a place.
+    /// Shown when there's no location and no search. We don't invent a place.
     private var locationPrompt: some View {
         VStack(spacing: 12) {
             Image(systemName: "location.magnifyingglass")
@@ -293,7 +293,7 @@ struct MenuCheckerHomeView: View {
     // MARK: Loading
 
     private func reload() async {
-        // Without a location and not searching, don't invent a place — prompt.
+        // Without a location and not searching, don't invent a place: prompt.
         if needsLocation {
             results = []
             errorText = nil
@@ -323,7 +323,7 @@ struct MenuCheckerHomeView: View {
             results = fetched.filter { seen.insert($0.id).inserted }
         } catch is CancellationError {
             // Superseded by a newer search (the search token changed, e.g. the
-            // location just resolved). Not a real failure — keep current results.
+            // location just resolved). Not a real failure: keep current results.
         } catch let urlError as URLError where urlError.code == .cancelled {
             // Same as above, for providers that surface cancellation as URLError.
         } catch {

@@ -30,7 +30,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     var isAuthorized: Bool { authorization == .authorizedWhenInUse || authorization == .authorizedAlways }
 
     /// Ask for permission (first use only) and resolve one location fix. Returns
-    /// nil if permission is denied or a fix can't be obtained — callers fall back
+    /// nil if permission is denied or a fix can't be obtained; callers fall back
     /// to manual search. Safe to call repeatedly; concurrent calls share the fix.
     func requestLocation() async -> GeoPoint? {
         if isDenied { return nil }

@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// One menu-item card. Keeps the surface uncluttered — item name, a couple of
-/// bold numbers, and the two distinct score chips — with all the reasoning
+/// One menu-item card. Keeps the surface uncluttered: item name, a couple of
+/// bold numbers, and the two distinct score chips, with all the reasoning
 /// revealed on tap (the detail screen). The Add button carts the item with its
 /// default configuration; tap the card to modify first.
 struct MenuItemCardView: View {

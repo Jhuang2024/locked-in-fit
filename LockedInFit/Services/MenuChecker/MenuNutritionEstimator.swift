@@ -4,7 +4,7 @@ import Foundation
 /// from a dish name + description. This is the reusable estimation core used
 /// both to synthesize menu items when a restaurant publishes no nutrition and to
 /// turn a spoken/typed meal into components. Oil is NOT baked into the component
-/// macros here — it's applied at resolve time by `MenuOilEstimator`, so changing
+/// macros here; it's applied at resolve time by `MenuOilEstimator`, so changing
 /// the oil assumption later recalculates cleanly and never double-counts.
 enum MenuNutritionEstimator {
 
@@ -19,7 +19,7 @@ enum MenuNutritionEstimator {
 
     /// Estimate components for a dish. When nothing recognizable is found, a
     /// single generic component is returned and the result is flagged
-    /// low-confidence — we never pretend a blind guess is precise.
+    /// low-confidence; we never pretend a blind guess is precise.
     static func estimate(name: String, description: String = "", portionScale: Double = 1) -> Result {
         let parsed = IngredientParser.parse(name: name, description: description)
 

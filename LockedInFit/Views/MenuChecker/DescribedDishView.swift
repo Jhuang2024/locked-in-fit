@@ -84,7 +84,7 @@ struct DescribedDishView: View {
                 Text("Scores (recalculate as you edit)")
             }
 
-            Section("Nutrition — edit to correct") {
+            Section("Nutrition: edit to correct") {
                 macroField("Calories", value: $calories, unit: "kcal")
                 macroField("Protein", value: $protein, unit: "g")
                 macroField("Carbs", value: $carbs, unit: "g")

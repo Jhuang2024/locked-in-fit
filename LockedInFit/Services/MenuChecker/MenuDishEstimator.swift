@@ -12,13 +12,13 @@ struct EstimatedDish: Identifiable, Equatable {
 /// Estimates a single described dish for a specific restaurant using the AI
 /// gateway (OpenRouter → BazaarLink). The restaurant name + cuisine are folded
 /// into the prompt so the model guesses a realistic restaurant-sized portion.
-/// Returns editable calories/macros — nothing here is "official".
+/// Returns editable calories/macros; nothing here is "official".
 enum MenuDishEstimator {
 
     static func estimate(restaurant: Restaurant, description: String, settings: UserSettings?) async throws -> EstimatedDish {
         let service = AIServiceFactory.make(settings: settings)
         let cuisine = restaurant.cuisines.isEmpty ? "" : " (\(restaurant.primaryCuisine) cuisine)"
-        let prompt = "\(description) — a menu item from the restaurant \"\(restaurant.name)\"\(cuisine). Estimate a typical restaurant-sized portion as served there."
+        let prompt = "\(description), a menu item from the restaurant \"\(restaurant.name)\"\(cuisine). Estimate a typical restaurant-sized portion as served there."
         let context = MealAnalysisContext(mealType: .guess(), userDescription: restaurant.name, isLikelyHomeCooked: false)
         let estimate = try await service.analyzeMeal(description: prompt, context: context)
 

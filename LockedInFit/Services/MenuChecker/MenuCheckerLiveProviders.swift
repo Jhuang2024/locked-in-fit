@@ -55,8 +55,8 @@ struct CompositeMenuProvider: MenuProvider {
     }
 }
 
-/// Reconstructs THIS specific restaurant's real menu — identified by name, city,
-/// address, and cuisine — then computes each item's nutrition with the local
+/// Reconstructs THIS specific restaurant's real menu (identified by name, city,
+/// address, and cuisine), then computes each item's nutrition with the local
 /// estimator (the model supplies dish names + ingredient/prep descriptions, never
 /// numbers, so nutrition stays grounded). Two tiers, cheapest first:
 ///
@@ -65,14 +65,14 @@ struct CompositeMenuProvider: MenuProvider {
 ///  2. Only when tier 1 doesn't recognise the place, an actual **web search**
 ///     via OpenRouter's `:online` models, so obscure/local restaurants can still
 ///     be looked up online. This tier costs more, so it fires only on a miss and
-///     only when OpenRouter is configured — and the repository caches the result
+///     only when OpenRouter is configured, and the repository caches the result
 ///     permanently, so any given restaurant triggers it at most once.
 ///
 /// If the web search also comes up empty, the tier-1 generic menu is used. Real
 /// menus (tier 1 or 2) get medium confidence; the generic fallback gets low.
 struct AIMenuEstimator {
     struct Dish: Decodable { var name: String; var description: String?; var category: String? }
-    /// `{"real": true|false, "items": [...]}` — `real` distinguishes this
+    /// `{"real": true|false, "items": [...]}`: `real` distinguishes this
     /// restaurant's actual menu from a generic cuisine stand-in.
     struct MenuResponse: Decodable { var real: Bool?; var items: [Dish] }
 
@@ -81,13 +81,13 @@ struct AIMenuEstimator {
     static let webSearchModel = "openai/gpt-4o-mini:online"
 
     func menu(for restaurant: Restaurant) async throws -> [MenuItem] {
-        // Tier 1 — knowledge-based, no web. Recognises chains/known places cheaply.
+        // Tier 1: knowledge-based, no web. Recognises chains/known places cheaply.
         let known = try await lookup(restaurant: restaurant, useWeb: false)
         if known.real == true, !known.items.isEmpty {
             return buildItems(known.items, restaurant: restaurant, confidence: .medium, tag: "real")
         }
 
-        // Tier 2 — actual web search, but only on a miss and only when OpenRouter
+        // Tier 2: actual web search, but only on a miss and only when OpenRouter
         // is configured (BazaarLink has no web-search models). Best-effort: any
         // failure just falls through to the tier-1 generic menu.
         if KeychainService.openRouterAPIKey != nil {
@@ -97,7 +97,7 @@ struct AIMenuEstimator {
             }
         }
 
-        // Tier 3 — generic cuisine menu from the tier-1 response (or nothing).
+        // Tier 3: generic cuisine menu from the tier-1 response (or nothing).
         guard !known.items.isEmpty else { return [] }
         return buildItems(known.items, restaurant: restaurant, confidence: .low, tag: "generic")
     }
@@ -140,7 +140,7 @@ struct AIMenuEstimator {
         - List 12 to 20 items spanning the categories this place actually serves.
         - "category": one of breakfast, mains, sides, salads, soups, drinks, desserts.
         - "description": the dish's main ingredients, cooking method, and approximate portion \
-        size — detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
+        size: detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
         """
     }
 
@@ -163,7 +163,7 @@ struct AIMenuEstimator {
         - List up to 20 items spanning the categories this place serves.
         - "category": one of breakfast, mains, sides, salads, soups, drinks, desserts.
         - "description": the dish's main ingredients, cooking method, and approximate portion \
-        size — detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
+        size: detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
         """
     }
 

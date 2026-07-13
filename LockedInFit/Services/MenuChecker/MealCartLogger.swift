@@ -3,8 +3,8 @@ import SwiftData
 
 /// Logs a meal cart into the app's normal food history. The resulting `MealLog`
 /// and its `FoodItem`s are indistinguishable from a manually logged meal, so
-/// every downstream system — daily calories/macros, remaining targets, nutrition
-/// and consistency scores, goal tracking, trends, and warnings — picks it up
+/// every downstream system (daily calories/macros, remaining targets, nutrition
+/// and consistency scores, goal tracking, trends, and warnings) picks it up
 /// automatically, and the meal stays fully editable afterward.
 enum MealCartLogger {
 
@@ -33,7 +33,7 @@ enum MealCartLogger {
     private static var recentSignatures: [String: Date] = [:]
     private static let duplicateWindow: TimeInterval = 4
 
-    /// Reset the duplicate guard — used by tests and safe to call anytime.
+    /// Reset the duplicate guard: used by tests and safe to call anytime.
     static func resetDuplicateGuard() { recentSignatures.removeAll() }
 
     @discardableResult
@@ -88,7 +88,7 @@ enum MealCartLogger {
             calorieLow: total.calories * 0.9,
             calorieHigh: total.calories * 1.12,
             // Menu Checker calories already include estimated cooking oil, so we
-            // deliberately do NOT add a hidden-oil range here — that would
+            // deliberately do NOT add a hidden-oil range here: that would
             // double-count. Oil is already inside `total`.
             hiddenOilLow: 0,
             hiddenOilHigh: 0,
@@ -109,7 +109,7 @@ enum MealCartLogger {
 
         try? context.save()
         // NOTE: the cart is cleared by the caller (`clearCart`) once logging has
-        // succeeded — kept separate so the duplicate guard can inspect the same
+        // succeeded, kept separate so the duplicate guard can inspect the same
         // lines on a rapid second tap.
         return .logged
     }
@@ -127,7 +127,7 @@ enum MealCartLogger {
         let n = summary.nutrition
         if n.calories > 0, n.protein / max(1, n.calories) * 100 >= 6 { facts.append("High protein for the calories") }
         if n.fiber >= 8 { facts.append("Good fibre content") }
-        facts.append("Estimated from menu items — confidence \(summary.confidence.label.lowercased())")
+        facts.append("Estimated from menu items: confidence \(summary.confidence.label.lowercased())")
         return Array(facts.prefix(4))
     }
 

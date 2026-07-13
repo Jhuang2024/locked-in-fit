@@ -15,7 +15,7 @@ struct ParsedMealEntry: Identifiable, Equatable {
 }
 
 /// A full parsed meal ready for the user to review, correct, and confirm before
-/// logging. Never logged automatically — confirmation is required.
+/// logging. Never logged automatically; confirmation is required.
 struct ParsedMealPreview: Equatable {
     var entries: [ParsedMealEntry]
     var mealType: MealType
@@ -71,7 +71,7 @@ enum MealSpeechParser {
             entries.append(ParsedMealEntry(
                 name: term.capitalized, grams: 0, method: .unknown,
                 nutrition: .zero, oilCalories: 0, isUncertain: true,
-                note: "Couldn't estimate — tap to set nutrition"))
+                note: "Couldn't estimate: tap to set nutrition"))
         }
 
         let mealType = mealTypeHint ?? detectMealType(in: text) ?? MealType.guess(for: now)

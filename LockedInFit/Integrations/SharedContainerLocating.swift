@@ -53,12 +53,12 @@ struct AppGroupContainerLocator: SharedContainerLocating {
 /// is no longer lazy or sentinel-suppressed. Backups are mirrored into the
 /// shared container precisely because the app's sandbox (and everything in
 /// it, backups included) gets replaced when a signing change makes an
-/// update reinstall the container — and any "only resolve after the user
+/// update reinstall the container, and any "only resolve after the user
 /// visits a settings screen" gate stored in UserDefaults gets wiped right
 /// along with it. A previous design did exactly that, so after every wipe
 /// the mirrors silently stopped being written AND the restore pickers
 /// couldn't see the mirrors that did exist. (That lazy design was armor
-/// against a launch-freeze theory that was later disproven — the freeze
+/// against a launch-freeze theory that was later disproven: the freeze
 /// was an unrelated SwiftUI navigation-loop bug. The lookup itself runs on
 /// a background queue, blocks nothing, and its duration is logged:
 /// appGroup.lookup.finished in Xs.)

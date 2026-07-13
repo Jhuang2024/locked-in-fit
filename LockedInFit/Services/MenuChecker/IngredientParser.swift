@@ -82,7 +82,7 @@ struct ParsedDish {
     var oilLevel: OilLevel?
     var confidence: NutritionConfidence
     var matchedKeywords: [String]
-    /// Terms we couldn't confidently interpret — surfaced so the user can fix them.
+    /// Terms we couldn't confidently interpret, surfaced so the user can fix them.
     var uncertainTerms: [String]
 
     var isEmpty: Bool { components.isEmpty }

@@ -43,7 +43,7 @@ private func satietyColor(_ score: Double) -> Color {
     }
 }
 
-/// Large Health ring — green, heart glyph, "HEALTH".
+/// Large Health ring: green, heart glyph, "HEALTH".
 struct HealthScoreGauge: View {
     let score: Double
     var size: CGFloat = 76
@@ -73,7 +73,7 @@ struct HealthScoreGauge: View {
     }
 }
 
-/// Large Satiety gauge — blue vertical fill bar with a gauge glyph, "SATIETY".
+/// Large Satiety gauge: blue vertical fill bar with a gauge glyph, "SATIETY".
 struct SatietyScoreGauge: View {
     let score: Double
     var size: CGFloat = 76
@@ -136,7 +136,7 @@ struct SatietyChip: View {
 
 // MARK: - Source & confidence
 
-/// Honest source label — official vs the various estimate tiers, never blurred.
+/// Honest source label: official vs the various estimate tiers, never blurred.
 struct NutritionSourceBadge: View {
     let kind: NutritionSourceKind
     var compact = false
