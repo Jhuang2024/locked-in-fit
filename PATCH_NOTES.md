@@ -113,17 +113,24 @@ stays fully editable afterwards. Nothing existing was removed or simplified.
 - **Restaurant discovery** uses **Apple Maps (`MKLocalSearch`)** — real nearby and
   worldwide restaurant search, no API key required. The offline sample catalogue
   is a fallback when Maps returns nothing (offline / unsupported region).
-- **Real menus, not generic ones.** Opening a restaurant asks the AI gateway
-  (OpenRouter → BazaarLink) to reconstruct **that specific restaurant's actual
-  menu** — identified by name, address, city, and cuisine — in a single call.
-  For chains and well-known places this returns the real items; only when the
-  model doesn't recognise the restaurant does it fall back to a generic menu for
-  that cuisine (flagged with lower confidence). The on-device estimator computes
-  calories, macros, Health Score, and Satiety Score for every item, so nothing is
-  ever presented as official.
-- **Credit-conscious by design:** one AI call per restaurant, and results are
-  cached both in memory and **on disk for ~30 days**, so re-opening a restaurant
-  (even after relaunching the app) costs nothing. Sample restaurants stay free and
+- **Real menus, not generic ones.** Opening a restaurant reconstructs **that
+  specific restaurant's actual menu** — identified by name, address, city, and
+  cuisine — in two tiers, cheapest first:
+  1. A knowledge-based call (OpenRouter → BazaarLink) that recognises chains and
+     well-known places for free/cheap, no web search.
+  2. Only when the model doesn't recognise the place, an actual **web search** via
+     OpenRouter's `:online` models, so obscure and local restaurants can still be
+     looked up online (their own site, delivery platforms, listings).
+
+  If both come up empty it falls back to a generic menu for that cuisine (flagged
+  with lower confidence). The on-device estimator computes calories, macros,
+  Health Score, and Satiety Score for every item — nothing is presented as
+  official.
+- **Credit-conscious by design:** the cheap tier runs first and the costlier web
+  search fires only on a miss (and only when OpenRouter is configured). Results
+  are cached in memory and **on disk permanently**, so re-opening a restaurant —
+  even after relaunching the app — costs nothing. A **refresh** button on the menu
+  screen forces a fresh fetch when you want one. Sample restaurants stay free and
   are never sent to the AI.
 
 ### Architecture

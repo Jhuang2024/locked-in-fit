@@ -10,9 +10,10 @@ struct MenuCheckerRepository {
     /// How long a cached menu is treated as current before we mark it stale.
     var menuMaxAge: TimeInterval = 60 * 30
     /// How long a persisted menu is reused before we re-fetch (and re-spend an AI
-    /// call). Long, because a restaurant's menu rarely changes and each miss costs
-    /// credits; the UI still shows "updated X ago" and can force a refresh.
-    var menuPersistentMaxAge: TimeInterval = 60 * 60 * 24 * 30
+    /// call). Infinite by default — a restaurant's menu rarely changes and each
+    /// re-fetch costs credits, so a cached menu is kept for good. The user can
+    /// pull the menu screen's refresh button to force a fresh fetch on demand.
+    var menuPersistentMaxAge: TimeInterval = .infinity
 
     init(settings: UserSettings?) {
         self.restaurantProvider = MenuCheckerProviderFactory.restaurantProvider(settings: settings)

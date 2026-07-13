@@ -55,28 +55,77 @@ struct CompositeMenuProvider: MenuProvider {
     }
 }
 
-/// Asks the AI gateway (OpenRouter → BazaarLink) for THIS specific restaurant's
-/// real menu — identified by name, city, address, and cuisine — in a single
-/// call, then computes each item's nutrition with the local estimator (the model
-/// supplies dish names + ingredient/prep descriptions, never numbers, so
-/// nutrition stays grounded). The model self-reports whether the menu is the
-/// restaurant's actual one or a generic stand-in; real menus are given medium
-/// confidence, generic fallbacks low. One call regardless of outcome.
+/// Reconstructs THIS specific restaurant's real menu — identified by name, city,
+/// address, and cuisine — then computes each item's nutrition with the local
+/// estimator (the model supplies dish names + ingredient/prep descriptions, never
+/// numbers, so nutrition stays grounded). Two tiers, cheapest first:
+///
+///  1. A knowledge-based call (OpenRouter → BazaarLink). Chains and well-known
+///     places are recognised here for free/cheap; no web search.
+///  2. Only when tier 1 doesn't recognise the place, an actual **web search**
+///     via OpenRouter's `:online` models, so obscure/local restaurants can still
+///     be looked up online. This tier costs more, so it fires only on a miss and
+///     only when OpenRouter is configured — and the repository caches the result
+///     permanently, so any given restaurant triggers it at most once.
+///
+/// If the web search also comes up empty, the tier-1 generic menu is used. Real
+/// menus (tier 1 or 2) get medium confidence; the generic fallback gets low.
 struct AIMenuEstimator {
     struct Dish: Decodable { var name: String; var description: String?; var category: String? }
     /// `{"real": true|false, "items": [...]}` — `real` distinguishes this
     /// restaurant's actual menu from a generic cuisine stand-in.
     struct MenuResponse: Decodable { var real: Bool?; var items: [Dish] }
 
+    /// Cheap, capable OpenRouter model with web search enabled (the `:online`
+    /// suffix activates OpenRouter's web plugin). Used only for the tier-2 lookup.
+    static let webSearchModel = "openai/gpt-4o-mini:online"
+
     func menu(for restaurant: Restaurant) async throws -> [MenuItem] {
+        // Tier 1 — knowledge-based, no web. Recognises chains/known places cheaply.
+        let known = try await lookup(restaurant: restaurant, useWeb: false)
+        if known.real == true, !known.items.isEmpty {
+            return buildItems(known.items, restaurant: restaurant, confidence: .medium, tag: "real")
+        }
+
+        // Tier 2 — actual web search, but only on a miss and only when OpenRouter
+        // is configured (BazaarLink has no web-search models). Best-effort: any
+        // failure just falls through to the tier-1 generic menu.
+        if KeychainService.openRouterAPIKey != nil {
+            if let web = try? await lookup(restaurant: restaurant, useWeb: true),
+               web.real == true, !web.items.isEmpty {
+                return buildItems(web.items, restaurant: restaurant, confidence: .medium, tag: "web")
+            }
+        }
+
+        // Tier 3 — generic cuisine menu from the tier-1 response (or nothing).
+        guard !known.items.isEmpty else { return [] }
+        return buildItems(known.items, restaurant: restaurant, confidence: .low, tag: "generic")
+    }
+
+    /// One AI call. `useWeb` swaps in OpenRouter's `:online` web-search model and
+    /// a prompt that tells the model to look the menu up online.
+    private func lookup(restaurant: Restaurant, useWeb: Bool) async throws -> (real: Bool?, items: [Dish]) {
         let cuisine = restaurant.primaryCuisine
-        let locationParts = [restaurant.address, restaurant.city, restaurant.country]
+        let location = [restaurant.address, restaurant.city, restaurant.country]
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
-        let prompt = """
+        let prompt = useWeb
+            ? webPrompt(name: restaurant.name, location: location, cuisine: cuisine)
+            : knowledgePrompt(name: restaurant.name, location: location, cuisine: cuisine)
+        let body: [String: Any] = [
+            "messages": [["role": "user", "content": prompt]],
+            "temperature": useWeb ? 0.2 : 0.3,
+            "max_tokens": 1600
+        ]
+        let result = try await AIGatewayClient.send(body: body, modelOverride: useWeb ? Self.webSearchModel : nil)
+        return parseResponse(result.content)
+    }
+
+    private func knowledgePrompt(name: String, location: String, cuisine: String) -> String {
+        """
         You are a restaurant menu database. Reconstruct the menu for this specific restaurant:
-        Name: "\(restaurant.name)"
-        Location: \(locationParts.isEmpty ? "unknown" : locationParts)
+        Name: "\(name)"
+        Location: \(location.isEmpty ? "unknown" : location)
         Cuisine: \(cuisine)
 
         If you actually know THIS specific restaurant (a chain or a well-known place), \
@@ -93,21 +142,34 @@ struct AIMenuEstimator {
         - "description": the dish's main ingredients, cooking method, and approximate portion \
         size — detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
         """
-        let body: [String: Any] = [
-            "messages": [["role": "user", "content": prompt]],
-            "temperature": 0.3,
-            "max_tokens": 1500
-        ]
-        let result = try await AIGatewayClient.send(body: body, modelOverride: nil)
-        let parsed = parseResponse(result.content)
-        let dishes = parsed.items
-        guard !dishes.isEmpty else { return [] }
+    }
 
-        // A recognised real menu is more trustworthy than a generic stand-in;
-        // reflect that in confidence (the numbers are still on-device estimates).
-        let confidence: NutritionConfidence = (parsed.real == true) ? .medium : .low
-        let tag = (parsed.real == true) ? "real" : "generic"
+    private func webPrompt(name: String, location: String, cuisine: String) -> String {
+        """
+        Search the web for the current menu of this specific restaurant and list its real menu items:
+        Name: "\(name)"
+        Location: \(location.isEmpty ? "unknown" : location)
+        Cuisine: \(cuisine)
 
+        Use the restaurant's own website, delivery platforms, or reliable listings. Only report \
+        items you actually found for THIS restaurant at THIS location.
+
+        Respond with ONLY minified JSON, no prose or code fences:
+        {"real": <true|false>, "items": [{"name": "...", "description": "...", "category": "..."}]}
+
+        Rules:
+        - "real": true ONLY if you found this exact restaurant's actual menu online; false if you could not.
+        - If you couldn't find it, return {"real": false, "items": []}.
+        - List up to 20 items spanning the categories this place serves.
+        - "category": one of breakfast, mains, sides, salads, soups, drinks, desserts.
+        - "description": the dish's main ingredients, cooking method, and approximate portion \
+        size — detailed enough to estimate calories and macros. Do NOT include any nutrition numbers.
+        """
+    }
+
+    /// Turn parsed dishes into scored menu items (nutrition computed on-device).
+    private func buildItems(_ dishes: [Dish], restaurant: Restaurant,
+                            confidence: NutritionConfidence, tag: String) -> [MenuItem] {
         var seen = Set<String>()
         return dishes.prefix(24).enumerated().compactMap { index, dish in
             let trimmedName = dish.name.trimmingCharacters(in: .whitespacesAndNewlines)

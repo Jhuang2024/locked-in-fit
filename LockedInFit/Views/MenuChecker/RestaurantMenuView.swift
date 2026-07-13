@@ -77,6 +77,13 @@ struct RestaurantMenuView: View {
         .keyboardDoneToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button { Task { await loadMenu(forceRefresh: true) } } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(loadState == .loading)
+                .accessibilityLabel("Refresh menu")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { toggleSaved() } label: {
                     Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                 }
@@ -274,11 +281,11 @@ struct RestaurantMenuView: View {
 
     // MARK: Data
 
-    private func loadMenu() async {
+    private func loadMenu(forceRefresh: Bool = false) async {
         loadState = .loading
         let repo = MenuCheckerRepository(settings: settings)
         do {
-            let result = try await repo.menu(for: restaurant)
+            let result = try await repo.menu(for: restaurant, forceRefresh: forceRefresh)
             // Unique ids only — duplicate ids in the category ForEach would make
             // SwiftUI thrash the list.
             var seen = Set<String>()
