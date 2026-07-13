@@ -116,6 +116,10 @@ final class UserSettings {
     /// event context. See CrossAppIntegrationManager and
     /// Settings → Social Climber.
     var crossAppSharingEnabled: Bool = true
+    /// Set when "I'm sick today" is toggled on; cleared by toggling it off.
+    /// Only counts for the calendar day it was set (see `isSickToday`), so a
+    /// forgotten toggle doesn't silently relax goals on later days.
+    var sickDayDate: Date?
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }
@@ -140,6 +144,10 @@ final class UserSettings {
     var bodyReminderFrequency: BodyReminderFrequency {
         get { BodyReminderFrequency(rawValue: bodyReminderFrequencyRaw) ?? .off }
         set { bodyReminderFrequencyRaw = newValue.rawValue }
+    }
+    var isSickToday: Bool {
+        guard let sickDayDate else { return false }
+        return Calendar.current.isDate(sickDayDate, inSameDayAs: .now)
     }
 
     init() {}

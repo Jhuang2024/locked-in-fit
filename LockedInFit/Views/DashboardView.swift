@@ -271,17 +271,18 @@ struct DashboardView: View {
         ScrollView {
             VStack(spacing: 10) {
                 header.cardEntrance(0)
-                quickActions.cardEntrance(1)
-                checklistCard.cardEntrance(2)
-                socialReadinessCardIfPresent.cardEntrance(3)
-                calorieCard.cardEntrance(4)
-                macroCard.cardEntrance(5)
-                activityCard.cardEntrance(6)
-                looksCard.cardEntrance(7)
-                sleepCard.cardEntrance(8)
-                trendCard.cardEntrance(9)
-                goalSnippetIfPresent.cardEntrance(10)
-                mealsCard.cardEntrance(11)
+                sickDayBanner.cardEntrance(1)
+                quickActions.cardEntrance(2)
+                checklistCard.cardEntrance(3)
+                socialReadinessCardIfPresent.cardEntrance(4)
+                calorieCard.cardEntrance(5)
+                macroCard.cardEntrance(6)
+                activityCard.cardEntrance(7)
+                looksCard.cardEntrance(8)
+                sleepCard.cardEntrance(9)
+                trendCard.cardEntrance(10)
+                goalSnippetIfPresent.cardEntrance(11)
+                mealsCard.cardEntrance(12)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
@@ -537,6 +538,45 @@ struct DashboardView: View {
         }
         .padding(16)
         .heroCardBackground()
+    }
+
+    @ViewBuilder
+    private var sickDayBanner: some View {
+        if let settings {
+            if settings.isSickToday {
+                HStack(spacing: 10) {
+                    Image(systemName: "thermometer")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sick day").font(.subheadline.weight(.semibold))
+                        Text("Steps and calorie targets are relaxed, and today's training won't count against your streak.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("I'm better") { setSickDay(active: false, settings: settings) }
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.bordered)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            } else {
+                Button {
+                    actionTick += 1
+                    setSickDay(active: true, settings: settings)
+                } label: {
+                    Label("I'm sick today", systemImage: "thermometer")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+        }
+    }
+
+    private func setSickDay(active: Bool, settings: UserSettings) {
+        settings.sickDayDate = active ? .now : nil
     }
 
     private var quickActions: some View {
