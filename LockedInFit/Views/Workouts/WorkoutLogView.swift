@@ -17,7 +17,7 @@ struct WorkoutLogView: View {
     /// handled by the presenting editor instead.
     var mode: Mode = .log
     /// True for a freshly created workout that hasn't been inserted into the
-    /// model context yet (a blank workout just started) — gates the
+    /// model context yet (a blank workout just started), gates the
     /// Cancel/Save toolbar so starting one and backing out never leaves a
     /// stray entry in history. Seeds `isDraft`'s @State via the custom init
     /// below so Save/Finish can flip it off after committing the workout.
@@ -174,7 +174,7 @@ struct WorkoutLogView: View {
         workout.exercises?.append(exercise)
     }
 
-    /// Commits a blank/new workout to history and closes the sheet — the
+    /// Commits a blank/new workout to history and closes the sheet: the
     /// explicit, opt-in counterpart to Cancel. Never called for a workout
     /// that's already saved (isDraft false), since the toolbar buttons only
     /// show while it's still a draft.
@@ -189,7 +189,7 @@ struct WorkoutLogView: View {
     /// this workout entirely. While the workout is still an unsaved draft,
     /// the exercise was never inserted into the context in the first place
     /// (see addExercise/saveDraft), so detaching it from the array alone is
-    /// enough — calling context.delete on an object the context never
+    /// enough: calling context.delete on an object the context never
     /// tracked has nothing meaningful to do.
     private func deleteExercise(_ exercise: Exercise) {
         workout.exercises?.removeAll { $0.persistentModelID == exercise.persistentModelID }
@@ -198,7 +198,7 @@ struct WorkoutLogView: View {
     }
 
     private func finishWorkout() async {
-        // Finishing unambiguously means "keep this workout" — commits a
+        // Finishing unambiguously means "keep this workout": commits a
         // still-draft workout instead of requiring a separate Save tap first.
         if isDraft {
             context.insert(workout)
@@ -211,7 +211,7 @@ struct WorkoutLogView: View {
         detectPRs()
         let bodyweight = weights.last?.weightKg ?? 75
         // allWorkouts is a @Query result that may not have caught up yet if
-        // `workout` was only just inserted above in this same call — build
+        // `workout` was only just inserted above in this same call: build
         // the list explicitly so today's session is never silently excluded
         // from its own strength-score recompute.
         let workoutsForScoring = allWorkouts.contains { $0.persistentModelID == workout.persistentModelID }

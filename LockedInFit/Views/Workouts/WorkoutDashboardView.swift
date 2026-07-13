@@ -14,7 +14,7 @@ struct WorkoutDashboardView: View {
     @State private var showScheduleGenerator = false
     @State private var activeWorkout: Workout?
     /// True when `activeWorkout` was just created via createBlankWorkout()
-    /// and hasn't been saved yet — see WorkoutLogView's Cancel/Save toolbar.
+    /// and hasn't been saved yet. See WorkoutLogView's Cancel/Save toolbar.
     @State private var activeWorkoutIsDraft = false
 
     private var history: [Workout] { workouts.filter { !$0.isTemplate } }
@@ -244,7 +244,7 @@ struct WorkoutDashboardView: View {
     }
 
     private func createBlankWorkout() {
-        // Not inserted here — only Save/Finish in WorkoutLogView commits a
+        // Not inserted here: only Save/Finish in WorkoutLogView commits a
         // blank workout to the store, so backing out via Cancel never
         // leaves a stray entry in history.
         activeWorkoutIsDraft = true
