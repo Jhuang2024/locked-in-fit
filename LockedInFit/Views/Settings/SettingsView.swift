@@ -5,8 +5,8 @@ import UIKit
 
 /// Value-based routes for everything pushed in the Settings area. These
 /// exist because `NavigationLink(destination:)` stores a fully-constructed
-/// destination VIEW VALUE inside the link, rebuilt on every re-evaluation —
-/// and on iOS 26 that fed a self-sustaining update cycle: push Goal (or any
+/// destination VIEW VALUE inside the link, rebuilt on every re-evaluation.
+/// On iOS 26 that fed a self-sustaining update cycle: push Goal (or any
 /// integration page) and Self._printChanges showed SettingsView and the
 /// child re-reporting "@self changed" in lockstep, hundreds of times per
 /// second, freezing the app inside a single never-draining SwiftUI update.
@@ -32,7 +32,7 @@ enum SettingsRoute: Hashable {
 
 // Shared, file-scope fetch descriptors: never rebuilt per view init, so
 // SwiftUI's attribute-graph equality check on the @Query configurations is
-// trivially stable. See the matching comment in DashboardView.swift — a
+// trivially stable. See the matching comment in DashboardView.swift: a
 // debugger pause showed the Settings freeze livelocked in exactly that
 // comparison (Array<SortDescriptor>.== under AGGraphSetOutputValue).
 private let settingsWeights = FetchDescriptor<BodyWeightEntry>(sortBy: [SortDescriptor(\BodyWeightEntry.date)])
@@ -63,17 +63,17 @@ struct SettingsView: View {
     /// BackupService.latestBackup(): a backup right before an update can be
     /// followed by a few more entries and a backgrounding-triggered backup
     /// that mirrors them to the App Group container, and if the local
-    /// sandbox is then replaced, only that mirror survives — a newest-LOCAL
+    /// sandbox is then replaced, only that mirror survives: a newest-LOCAL
     /// stat would under-report what's actually safely backed up.
     @State private var cachedLatestBackup: BackupService.BackupInfo?
     /// The literal most recent backup by time, shown separately from
     /// cachedLatestBackup (which is actually the *most complete* one, by
-    /// record count) — see BackupService.mostRecentBackup for why those
+    /// record count); see BackupService.mostRecentBackup for why those
     /// two can disagree and both need their own row.
     @State private var cachedMostRecentBackup: BackupService.BackupInfo?
     /// Loaded once on appear, same reasoning as cachedLatestBackup above.
     /// Surfaces DataLossGuard's persisted incident log here — not gated to
-    /// DEBUG — specifically so a data-loss event is visible from inside the
+    /// DEBUG: specifically so a data-loss event is visible from inside the
     /// app itself (with a timestamp and record counts) even on a build with
     /// no Mac/Xcode anywhere nearby when it happened.
     @State private var dataLossIncidents: [DataLossGuard.Incident] = []
@@ -404,7 +404,7 @@ struct SettingsView: View {
         }
     }
 
-    /// Only appears when DataLossGuard has actually recorded something —
+    /// Only appears when DataLossGuard has actually recorded something:
     /// most people should never see this section. Each row is a moment the
     /// on-device record count suddenly dropped, either caught at launch or
     /// mid-session by the periodic watchdog (see RootTabView), so a report
@@ -427,7 +427,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     if let bytes = incident.storeFileSizeBytes {
                         Text(bytes > 100_000
-                             ? "Store file was still \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) — the data may still be on disk."
+                             ? "Store file was still \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)): the data may still be on disk."
                              : "Store file was \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)), consistent with an empty store.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)

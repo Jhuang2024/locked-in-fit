@@ -238,8 +238,8 @@ enum SleepScoringService {
     }
 
     /// Circular mean of times-of-day (minutes since midnight, 0..<1440).
-    /// A plain arithmetic mean breaks across the midnight boundary — 11pm
-    /// (1380) and 1am (60) should average to ~midnight, not noon — so each
+    /// A plain arithmetic mean breaks across the midnight boundary (11pm
+    /// (1380) and 1am (60) should average to ~midnight, not noon), so each
     /// time is treated as an angle around a 24-hour clock and averaged as a
     /// vector, the standard way to average clock times. `nil` for an empty
     /// input.
@@ -256,7 +256,7 @@ enum SleepScoringService {
         return normalized / (2 * .pi) * 1440
     }
 
-    /// "11:24 PM" from minutes since midnight (0..<1440) — for a circular
+    /// "11:24 PM" from minutes since midnight (0..<1440), for a circular
     /// mean, which has no real calendar date of its own to format from.
     private static func timeString(fromMinutesSinceMidnight minutes: Double) -> String {
         let wrapped = minutes.truncatingRemainder(dividingBy: 1440)
@@ -273,7 +273,7 @@ enum SleepScoringService {
     /// 0-40. Single peak at 9h (the top of the 7-9h "ideal" range), tapering
     /// gently down to 7h, then steeply below that (fatigue), and gently above
     /// 9h (oversleep). No flat plateau across 7-9h: 9h is the only true
-    /// maximum, so any shortfall — even a few minutes — always shows up as a
+    /// maximum, so any shortfall, even a few minutes, always shows up as a
     /// visibly lower score instead of rounding up to the same 40 as a full
     /// 9 hours.
     private static func durationPoints(hours: Double) -> Double {
