@@ -113,15 +113,18 @@ stays fully editable afterwards. Nothing existing was removed or simplified.
 - **Restaurant discovery** uses **Apple Maps (`MKLocalSearch`)** — real nearby and
   worldwide restaurant search, no API key required. The offline sample catalogue
   is a fallback when Maps returns nothing (offline / unsupported region).
-- **Official nutrition** comes from **Nutritionix** when configured. Add your
-  Nutritionix App ID + App Key in *Settings → AI Analysis* (stored in the
-  Keychain), then *Test Nutritionix* — the same enter/save/test flow as the
-  OpenRouter and BazaarLink keys.
-- **Per-restaurant menu source order:** Nutritionix official → an AI-estimated
-  menu (via your OpenRouter/BazaarLink gateway; the model suggests dish names,
-  the on-device estimator computes the nutrition) → the local estimate. Every
-  item stays honestly labelled by source, and nothing is presented as official
-  unless it actually is.
+- **Real menus, not generic ones.** Opening a restaurant asks the AI gateway
+  (OpenRouter → BazaarLink) to reconstruct **that specific restaurant's actual
+  menu** — identified by name, address, city, and cuisine — in a single call.
+  For chains and well-known places this returns the real items; only when the
+  model doesn't recognise the restaurant does it fall back to a generic menu for
+  that cuisine (flagged with lower confidence). The on-device estimator computes
+  calories, macros, Health Score, and Satiety Score for every item, so nothing is
+  ever presented as official.
+- **Credit-conscious by design:** one AI call per restaurant, and results are
+  cached both in memory and **on disk for ~30 days**, so re-opening a restaurant
+  (even after relaunching the app) costs nothing. Sample restaurants stay free and
+  are never sent to the AI.
 
 ### Architecture
 - Modular components behind protocols: location/restaurant search, restaurant

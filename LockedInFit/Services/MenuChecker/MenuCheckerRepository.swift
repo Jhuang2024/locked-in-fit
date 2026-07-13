@@ -9,6 +9,10 @@ struct MenuCheckerRepository {
     var cache: MenuCheckerCache = .shared
     /// How long a cached menu is treated as current before we mark it stale.
     var menuMaxAge: TimeInterval = 60 * 30
+    /// How long a persisted menu is reused before we re-fetch (and re-spend an AI
+    /// call). Long, because a restaurant's menu rarely changes and each miss costs
+    /// credits; the UI still shows "updated X ago" and can force a refresh.
+    var menuPersistentMaxAge: TimeInterval = 60 * 60 * 24 * 30
 
     init(settings: UserSettings?) {
         self.restaurantProvider = MenuCheckerProviderFactory.restaurantProvider(settings: settings)
@@ -38,11 +42,23 @@ struct MenuCheckerRepository {
     /// they came from a stale cache (so the UI can show a "may be out of date"
     /// note) and when they were fetched.
     func menu(for restaurant: Restaurant, forceRefresh: Bool = false) async throws -> (items: [MenuItem], fetchedAt: Date, stale: Bool) {
-        if !forceRefresh, let cached = await cache.menu(for: restaurant.id) {
-            return (cached.value, cached.fetchedAt, cached.isStale(maxAge: menuMaxAge))
+        // Sample restaurants are free and deterministic — never persisted.
+        let usesCredits = !restaurant.id.hasPrefix("sample:")
+        if !forceRefresh {
+            if let cached = await cache.menu(for: restaurant.id) {
+                return (cached.value, cached.fetchedAt, cached.isStale(maxAge: menuMaxAge))
+            }
+            // Persistent cache: a real restaurant's menu costs at most one AI call
+            // per TTL, even across app launches.
+            if usesCredits, let disk = MenuDiskCache.load(restaurantID: restaurant.id, maxAge: menuPersistentMaxAge) {
+                await cache.storeMenu(disk.items, for: restaurant.id)
+                let stale = Date().timeIntervalSince(disk.fetchedAt) > menuMaxAge
+                return (disk.items, disk.fetchedAt, stale)
+            }
         }
         let items = try await menuProvider.menu(for: restaurant)
         await cache.storeMenu(items, for: restaurant.id)
+        if usesCredits { MenuDiskCache.store(items, restaurantID: restaurant.id) }
         return (items, .now, false)
     }
 
