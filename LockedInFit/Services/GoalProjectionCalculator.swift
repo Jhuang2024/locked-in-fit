@@ -8,7 +8,7 @@ struct GoalProjection {
     /// so there's no finish line to project toward.
     var isMaintaining: Bool = false
     /// True when the latest logged weight has already reached the target in the
-    /// goal's direction — so any "projected finish" would be spurious.
+    /// goal's direction, so any "projected finish" would be spurious.
     var hasReachedGoal: Bool = false
     var paceWarning: String?
     /// 0–100: how close actual weekly rate is to the target.
@@ -26,7 +26,7 @@ enum GoalProjectionCalculator {
         let latestKg = WeightTrendCalculator.latestKg(entries: weightEntries)
 
         // A maintenance goal has no finish line, and once the latest weight has
-        // reached the target there's nothing left to project — otherwise a
+        // reached the target there's nothing left to project; otherwise a
         // lagging trend line manufactures a finish date months out even though
         // the scale already shows the goal weight.
         let isMaintaining = abs(goal.weeklyWeightChangeTarget) < 0.05

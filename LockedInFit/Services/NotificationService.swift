@@ -7,14 +7,14 @@ import UserNotifications
 /// reminder, never at launch.
 ///
 /// @MainActor is load-bearing, not a convenience: without it these are
-/// nonisolated async functions, which Swift runs on a background executor —
+/// nonisolated async functions, which Swift runs on a background executor,
 /// and two of them touch SwiftData models that live on the main context
 /// (`refreshWorkoutReminders` walks `schedule.sessionList`, a lazily-faulted
 /// relationship; `performFireOnce` reads and writes
 /// `settings.notifiedEventKeys`). SwiftData models are bound to their
 /// context's thread; touching them from a background thread while the main
 /// thread is doing its own store work (any screen's @Query fetch) is an
-/// intermittent, permanent deadlock — the app freezes forever, with the
+/// intermittent, permanent deadlock: the app freezes forever, with the
 /// stall surfacing on whatever screen happened to query next. Since every
 /// call site is a view, running on the main actor costs nothing: all the
 /// notification-center calls are async XPC that suspend rather than block.

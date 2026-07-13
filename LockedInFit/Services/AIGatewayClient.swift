@@ -57,7 +57,7 @@ enum AIGatewayProvider: CaseIterable {
 /// Shared low-level POST + response-unwrapping for every AI-backed feature
 /// in the app (meal analysis, health scans, appearance, workouts,
 /// exercises). Tries each configured provider in `AIGatewayProvider`'s
-/// order — OpenRouter, then BazaarLink — so a single provider having a bad
+/// order (OpenRouter, then BazaarLink) so a single provider having a bad
 /// day, a revoked key, or a temporarily-unavailable model doesn't take
 /// every AI feature down with it. A provider with no key saved is skipped
 /// silently (not treated as a failure); the error surfaced to the caller is

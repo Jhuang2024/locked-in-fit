@@ -15,7 +15,7 @@ enum PerfLog {
     }
 
     /// Loud, unmistakable log line for something that should never happen
-    /// (e.g. a mid-session data drop) — same visibility tier as the slow
+    /// (e.g. a mid-session data drop), same visibility tier as the slow
     /// main-thread fault below, but for correctness rather than performance.
     static func fault(_ message: String) {
         logger.fault("\(message, privacy: .public)")
@@ -57,7 +57,7 @@ enum PerfLog {
     /// or a Binding getter. Bodies and getters normally evaluate a handful of
     /// times per interaction; if SwiftUI is stuck in an update feedback loop,
     /// whichever body/getter is cycling reaches hundreds of evaluations per
-    /// second and this logs a fault every 100th call — so a frozen app names
+    /// second and this logs a fault every 100th call, so a frozen app names
     /// the looping view in the console, no debugger required.
     @discardableResult
     static func tick(_ name: String) -> Int {
@@ -83,7 +83,7 @@ enum PerfLog {
 }
 
 /// Watches the main thread from a background queue and logs, loudly, the
-/// moment it stops responding — and for how long, once it recovers.
+/// moment it stops responding, and for how long, once it recovers.
 ///
 /// `PerfLog.measure` can only report work it explicitly wraps, and only
 /// after that work finishes. A freeze caused by an uninstrumented call (or
@@ -93,7 +93,7 @@ enum PerfLog {
 /// within a second, a fault line is written immediately from the watchdog
 /// thread (repeated every ~5s while stuck), so even a hang the user
 /// force-quits out of leaves a timestamped trail right next to the last
-/// normal event — which names the screen/action that froze.
+/// normal event, which names the screen/action that froze.
 final class MainThreadHangDetector: @unchecked Sendable {
     static let shared = MainThreadHangDetector()
     private static let logger = Logger(subsystem: "com.jerryhuang.LockedInFit", category: "Hang")

@@ -19,7 +19,7 @@ import UIKit
 /// Automatic (throttled) backups run after an actual data mutation is
 /// reported via `scheduleBackupSoon`; nothing here runs on launch or as a
 /// side effect of routine notification refreshes. Backgrounding is the one
-/// deliberate exception — see `backupOnBackgrounding` — since it's the
+/// deliberate exception (see `backupOnBackgrounding`) since it's the
 /// moment right before an app update, which is exactly the event these
 /// backups exist to survive.
 ///
@@ -105,7 +105,7 @@ enum BackupService {
         await BackupCoordinator.shared.backupManually(container: container)
     }
 
-    /// Backup fired when the app is backgrounded — the moment that precedes
+    /// Backup fired when the app is backgrounded: the moment that precedes
     /// an app update, the event local backups exist to survive. Bypasses
     /// the debounce and throttle (backgrounding frequency is bounded by the
     /// user), never blocks resigning active (all work runs on the
@@ -118,13 +118,13 @@ enum BackupService {
     /// was a real bug, not a theoretical one: switching to the App Store to
     /// tap Update backgrounds this app immediately, and without an explicit
     /// assertion, iOS is free to suspend the process before the detached
-    /// task ever gets scheduled — a change made moments before updating
+    /// task ever gets scheduled: a change made moments before updating
     /// could be backgrounded-but-never-actually-backed-up. The background
     /// task tells iOS "give me a few seconds to finish," which is exactly
     /// how long the backup (fetch + encode + write + mirror) actually takes.
     /// `@MainActor`: the call site (LockedInFitApp's scenePhase onChange) is
     /// already implicitly main-actor-isolated, and `token.begin` below must
-    /// run synchronously, inline, before `Task.detached` starts — making
+    /// run synchronously, inline, before `Task.detached` starts, making
     /// that explicit here means the compiler enforces it instead of it just
     /// happening to be true.
     @MainActor
@@ -144,13 +144,13 @@ enum BackupService {
     /// `BackupActor`'s isolated context, so it always runs off the main
     /// thread. Not private so `BackupActor` (a separate type) can call it.
     /// Second tuple element is false for the dedupe no-op path (an existing
-    /// backup's URL handed back, nothing written) — callers use that to
+    /// backup's URL handed back, nothing written); callers use that to
     /// decide whether the throttle clock should reset.
     ///
     /// `forceFreshTimestamp` only matters on the dedupe path: when true, the
     /// existing (content-identical) backup's index entry is bumped to now
     /// instead of left untouched. Only the explicit manual "Backup Now" tap
-    /// sets this — the user asked for a backup right now and expects to see
+    /// sets this: the user asked for a backup right now and expects to see
     /// that confirmed, whereas an automatic/background trigger with nothing
     /// new to capture should stay silent so "Latest backup" keeps meaning
     /// "when data was last actually captured," not "when the app last woke up."
@@ -251,8 +251,8 @@ enum BackupService {
 
     static func latestBackup() -> BackupInfo? { listBackups().first }
 
-    /// Every backup this device knows about — local rotation plus the App
-    /// Group mirrors that survive reinstalls — sorted most-complete first.
+    /// Every backup this device knows about (local rotation plus the App
+    /// Group mirrors that survive reinstalls), sorted most-complete first.
     /// The single source of truth for "what's the best backup we have";
     /// `BackupRestoreListView` and `DataRecoveryView` both use this so their
     /// lists can never disagree, and so `mostCompleteBackup()` below can
@@ -269,7 +269,7 @@ enum BackupService {
     /// `latestBackup()` (local-only, newest-only): a "Backup Now" tap right
     /// before an update can be followed by a few more entries, then a
     /// backgrounding-triggered backup that captures them and mirrors to the
-    /// App Group container — but if the on-disk sandbox is then replaced,
+    /// App Group container, but if the on-disk sandbox is then replaced,
     /// only the mirror survives, and a local-only "latest" stat would show a
     /// smaller, staler count than what's actually safely backed up.
     static func mostCompleteBackup() -> BackupInfo? { allKnownBackups().first }
@@ -279,7 +279,7 @@ enum BackupService {
     /// this as "Latest backup": `mostCompleteBackup()` is sorted by record
     /// count first, so after a stretch of record-count churn (a wipe, a
     /// partial restore) an older, larger backup can permanently outrank
-    /// every backup taken since — making a "Backup Now" tap look like it
+    /// every backup taken since, making a "Backup Now" tap look like it
     /// did nothing, when a fresh backup genuinely was written. This is the
     /// literal answer to "when did a backup last happen," independent of
     /// how complete that backup was.
@@ -320,7 +320,7 @@ enum BackupService {
         try? data.write(to: indexURL, options: .atomic)
     }
 
-    /// Keeps the newest `maxBackupsKept` backups — but NEVER rotates out the
+    /// Keeps the newest `maxBackupsKept` backups, but NEVER rotates out the
     /// most complete one. After an accidental wipe (an update replacing the
     /// app container), the app starts taking fresh automatic backups of the
     /// nearly-empty post-wipe state; a plain newest-N policy let those push
@@ -343,7 +343,7 @@ enum BackupService {
     // MARK: - App Group mirrors (survive app updates/reinstalls)
 
     /// Local backups die with the sandbox when a signing/identity change
-    /// makes an app update replace the container — exactly the event backups
+    /// makes an app update replace the container: exactly the event backups
     /// exist for. So every backup is also mirrored into the shared App Group
     /// container (when available), which has its own lifecycle and survives
     /// updates: "latest" always tracks the newest backup, and "best" only
@@ -451,7 +451,7 @@ private actor BackupCoordinator {
     /// Trailing-edge throttle: a change landing inside the minimum interval
     /// is DEFERRED to when the interval expires, never dropped. The old
     /// behavior silently discarded it, which meant "make a change, close the
-    /// app, update" lost the change forever — the exact event backups exist
+    /// app, update" lost the change forever: the exact event backups exist
     /// for. (The backgrounding hook additionally captures state immediately
     /// whenever the app leaves the foreground.)
     private func runAutomaticIfDue(container: ModelContainer) async {
@@ -491,7 +491,7 @@ private actor BackupCoordinator {
         // Only a real write resets the throttle window. A dedupe no-op
         // (content unchanged since the last backup) still returns the
         // existing file's URL for callers that just want "a backup exists",
-        // but must NOT push the throttle clock forward — otherwise a
+        // but must NOT push the throttle clock forward; otherwise a
         // no-change backup (e.g. from routine backgrounding) could delay
         // capturing a genuine edit that lands moments later.
         if wroteNewBackup {
@@ -513,9 +513,9 @@ actor BackupActor {
 }
 
 /// Wraps a `UIBackgroundTaskIdentifier` so begin/end can be called safely
-/// from several different contexts — the caller (main actor), the
+/// from several different contexts, the caller (main actor), the
 /// expiration handler (calling thread not documented/guaranteed), and the
-/// backup Task's own completion (a detached background task) — without
+/// backup Task's own completion (a detached background task), without
 /// racing on the stored ID, double-ending it, or requiring every caller to
 /// already be on the main actor. `begin` runs on the main actor directly
 /// (called synchronously from `backupOnBackgrounding`, itself `@MainActor`,

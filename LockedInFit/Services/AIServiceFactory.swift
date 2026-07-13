@@ -7,7 +7,7 @@ import Foundation
 /// call site instead of silently producing fabricated numbers.
 ///
 /// History: providers used to be gated on a persisted `aiModeRaw` setting
-/// that defaulted to "mock" — so every time the app's container was replaced
+/// that defaulted to "mock", so every time the app's container was replaced
 /// (the recurring signing-churn data wipes), the mode silently reset to mock
 /// even though the API key survived in the Keychain, and every analysis in
 /// the app quietly returned fake data. Deleting the mode (and the mocks)
@@ -15,7 +15,7 @@ import Foundation
 /// an unused legacy field per the additive-only migration policy.
 enum AIServiceFactory {
     /// The single user-facing model override from AI Settings, or nil if
-    /// left blank. Deliberately NOT resolved to a concrete model ID here —
+    /// left blank. Deliberately NOT resolved to a concrete model ID here:
     /// AIGatewayClient resolves per-provider (OpenRouter's "openrouter/free"
     /// vs BazaarLink's "auto:free") so ordinary AI analysis costs nothing by
     /// default no matter which gateway ends up serving the request. An

@@ -66,7 +66,7 @@ enum PersistenceGuard {
     /// Bytes across every `default.store*` file (the main SQLite file plus
     /// its -wal/-shm journals) currently on disk. Diagnostic, not
     /// protective: this is what tells apart two very differently-caused
-    /// versions of "the app shows 0 records" —
+    /// versions of "the app shows 0 records":
     /// - file still large (hundreds of KB+) but SwiftData reports 0 rows:
     ///   SwiftData failed to open/recognize the existing store and silently
     ///   substituted an empty one, the data is still sitting right there on
@@ -107,7 +107,7 @@ enum PersistenceGuard {
 
     /// Read-only listing of what's actually sitting in the shared App Group
     /// container right now, logged at every launch (not gated to a path
-    /// change, unlike the two checks above — this is specifically to catch
+    /// change, unlike the two checks above; this is specifically to catch
     /// a sibling app writing something unexpected there). Exists because of
     /// a report that opening Social Climber while LockedInFit is closed
     /// appears to wipe LockedInFit's data: LockedInFit's own live SwiftData

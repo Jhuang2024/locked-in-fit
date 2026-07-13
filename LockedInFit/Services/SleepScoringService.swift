@@ -52,7 +52,7 @@ enum SleepScoringService {
     }
 
     /// The calendar night an overnight sleep session belongs to. A very
-    /// late bedtime — after midnight through the small hours — still reads
+    /// late bedtime, after midnight through the small hours, still reads
     /// as last night's sleep, not the start of a new day: going to bed at
     /// 2am is going to bed late, not beginning a fresh day at 2am. 4:00am
     /// is the cutoff; `sleepStart` at or before 4:00am counts as the
@@ -169,12 +169,12 @@ enum SleepScoringService {
     }
 
     /// Recomputes every log from its own overnight data and that day's
-    /// current naps. Idempotent, so it's safe to run on every launch — logs
+    /// current naps. Idempotent, so it's safe to run on every launch: logs
     /// whose stored score/explanations were computed under a past scoring
     /// bug self-heal here instead of needing a one-off data migration.
     /// Also re-derives `date` from `sleepStart` via `nightDate(for:)` first
     /// (before matching naps, so a corrected date pulls the right day's
-    /// naps too) — a log from before the 4am night-boundary rule existed,
+    /// naps too), a log from before the 4am night-boundary rule existed,
     /// e.g. a very late bedtime that used to file under the wrong day,
     /// corrects itself here the same way a stale score does. Reassigning
     /// `date` never deletes anything; if it now lands on the same night as
@@ -188,8 +188,8 @@ enum SleepScoringService {
         }
     }
 
-    /// Collapses `logs` to at most one entry per calendar night — the most
-    /// recently created one for any night that has more than one — WITHOUT
+    /// Collapses `logs` to at most one entry per calendar night (the most
+    /// recently created one for any night that has more than one) WITHOUT
     /// deleting anything. Purely a read-time view for rollups (average,
     /// streak, "Logs" count, Recent Logs) that need one-entry-per-night
     /// semantics, so a leftover duplicate from before SleepLogEntryView's

@@ -490,7 +490,7 @@ enum ExportImportService {
     /// Imports a JSON snapshot, appending only entries NOT already present.
     /// Restoring the same (or an overlapping) backup more than once, or
     /// restoring onto data that was never actually lost, used to duplicate
-    /// every record unconditionally — exactly the "restore just duplicates
+    /// every record unconditionally: exactly the "restore just duplicates
     /// what's already there instead of bringing back what's missing" bug.
     /// Each type is deduped either by its own persisted uuid (checklist
     /// items, sleep/nap logs, appearance check-ins/suggestions, workout

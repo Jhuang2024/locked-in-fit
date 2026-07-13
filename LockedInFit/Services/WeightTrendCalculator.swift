@@ -85,7 +85,7 @@ enum WeightTrendCalculator {
     /// The start point is taken from a bounded recent window (a little wider than
     /// `days` so a start point can still be found) rather than "the newest point
     /// before `days` ago". The old rule reached back across a logging gap to a
-    /// stale reading — so a weight that's been flat for weeks, but with an older
+    /// stale reading, so a weight that's been flat for weeks, but with an older
     /// heavier reading still in history, reported a phantom weekly loss. Now, if
     /// the recent points are all at the same weight, both ends sit at the same
     /// trend and the rate is ~0, as it should be.

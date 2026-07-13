@@ -5,7 +5,7 @@ import UIKit
 /// BazaarLink). Sends the photo + context, demands strict JSON back, parses
 /// into MealEstimate.
 struct BazaarLinkFoodAIService: FoodAIService {
-    /// Best-effort label for "who will this try first" — read at
+    /// Best-effort label for "who will this try first": read at
     /// construction time, before any network call, so it can't reflect a
     /// fallback that hasn't happened yet. AIGatewayClient itself always
     /// tries OpenRouter before BazaarLink regardless of this label.

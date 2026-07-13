@@ -86,7 +86,7 @@ enum AppearanceScoringService {
 
         // Symmetry (15): a single 2D photo can't separate real facial symmetry
         // from head angle, so no photo metric is allowed to move this. It
-        // stays a flat neutral value locally — a permanent, structural fact
+        // stays a flat neutral value locally: a permanent, structural fact
         // about single-photo scoring, not a data gap the user can close, so
         // it's not repeated here as a confidence note every single check-in.
         let symmetry = 10.0
@@ -274,7 +274,7 @@ enum AppearanceScoringService {
 
         // Posture (15): a single photo can't reliably read posture any more
         // than it can read facial symmetry, so this stays a flat neutral
-        // value locally regardless of photo count — a permanent, structural
+        // value locally regardless of photo count: a permanent, structural
         // fact, not a data gap, so it's not repeated as a confidence note on
         // its own. Photo count is still worth flagging when photos are
         // missing entirely, since front/side/back angles are what the rest

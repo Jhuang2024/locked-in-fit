@@ -37,7 +37,7 @@ struct MealAnalysisContext {
 /// Modular meal-analysis provider. Swap implementations via AIServiceFactory.
 protocol FoodAIService {
     var providerName: String { get }
-    /// One meal, one combined estimate — possibly shown across several
+    /// One meal, one combined estimate, possibly shown across several
     /// photos (multiple dishes, or the same spread from different angles).
     func analyzeMeal(images: [UIImage], context: MealAnalysisContext) async throws -> MealEstimate
     func analyzeMeal(description: String, context: MealAnalysisContext) async throws -> MealEstimate

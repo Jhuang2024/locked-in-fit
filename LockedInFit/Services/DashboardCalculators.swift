@@ -57,7 +57,7 @@ enum ActivityAdjustmentCalculator {
 
         // Steps-and-workouts estimate for the day. Apple Health's active energy
         // already folds walking and workouts together, so this is the same
-        // quantity measured a cruder way — never something to add on top. Uses
+        // quantity measured a cruder way, never something to add on top. Uses
         // the same weight-scaled step formula as trends and maintenance, so a
         // step burns identical calories everywhere in the app.
         let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
@@ -168,7 +168,7 @@ enum CalorieRemainingCalculator {
         // independently. Doing it per-chip means "Target" (rounded from the
         // precise, un-rounded sum) can differ from what a user gets by
         // adding up the Base/Exercise/TEF chips (each independently
-        // rounded) right next to it — e.g. 1899.6 + 0.6 + 26.4 rounds to
+        // rounded) right next to it: e.g. 1899.6 + 0.6 + 26.4 rounds to
         // chips reading 1900 / +1 / +26 (= 1927 by hand) while the precise
         // sum 1926.6 itself rounds to 1927... but shift those fractions
         // slightly and the two paths land on different whole numbers.

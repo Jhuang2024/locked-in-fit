@@ -13,7 +13,7 @@ enum DataLossGuard {
     private static let maxIncidentsKept = 10
 
     /// A detected loss event, persisted (not just logged) so it's visible
-    /// from inside the app itself — Settings → Data Safety — rather than
+    /// from inside the app itself (Settings → Data Safety) rather than
     /// only discoverable via Xcode's console at the exact moment it
     /// happens. That distinction matters a lot for a report of data
     /// disappearing hours into ordinary use with no Mac anywhere nearby.
@@ -75,7 +75,7 @@ enum DataLossGuard {
 
     /// First pass of the launch check: compares today's count against the
     /// last-known count, but does NOT record an incident or update the
-    /// baseline on a possible loss — the caller must confirm this a beat
+    /// baseline on a possible loss; the caller must confirm this a beat
     /// later with `confirmSuddenLoss` before treating it as real. A single,
     /// immediate read right at launch can catch the store mid-open, the
     /// same false-positive risk Social Climber's bridge fixed on its side;

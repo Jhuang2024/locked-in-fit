@@ -14,8 +14,8 @@ struct DataRecoveryView: View {
     @State private var showImporter = false
     @State private var resultMessage: String?
     @State private var confirmStartFresh = false
-    /// Every available backup — the local rotation plus the App Group
-    /// mirrors that survive reinstalls — sorted most-complete first, since
+    /// Every available backup (the local rotation plus the App Group
+    /// mirrors that survive reinstalls), sorted most-complete first, since
     /// after a wipe the newest backup is usually of the post-wipe state.
     @State private var backups: [BackupService.BackupInfo] = []
     @State private var checkingSharedContainer = false
@@ -64,7 +64,7 @@ struct DataRecoveryView: View {
                     Text("Restore from a backup")
                 } footer: {
                     if backups.count > 1 {
-                        Text("Sorted most-complete first. Pick the entry with the most records from before the data loss — not necessarily the newest one.")
+                        Text("Sorted most-complete first. Pick the entry with the most records from before the data loss, not necessarily the newest one.")
                     }
                 }
 
@@ -95,7 +95,7 @@ struct DataRecoveryView: View {
             .navigationTitle("Data Recovery")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                // This screen appears at launch right after a wipe — the
+                // This screen appears at launch right after a wipe: the
                 // exact moment the App Group lookup (kicked off in
                 // App.init) may still be in flight, and the shared-container
                 // mirrors are usually the only backups that survived. Keep
@@ -149,7 +149,7 @@ struct DataRecoveryView: View {
             resultMessage = "Restored \(count) records."
             finish()
         case .restored:
-            // A "successful" import that added zero records — the backup
+            // A "successful" import that added zero records: the backup
             // was itself empty. Leaves the screen up rather than resolving
             // into an app that's still empty, so the user still sees their
             // other options (a different backup, an exported file).
@@ -163,7 +163,7 @@ struct DataRecoveryView: View {
 
     /// Restores the most-complete backup the instant one is found, so a
     /// wipe with a good backup available never requires the user to notice
-    /// this screen and tap through it themselves — merge-only restore makes
+    /// this screen and tap through it themselves; merge-only restore makes
     /// this safe to do without confirmation, and the manual list stays
     /// visible underneath as a fallback for the rare case this doesn't
     /// resolve it (an unexpectedly-empty "best" backup, still awaiting a

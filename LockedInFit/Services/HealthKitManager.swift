@@ -107,7 +107,7 @@ final class HealthKitManager {
     /// The import deliberately runs on the MAIN context, on the main actor.
     /// A version of this briefly wrote from a background @ModelActor
     /// context instead, and the app started deadlocking permanently within
-    /// seconds of each background save — the main thread's next store
+    /// seconds of each background save: the main thread's next store
     /// interaction (any screen's queries on push) never returned, on two
     /// separate screens, with the hang watchdog confirming the stall began
     /// right after the background context's save each time. Cross-context
@@ -147,7 +147,7 @@ final class HealthKitManager {
         }
     }
 
-    // MARK: - Import (main context only — see sync() doc comment)
+    // MARK: - Import (main context only, see sync() doc comment)
 
     @MainActor
     private func importAll(steps: [(Date, Int)], activeEnergy: [(Date, Double)],

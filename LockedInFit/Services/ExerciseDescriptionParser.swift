@@ -21,7 +21,7 @@ struct ExerciseDraft {
     var targetRPE: Double = 8
     /// True when the draft is (or exactly matched) a built-in library exercise.
     var matchedLibrary: Bool
-    /// True when the draft matched a saved exercise preset by name — its
+    /// True when the draft matched a saved exercise preset by name; its
     /// saved prescription was used instead of a generic default or a fresh
     /// AI estimate for this exercise. See ExercisePresetSyncService.
     var matchedPreset: Bool = false
@@ -29,7 +29,7 @@ struct ExerciseDraft {
 
     /// A saved preset's own numbers win over both the generic library
     /// default (1 set × 8 reps, no weight) and a fresh AI estimate for the
-    /// same exercise name — a prescription you've already logged before is
+    /// same exercise name: a prescription you've already logged before is
     /// more trustworthy than a guess.
     static func from(preset: ExercisePreset) -> ExerciseDraft {
         ExerciseDraft(name: preset.name,

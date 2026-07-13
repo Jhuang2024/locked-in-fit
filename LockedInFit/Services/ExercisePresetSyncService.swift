@@ -7,7 +7,7 @@ import SwiftData
 /// automatically once the workout is saved, so presets build themselves up
 /// from real training instead of requiring a separate manual step.
 enum ExercisePresetSyncService {
-    /// Case-insensitive match on a normalized name — the one notion of
+    /// Case-insensitive match on a normalized name, the one notion of
     /// "already have this exercise" shared by both directions of the sync:
     /// skipping a duplicate preset add, and preferring a saved preset's own
     /// numbers over a fresh AI estimate for the same exercise. See

@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 /// Thin Keychain wrapper. Stores AI gateway API keys outside SwiftData/UserDefaults.
-/// Both OpenRouter and BazaarLink keys can be saved at once — see
+/// Both OpenRouter and BazaarLink keys can be saved at once: see
 /// AIGatewayClient, which tries OpenRouter first and falls back to
 /// BazaarLink, so either key alone (or both) keeps AI features working.
 enum KeychainService {
@@ -64,7 +64,7 @@ enum KeychainService {
         return key
     }
 
-    /// Whether AI features have anything to work with at all — either key
+    /// Whether AI features have anything to work with at all: either key
     /// alone is enough (see AIGatewayClient). Views use this instead of
     /// checking bazaarLinkAPIKey alone to gate AI-dependent UI.
     static var hasAnyAIKey: Bool {
