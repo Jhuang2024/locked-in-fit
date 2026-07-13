@@ -14,13 +14,13 @@ struct SleepDashboardView: View {
 
     private var latest: SleepLog? { logs.first }
     private var streak: Int { SleepScoringService.streak(history: logs) }
-    /// One entry per calendar night — a read-only view, nothing is deleted
-    /// from the store — so a leftover duplicate night (see
+    /// One entry per calendar night (a read-only view, nothing is deleted
+    /// from the store), so a leftover duplicate night (see
     /// SleepLogEntryView.save) can't double-count itself into the average
     /// or the Logs count. Recent Logs below intentionally still shows every
     /// individual entry, duplicates included, since that's where a genuine
     /// duplicate is visible and can be removed manually (swipe/long-press
-    /// to delete) — the one place deletion should be a deliberate choice,
+    /// to delete), the one place deletion should be a deliberate choice,
     /// not something this screen does on its own.
     private var distinctLogs: [SleepLog] { SleepScoringService.distinctNights(logs) }
     private var avgDurationHours: Double? {
@@ -386,7 +386,7 @@ struct SleepLogDetailView: View {
 
     /// Naps can help (up to +napBonusCap) or hurt (down to napPenaltyCap)
     /// instead of climbing toward one fixed max like the other rows, so this
-    /// shows how much of *that direction's* cap the nap contribution used —
+    /// shows how much of *that direction's* cap the nap contribution used:
     /// same "value / cap" bar as breakdownRow (identical ProgressView, same
     /// thickness), just green filling up toward the bonus cap or red filling
     /// up toward the penalty cap.
@@ -525,14 +525,14 @@ struct SleepLogEntryView: View {
     }
 
     private func save() {
-        // Always inserts a new log, on purpose — never overwrites an
+        // Always inserts a new log, on purpose: never overwrites an
         // existing one for the same calendar night. An earlier version of
         // this matched by night and updated in place, which sounds like a
         // convenience but is actually a silent, unconfirmed overwrite: it
         // destroyed a just-restored night's real data the moment a new log
         // happened to land on the same calendar day (e.g. an early-morning
         // entry). This app's rule is that nothing gets deleted or replaced
-        // without the user seeing it happen — see distinctNights, which
+        // without the user seeing it happen; see distinctNights, which
         // instead makes "latest"/average/count correct at display time
         // without ever mutating the store, and Recent Logs' manual delete
         // for genuinely resolving a duplicate.
@@ -610,7 +610,7 @@ struct NapLogEntryView: View {
         if let log = logs.first(where: { $0.date == day }) {
             // `naps` may already reflect the just-inserted nap (SwiftData's
             // @Query can update as soon as context.insert runs), so exclude
-            // it by uuid before appending rather than assuming it's absent —
+            // it by uuid before appending rather than assuming it's absent;
             // otherwise this nap gets counted twice.
             let sameDayNaps = naps.filter { $0.date == day && $0.uuid != nap.uuid } + [nap]
             SleepScoringService.recompute(log, history: logs, naps: sameDayNaps)

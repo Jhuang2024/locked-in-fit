@@ -21,7 +21,7 @@ struct SleepTrendsView: View {
     /// Forces the charts below to always span the full requested window
     /// (today back to `cutoff`), rather than auto-fitting to just the dates
     /// that happen to have logs. With only a couple of points, auto-fit
-    /// shrinks the domain to the gap between them — if that gap is under a
+    /// shrinks the domain to the gap between them: if that gap is under a
     /// day, Swift Charts' automatic axis then labels it by hour (12 AM, 6
     /// AM, ...) with no date shown at all, making two different, correctly
     /// dated nights unreadable as anything but "today-ish". A domain that
@@ -125,7 +125,7 @@ struct SleepTrendsView: View {
     /// Ticks always land exactly on a calendar-day boundary, at a stride
     /// chosen to land roughly 5 of them across the domain. `.automatic`
     /// picks evenly time-spaced ticks instead, which for a domain under
-    /// ~10 days lands more than one tick inside the same calendar day —
+    /// ~10 days lands more than one tick inside the same calendar day,
     /// with a day-only format that prints the same date twice in a row.
     /// A whole-day stride can't produce two ticks on the same day.
     private var axisDayStride: Int {

@@ -41,8 +41,8 @@ struct CalorieTrendsView: View {
     /// portion-underestimation allowance) minus what digesting it burns (TEF)
     /// and minus that day's activity burn: the figure that actually counts
     /// against the flat target, not raw logged intake. Activity uses the same
-    /// full model as the dashboard — Apple Health active energy or the
-    /// step+workout estimate, whichever is larger — so the two views agree.
+    /// full model as the dashboard (Apple Health active energy or the
+    /// step+workout estimate, whichever is larger) so the two views agree.
     private var caloriePoints: [DayPoint] {
         let eaten = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
         let tef = tefByDay

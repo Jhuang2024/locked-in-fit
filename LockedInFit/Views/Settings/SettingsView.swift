@@ -72,7 +72,7 @@ struct SettingsView: View {
     /// two can disagree and both need their own row.
     @State private var cachedMostRecentBackup: BackupService.BackupInfo?
     /// Loaded once on appear, same reasoning as cachedLatestBackup above.
-    /// Surfaces DataLossGuard's persisted incident log here — not gated to
+    /// Surfaces DataLossGuard's persisted incident log here, not gated to
     /// DEBUG: specifically so a data-loss event is visible from inside the
     /// app itself (with a timestamp and record counts) even on a build with
     /// no Mac/Xcode anywhere nearby when it happened.
