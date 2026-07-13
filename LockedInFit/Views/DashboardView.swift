@@ -402,7 +402,8 @@ struct DashboardView: View {
             nutritionTargetCalories: viewModel.calories.adjustedTarget,
             hasLoggedFoodToday: !todayMeals.isEmpty,
             dailyChecklistCompletion: completionRatio,
-            importantTasks: importantTasks)
+            importantTasks: importantTasks,
+            isSick: viewModel.isSickToday)
     }
 
     private static func publicTaskCategory(for category: ChecklistCategory) -> LockedInFitPublicContext.HealthTaskCategory {

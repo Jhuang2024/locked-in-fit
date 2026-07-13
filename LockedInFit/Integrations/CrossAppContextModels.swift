@@ -64,6 +64,8 @@ struct LockedInFitPublicContext: Codable {
         var calorieStatus: CalorieStatus
         var dailyChecklistCompletion: Double
         var importantHealthTasksDue: [HealthTask]
+        /// Whether "I'm sick today" is toggled on in LockedInFit.
+        var isSick: Bool
     }
 
     struct HealthTask: Codable, Identifiable {

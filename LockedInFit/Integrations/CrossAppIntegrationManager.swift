@@ -28,6 +28,7 @@ enum CrossAppIntegrationManager {
         /// Fraction (0...1) of today's due checklist items already completed.
         var dailyChecklistCompletion: Double
         var importantTasks: [ImportantTaskInput]
+        var isSick: Bool
     }
 
     struct ImportantTaskInput {
@@ -46,8 +47,12 @@ enum CrossAppIntegrationManager {
             updatedAt: now,
             today: .init(
                 sleepScore: input.sleepScore ?? 0,
-                energyLevel: energyLevel(forSleepScore: input.sleepScore),
-                recoveryStatus: recoveryStatus(forSleepScore: input.sleepScore),
+                // Sick overrides the sleep-derived read: a well-rested but
+                // sick day is still a low-energy, poor-recovery one, and this
+                // way older Social Climber builds that don't know `isSick`
+                // yet still get a sane signal from the fields they do read.
+                energyLevel: input.isSick ? .low : energyLevel(forSleepScore: input.sleepScore),
+                recoveryStatus: input.isSick ? .poor : recoveryStatus(forSleepScore: input.sleepScore),
                 workoutPlannedToday: input.workoutPlannedToday,
                 workoutCompletedToday: input.workoutCompletedToday,
                 nutritionStatus: nutritionStatus(input),
@@ -57,7 +62,8 @@ enum CrossAppIntegrationManager {
                     LockedInFitPublicContext.HealthTask(
                         id: $0.id, title: $0.title, category: $0.category,
                         priority: $0.overdue ? .high : .medium)
-                }))
+                },
+                isSick: input.isSick))
         return SharedContextStore.writeLockedInFitContext(snapshot)
     }
 
