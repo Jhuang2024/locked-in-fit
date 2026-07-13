@@ -178,6 +178,15 @@ enum CalorieRemainingCalculator {
     }
 }
 
+/// Tunables for how a sick day relaxes today's targets: fewer steps expected,
+/// a calorie cushion instead of a deficit, and today's training excused from
+/// the weekly streak so being sick doesn't tank the Locked In score.
+enum SickDayAdjustment {
+    static let stepTargetMultiplier = 0.3
+    static let minStepTarget = 1200
+    static let calorieAllowance = 150.0
+}
+
 struct DashboardViewModel {
     let nutrition: DailyNutritionSummary
     let activity: ActivityAdjustmentSummary
@@ -188,6 +197,7 @@ struct DashboardViewModel {
     let completedWorkoutsToday: Int
     let weeklyCalorieAverage: Double?
     let lockedInScore: Int
+    let isSickToday: Bool
 
     init(settings: UserSettings?,
          goal: Goal?,
@@ -197,12 +207,16 @@ struct DashboardViewModel {
          activeEnergy: [ActiveEnergyEntry],
          workouts: [Workout],
          date: Date = .now) {
+        let isSickToday = settings?.isSickToday ?? false
         let maintenance = settings.map {
             Analytics.estimateMaintenance(settings: $0, weights: weights, meals: meals, steps: steps)
         } ?? 2400
-        let baseTarget = goal?.calorieTarget ?? maintenance
+        let baseTarget = (goal?.calorieTarget ?? maintenance) + (isSickToday ? SickDayAdjustment.calorieAllowance : 0)
         let proteinTarget = goal?.proteinTarget ?? 140
-        let stepTarget = goal?.stepTarget ?? 8000
+        let rawStepTarget = goal?.stepTarget ?? 8000
+        let stepTarget = isSickToday
+            ? max(SickDayAdjustment.minStepTarget, Int(Double(rawStepTarget) * SickDayAdjustment.stepTargetMultiplier))
+            : rawStepTarget
         // Tracked step/workout energy is credited in full; the honesty lever now
         // lives on the food side (portion estimation) instead of discounting burn.
         let adjustmentMode = ExerciseCalorieAdjustment.full
@@ -242,6 +256,10 @@ struct DashboardViewModel {
         self.stepsToday = todaySteps
         self.completedWorkoutsToday = todayWorkouts
         self.weeklyCalorieAverage = Self.weeklyCalorieAverage(meals: meals, date: date)
+        self.isSickToday = isSickToday
+        // A sick day excuses today's session from the streak instead of
+        // wiping out the whole week's training credit.
+        let effectiveTrainedThisWeek = isSickToday ? workoutsThisWeek + 1 : workoutsThisWeek
         self.lockedInScore = Analytics.lockedInScore(
             todayCalories: calories.eaten,
             calorieTarget: calories.adjustedTarget,
@@ -249,7 +267,7 @@ struct DashboardViewModel {
             proteinTarget: proteinTarget,
             todaySteps: todaySteps,
             stepTarget: stepTarget,
-            trainedThisWeek: workoutsThisWeek,
+            trainedThisWeek: effectiveTrainedThisWeek,
             weeklyTrainingTarget: 4
         )
     }

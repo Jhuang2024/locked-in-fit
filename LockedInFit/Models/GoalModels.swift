@@ -96,6 +96,10 @@ final class UserSettings {
     /// dietary-limit and goal-achievement alerts fire once per day, not on
     /// every recalculation. Pruned to the last 2 days on write.
     var notifiedEventKeys: [String] = []
+    /// Set when "I'm sick today" is toggled on; cleared by toggling it off.
+    /// Only counts for the calendar day it was set (see `isSickToday`), so a
+    /// forgotten toggle doesn't silently relax goals on later days.
+    var sickDayDate: Date?
 
     var sex: BiologicalSex {
         get { BiologicalSex(rawValue: sexRaw) ?? .male }
@@ -120,6 +124,10 @@ final class UserSettings {
     var bodyReminderFrequency: BodyReminderFrequency {
         get { BodyReminderFrequency(rawValue: bodyReminderFrequencyRaw) ?? .off }
         set { bodyReminderFrequencyRaw = newValue.rawValue }
+    }
+    var isSickToday: Bool {
+        guard let sickDayDate else { return false }
+        return Calendar.current.isDate(sickDayDate, inSameDayAs: .now)
     }
 
     init() {}

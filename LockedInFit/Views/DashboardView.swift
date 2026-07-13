@@ -154,6 +154,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(spacing: 10) {
                 header
+                sickDayBanner
                 quickActions
                 checklistCard
                 calorieCard
@@ -306,6 +307,45 @@ struct DashboardView: View {
         }
         .padding(16)
         .cardBackground()
+    }
+
+    @ViewBuilder
+    private var sickDayBanner: some View {
+        if let settings {
+            if settings.isSickToday {
+                HStack(spacing: 10) {
+                    Image(systemName: "thermometer")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sick day").font(.subheadline.weight(.semibold))
+                        Text("Steps and calorie targets are relaxed, and today's training won't count against your streak.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("I'm better") { setSickDay(active: false, settings: settings) }
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.bordered)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            } else {
+                Button {
+                    actionTick += 1
+                    setSickDay(active: true, settings: settings)
+                } label: {
+                    Label("I'm sick today", systemImage: "thermometer")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+        }
+    }
+
+    private func setSickDay(active: Bool, settings: UserSettings) {
+        settings.sickDayDate = active ? .now : nil
     }
 
     private var quickActions: some View {
