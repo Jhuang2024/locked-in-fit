@@ -176,6 +176,19 @@ struct RootTabView: View {
                 DataLossGuard.checkForPossibleSuddenLoss(context: context)
             }) else {
                 dataLossDetected = false
+                // No sudden loss flagged, but the sudden-loss check needs a
+                // UserDefaults baseline, and a full container wipe erases
+                // that right along with the store. An empty store is its own
+                // signal: if any backup with records survived (usually the
+                // App Group mirrors), restore it automatically. Runs behind
+                // the normal UI: import is additive on the main context, so
+                // restored records appear live, and a genuinely fresh
+                // install finds no backups and changes nothing.
+                Task { @MainActor in
+                    if await BackupService.autoRestoreOnEmptyLaunch(context: context) > 0 {
+                        BackupService.scheduleBackupSoon(container: context.container)
+                    }
+                }
                 return
             }
             // A possible loss on the first read: confirm it a beat later

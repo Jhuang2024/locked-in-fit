@@ -130,6 +130,7 @@ struct DataRecoveryView: View {
             }
             .confirmationDialog("Start fresh with no data?", isPresented: $confirmStartFresh, titleVisibility: .visible) {
                 Button("Start Fresh", role: .destructive) {
+                    DataLossGuard.markFreshStartChosen()
                     DataLossGuard.acknowledge(context: context)
                     onResolved()
                 }

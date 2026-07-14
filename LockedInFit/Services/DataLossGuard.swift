@@ -10,6 +10,7 @@ import SwiftData
 enum DataLossGuard {
     private static let lastKnownRecordCountKey = "LockedInFit.lastKnownRecordCount"
     private static let incidentLogKey = "LockedInFit.dataLossIncidents"
+    private static let freshStartChosenKey = "LockedInFit.userChoseFreshStart"
     private static let maxIncidentsKept = 10
 
     /// A detected loss event, persisted (not just logged) so it's visible
@@ -85,11 +86,30 @@ enum DataLossGuard {
         let defaults = UserDefaults.standard
         let previous = defaults.integer(forKey: lastKnownRecordCountKey)
         let current = currentRecordCount(context: context)
+        if current > 0 {
+            // Real data exists again, so a past "start fresh" choice has
+            // served its purpose; clearing it re-arms the empty-launch
+            // auto-restore for any future wipe.
+            defaults.removeObject(forKey: freshStartChosenKey)
+        }
         guard previous > 0, current == 0 else {
             defaults.set(current, forKey: lastKnownRecordCountKey)
             return nil
         }
         return previous
+    }
+
+    /// True after the user explicitly picked "start fresh" on the recovery
+    /// screen. `BackupService.autoRestoreOnEmptyLaunch` checks this so an
+    /// empty store the user deliberately chose is never "repaired" by
+    /// resurrecting the very backup they walked away from. Cleared
+    /// automatically once data exists again (see above).
+    static var userChoseFreshStart: Bool {
+        UserDefaults.standard.bool(forKey: freshStartChosenKey)
+    }
+
+    static func markFreshStartChosen() {
+        UserDefaults.standard.set(true, forKey: freshStartChosenKey)
     }
 
     /// Second pass, called ~750ms after `checkForPossibleSuddenLoss`

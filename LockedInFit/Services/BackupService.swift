@@ -287,6 +287,50 @@ enum BackupService {
         (listBackups() + appGroupMirrorBackups()).max { $0.date < $1.date }
     }
 
+    /// Launch safety net for the wipe that erases EVERYTHING, UserDefaults
+    /// included. `DataLossGuard`'s sudden-loss check compares against a
+    /// last-known record count stored in UserDefaults, so a full container
+    /// replacement (reinstall, signing change) that wipes defaults along
+    /// with the store leaves that check nothing to compare against: the app
+    /// used to open silently empty even though the App Group mirrors had
+    /// survived with all the data. This checks the store itself instead:
+    /// empty at launch + any known backup with records = restore the most
+    /// complete backup automatically, no user action required. Import is
+    /// additive and the store is re-confirmed empty right before writing,
+    /// so there is nothing to overwrite and nothing to confirm.
+    ///
+    /// Waits (bounded, ~20s worst case) for the App Group lookup kicked off
+    /// in App.init, since after a full wipe the shared-container mirrors are
+    /// usually the only backups left; a genuinely fresh install resolves the
+    /// lookup quickly, finds no backups anywhere, and returns immediately.
+    /// Skipped entirely when the user explicitly chose "start fresh" on the
+    /// recovery screen, so deliberately abandoned data is never resurrected.
+    /// Returns the number of restored records; 0 means nothing was restored
+    /// (store not empty, fresh start chosen, or no usable backup found).
+    @MainActor
+    static func autoRestoreOnEmptyLaunch(context: ModelContext) async -> Int {
+        guard DataLossGuard.currentRecordCount(context: context) == 0,
+              !DataLossGuard.userChoseFreshStart else { return 0 }
+        AppGroupContainerLocator.beginResolvingContainer()
+        func bestUsableBackup() -> BackupInfo? { allKnownBackups().first { $0.recordCount > 0 } }
+        var best = bestUsableBackup()
+        var attempts = 0
+        while best == nil, attempts < 20 {
+            let state = AppGroupContainerLocator.lookupState
+            guard state == .checking || state == .notStarted else { break }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            attempts += 1
+            best = bestUsableBackup()
+        }
+        guard let backup = best,
+              DataLossGuard.currentRecordCount(context: context) == 0,
+              case .restored(let count) = restore(from: backup, context: context, currentRecordCount: 0),
+              count > 0 else { return 0 }
+        PerfLog.event("backup.autoRestoredOnEmptyLaunch: \(count) records")
+        DataLossGuard.acknowledge(context: context)
+        return count
+    }
+
     /// Restores a backup into `context`. Import is always additive (never
     /// deletes existing rows), so the only real guard needed is refusing to
     /// "restore" an empty backup onto a database that already has data,
