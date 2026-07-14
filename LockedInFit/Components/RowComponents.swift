@@ -30,6 +30,7 @@ struct MealRowView: View {
                             .font(.caption.bold())
                             .foregroundStyle(.orange)
                     }
+                    StarRatingBadge(rating: meal.rating)
                 }
                 Text(meal.items.isEmpty ? (meal.notes.isEmpty ? "Manual entry" : meal.notes) : meal.items.map(\.name).joined(separator: ", "))
                     .font(.caption)
@@ -105,8 +106,11 @@ struct FoodPresetRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(preset.name)
-                    .font(.subheadline.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(preset.name)
+                        .font(.subheadline.weight(.medium))
+                    StarRatingBadge(rating: preset.rating)
+                }
                 Text("\(preset.serving) · P\(Int(preset.protein)) C\(Int(preset.carbs)) F\(Int(preset.fat))")
                     .font(.caption)
                     .foregroundStyle(.secondary)

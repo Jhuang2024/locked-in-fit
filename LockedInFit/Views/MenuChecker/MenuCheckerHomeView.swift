@@ -12,6 +12,7 @@ struct MenuCheckerHomeView: View {
     @Query private var cartLines: [CartLine]
     @Query(sort: \SavedRestaurantRecord.savedAt, order: .reverse) private var savedRestaurants: [SavedRestaurantRecord]
     @Query(sort: \SavedMenuItemRecord.savedAt, order: .reverse) private var savedItems: [SavedMenuItemRecord]
+    @Query private var itemRatings: [MenuItemRatingRecord]
     @Query(sort: \RecentRestaurantRecord.viewedAt, order: .reverse) private var recents: [RecentRestaurantRecord]
 
     @ObservedObject private var location = LocationService.shared
@@ -252,7 +253,10 @@ struct MenuCheckerHomeView: View {
                                 HStack {
                                     Image(systemName: "bookmark.fill").foregroundStyle(.tint)
                                     VStack(alignment: .leading) {
-                                        Text(item.name).font(.subheadline.weight(.semibold))
+                                        HStack(spacing: 6) {
+                                            Text(item.name).font(.subheadline.weight(.semibold))
+                                            StarRatingBadge(rating: FoodRatingService.rating(for: item, in: itemRatings))
+                                        }
                                         Text(record.restaurantName).font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer()

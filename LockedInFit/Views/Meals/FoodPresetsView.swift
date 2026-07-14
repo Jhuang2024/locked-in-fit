@@ -7,26 +7,66 @@ struct FoodPresetsView: View {
     @State private var search = ""
     @State private var editing: FoodPreset?
     @State private var showNew = false
+    @State private var sort: PresetSort = .name
+
+    enum PresetSort: String, CaseIterable, Identifiable {
+        case name, rating
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .name: return "Name"
+            case .rating: return "Highest rated"
+            }
+        }
+    }
+
+    private var filtered: [FoodPreset] {
+        search.isEmpty ? presets : presets.filter { $0.name.localizedCaseInsensitiveContains(search) }
+    }
 
     private var grouped: [(category: String, items: [FoodPreset])] {
-        let filtered = search.isEmpty ? presets : presets.filter { $0.name.localizedCaseInsensitiveContains(search) }
-        return Dictionary(grouping: filtered, by: \.category)
+        Dictionary(grouping: filtered, by: \.category)
             .map { (category: $0.key, items: $0.value) }
             .sorted { $0.category < $1.category }
     }
 
+    /// Rating sort is a single flat list (rated first, best on top, ties by
+    /// name); category sections would bury a 5-star food in whatever group it
+    /// happens to live in, which defeats the point of the sort.
+    private var byRating: [FoodPreset] {
+        filtered.sorted {
+            if $0.rating != $1.rating { return $0.rating > $1.rating }
+            return $0.name < $1.name
+        }
+    }
+
     var body: some View {
         List {
-            ForEach(grouped, id: \.category) { group in
-                Section(group.category) {
-                    ForEach(group.items) { preset in
+            switch sort {
+            case .name:
+                ForEach(grouped, id: \.category) { group in
+                    Section(group.category) {
+                        ForEach(group.items) { preset in
+                            Button { editing = preset } label: {
+                                FoodPresetRowView(preset: preset)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .onDelete { offsets in
+                            for index in offsets { context.delete(group.items[index]) }
+                        }
+                    }
+                }
+            case .rating:
+                Section("Highest rated first") {
+                    ForEach(byRating) { preset in
                         Button { editing = preset } label: {
                             FoodPresetRowView(preset: preset)
                         }
                         .buttonStyle(.plain)
                     }
                     .onDelete { offsets in
-                        for index in offsets { context.delete(group.items[index]) }
+                        for index in offsets { context.delete(byRating[index]) }
                     }
                 }
             }
@@ -34,6 +74,14 @@ struct FoodPresetsView: View {
         .searchable(text: $search)
         .navigationTitle("Food Presets")
         .toolbar {
+            Menu {
+                Picker("Sort", selection: $sort) {
+                    ForEach(PresetSort.allCases) { Text($0.label).tag($0) }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+            .accessibilityLabel("Sort presets")
             Button { showNew = true } label: { Image(systemName: "plus") }
         }
         .sheet(item: $editing) { preset in
@@ -62,6 +110,7 @@ struct PresetEditorView: View {
     @State private var category = "General"
     @State private var notes = ""
     @State private var cookingMethod: CookingMethod = .unknown
+    @State private var rating = 0
 
     var body: some View {
         NavigationStack {
@@ -86,6 +135,13 @@ struct PresetEditorView: View {
                     Text("Nutrition per serving")
                 } footer: {
                     Text("Weight is what makes this preset reusable at other portion sizes: when a logged meal's amount differs from this weight, the calories and macros above are scaled proportionally instead of applied as-is.")
+                }
+                Section {
+                    StarRatingView(rating: $rating)
+                } header: {
+                    Text("Your Rating")
+                } footer: {
+                    Text("Rated foods can be sorted to the top of this list.")
                 }
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
@@ -126,6 +182,7 @@ struct PresetEditorView: View {
         protein = preset.protein; carbs = preset.carbs; fat = preset.fat
         fiber = preset.fiber; sodium = preset.sodium; category = preset.category
         notes = preset.notes; cookingMethod = preset.cookingMethod
+        rating = preset.rating
     }
 
     private func save() {
@@ -145,11 +202,14 @@ struct PresetEditorView: View {
             preset.protein = protein; preset.carbs = carbs; preset.fat = fat
             preset.fiber = fiber; preset.sodium = sodium; preset.category = resolvedCategory
             preset.notes = notes; preset.cookingMethod = cookingMethod
+            preset.rating = FoodRatingService.clamped(rating)
         } else {
-            context.insert(FoodPreset(name: cleanName, serving: serving, referenceGrams: referenceGrams,
-                                      calories: calories, protein: protein, carbs: carbs, fat: fat,
-                                      fiber: fiber, sodium: sodium, category: resolvedCategory,
-                                      notes: notes, cookingMethod: cookingMethod))
+            let new = FoodPreset(name: cleanName, serving: serving, referenceGrams: referenceGrams,
+                                 calories: calories, protein: protein, carbs: carbs, fat: fat,
+                                 fiber: fiber, sodium: sodium, category: resolvedCategory,
+                                 notes: notes, cookingMethod: cookingMethod)
+            new.rating = FoodRatingService.clamped(rating)
+            context.insert(new)
         }
         dismiss()
     }

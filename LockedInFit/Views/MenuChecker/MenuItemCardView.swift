@@ -10,6 +10,9 @@ struct MenuItemCardView: View {
     let item: MenuItem
     let restaurantName: String
     let profile: ScoringProfile
+    /// The user's saved star rating for this item (0 = unrated); looked up by
+    /// the parent so a list of cards costs one ratings query, not one each.
+    var rating: Int = 0
     var onAdded: (() -> Void)? = nil
 
     @State private var justAdded = false
@@ -48,6 +51,7 @@ struct MenuItemCardView: View {
                     HealthChip(score: resolved.healthScore)
                     SatietyChip(score: resolved.satietyScore)
                     NutritionSourceBadge(kind: resolved.sourceKind, compact: true)
+                    StarRatingBadge(rating: rating)
                     Spacer()
                     Button {
                         CartManager.add(resolved, restaurantName: restaurantName, context: context)

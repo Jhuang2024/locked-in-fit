@@ -36,6 +36,9 @@ final class MealLog {
     /// Missing on entries logged before this feature existed; defaults to
     /// .notAnalyzed so old rows just show "Not analyzed" instead of crashing.
     var analysisStateRaw: String = MealAnalysisState.notAnalyzed.rawValue
+    /// The user's own 1–5 star rating of this meal; 0 = not rated yet.
+    /// Additive with a default, per the migration policy in LockedInFitApp.
+    var rating: Int = 0
 
     var mealType: MealType {
         get { MealType(rawValue: mealTypeRaw) ?? .snack }
@@ -209,6 +212,9 @@ final class FoodPreset {
     var category: String = "General"
     var notes: String = ""
     var cookingMethodRaw: String = CookingMethod.unknown.rawValue
+    /// The user's own 1–5 star rating of this food; 0 = not rated yet.
+    /// Additive with a default, per the migration policy in LockedInFitApp.
+    var rating: Int = 0
 
     var cookingMethod: CookingMethod {
         get { CookingMethod(rawValue: cookingMethodRaw) ?? .unknown }

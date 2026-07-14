@@ -22,6 +22,7 @@ struct MenuItemDetailView: View {
     let editingLine: CartLine?
 
     @Query private var savedItems: [SavedMenuItemRecord]
+    @Query private var itemRatings: [MenuItemRatingRecord]
     @Query private var settingsList: [UserSettings]
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
@@ -57,6 +58,7 @@ struct MenuItemDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 scoreStrip
+                ratingCard
                 nutritionCard
                 oilCard
                 if !item.modifications.isEmpty { modificationsCard }
@@ -120,6 +122,28 @@ struct MenuItemDetailView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground()
+    }
+
+    /// The user's own star rating for this dish. Saved per restaurant + dish
+    /// (see MenuItemRatingRecord), so it's still there after a menu refresh
+    /// and powers the menu's "My rating" sort.
+    private var ratingCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: "Your Rating")
+            StarRatingView(rating: ratingBinding)
+            Text("Rate this after eating it: the menu can then sort by your ratings so your favorites here are easy to find again.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).cardBackground()
+    }
+
+    private var ratingBinding: Binding<Int> {
+        Binding(
+            get: { FoodRatingService.rating(for: item, in: itemRatings) },
+            set: { newValue in
+                FoodRatingService.setRating(newValue, for: item, restaurantName: restaurantName,
+                                            records: itemRatings, context: context)
+            })
     }
 
     private var nutritionCard: some View {

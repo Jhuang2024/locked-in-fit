@@ -6,6 +6,7 @@ struct MealDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var settingsList: [UserSettings]
+    @Query private var presets: [FoodPreset]
     @Bindable var meal: MealLog
     @State private var confirmDelete = false
     /// Loaded once on appear instead of decoded from disk inside the body:
@@ -47,6 +48,14 @@ struct MealDetailView: View {
                 Text(meal.honestSummary)
                     .font(.callout.weight(.semibold))
                 ConfidenceBadge(confidence: meal.confidence)
+            }
+
+            Section {
+                StarRatingView(rating: ratingBinding)
+            } header: {
+                Text("Your Rating")
+            } footer: {
+                Text("How good was this food? Ratings also apply to the matching food presets, so your favorites sort to the top when logging again.")
             }
 
             Section("Nutrition Analysis") {
@@ -114,6 +123,18 @@ struct MealDetailView: View {
                 dismiss()
             }
         }
+    }
+
+    /// Writing through this binding (instead of $meal.rating directly) is what
+    /// carries a meal rating over to the presets for the foods in it: see
+    /// FoodRatingService.syncPresetRatings.
+    private var ratingBinding: Binding<Int> {
+        Binding(
+            get: { meal.rating },
+            set: { newValue in
+                meal.rating = FoodRatingService.clamped(newValue)
+                FoodRatingService.syncPresetRatings(from: meal, presets: presets)
+            })
     }
 
     /// Recomputes the meal's totals from its food items, same as

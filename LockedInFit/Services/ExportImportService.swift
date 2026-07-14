@@ -32,6 +32,7 @@ enum ExportImportService {
         var appearanceSuggestions: [AppearanceSuggestionDTO] = []
         var workoutSchedules: [WorkoutScheduleDTO] = []
         var healthScans: [HealthScanDTO] = []
+        var menuItemRatings: [MenuItemRatingDTO] = []
         var userSettings: [UserSettingsDTO] = []
 
         init() {}
@@ -39,7 +40,7 @@ enum ExportImportService {
         private enum CodingKeys: String, CodingKey {
             case exportedAt, meals, presets, weights, bodyFats, measurements, steps, activeEnergy,
                  goals, workouts, exercisePresets, progressPhotos, checklistItems, sleepLogs, napLogs, strengthScores,
-                 appearanceCheckIns, appearanceSuggestions, workoutSchedules, healthScans, userSettings
+                 appearanceCheckIns, appearanceSuggestions, workoutSchedules, healthScans, menuItemRatings, userSettings
         }
 
         init(from decoder: Decoder) throws {
@@ -64,6 +65,7 @@ enum ExportImportService {
             appearanceSuggestions = (try? c.decode([AppearanceSuggestionDTO].self, forKey: .appearanceSuggestions)) ?? []
             workoutSchedules = (try? c.decode([WorkoutScheduleDTO].self, forKey: .workoutSchedules)) ?? []
             healthScans = (try? c.decode([HealthScanDTO].self, forKey: .healthScans)) ?? []
+            menuItemRatings = (try? c.decode([MenuItemRatingDTO].self, forKey: .menuItemRatings)) ?? []
             userSettings = (try? c.decode([UserSettingsDTO].self, forKey: .userSettings)) ?? []
         }
 
@@ -76,7 +78,7 @@ enum ExportImportService {
                 + progressPhotos.count
                 + checklistItems.count + sleepLogs.count + napLogs.count + strengthScores.count
                 + appearanceCheckIns.count + appearanceSuggestions.count + workoutSchedules.count
-                + healthScans.count
+                + healthScans.count + menuItemRatings.count
         }
     }
 
@@ -86,6 +88,8 @@ enum ExportImportService {
         var confidence: Double; var calorieLow: Double; var calorieHigh: Double
         var hiddenOilLow: Double; var hiddenOilHigh: Double; var notes: String
         var foodItems: [ItemDTO]
+        // Optional so snapshots exported before ratings existed still decode.
+        var rating: Int?
 
         struct ItemDTO: Codable {
             var name: String; var grams: Double; var calories: Double; var protein: Double
@@ -100,14 +104,15 @@ enum ExportImportService {
         var protein: Double
         var carbs: Double; var fat: Double; var fiber: Double; var sodium: Double
         var category: String; var notes: String; var cookingMethod: String
+        var rating: Int = 0
 
         init(name: String, serving: String, referenceGrams: Double, calories: Double, protein: Double,
              carbs: Double, fat: Double, fiber: Double, sodium: Double, category: String, notes: String,
-             cookingMethod: String) {
+             cookingMethod: String, rating: Int) {
             self.name = name; self.serving = serving; self.referenceGrams = referenceGrams
             self.calories = calories; self.protein = protein; self.carbs = carbs; self.fat = fat
             self.fiber = fiber; self.sodium = sodium; self.category = category; self.notes = notes
-            self.cookingMethod = cookingMethod
+            self.cookingMethod = cookingMethod; self.rating = rating
         }
 
         // `referenceGrams` postdates this DTO: a backup exported before it
@@ -129,6 +134,8 @@ enum ExportImportService {
             category = try c.decode(String.self, forKey: .category)
             notes = try c.decode(String.self, forKey: .notes)
             cookingMethod = try c.decode(String.self, forKey: .cookingMethod)
+            // Same additive-field rule as referenceGrams above.
+            rating = try c.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         }
     }
 
@@ -244,6 +251,11 @@ enum ExportImportService {
         var concerningIngredients: [String]; var notes: String
     }
 
+    struct MenuItemRatingDTO: Codable {
+        var key: String; var itemID: String; var restaurantID: String; var itemName: String
+        var restaurantName: String; var rating: Int; var updatedAt: Date
+    }
+
     /// Every field mirrors a UserSettings raw-storage property directly (not
     /// the friendly computed enum wrapper), so this stays correct even if a
     /// future enum gains cases this build doesn't know about yet.
@@ -279,13 +291,20 @@ enum ExportImportService {
                               carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber, sodium: $0.sodium,
                               cookingMethod: $0.cookingMethodRaw, confidence: $0.confidence,
                               fromPreset: $0.fromPreset)
-                    })
+                    },
+                    rating: meal.rating)
         }
         snapshot.presets = try context.fetch(FetchDescriptor<FoodPreset>()).map {
             PresetDTO(name: $0.name, serving: $0.serving, referenceGrams: $0.referenceGrams,
                       calories: $0.calories, protein: $0.protein,
                       carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber, sodium: $0.sodium,
-                      category: $0.category, notes: $0.notes, cookingMethod: $0.cookingMethodRaw)
+                      category: $0.category, notes: $0.notes, cookingMethod: $0.cookingMethodRaw,
+                      rating: $0.rating)
+        }
+        snapshot.menuItemRatings = try context.fetch(FetchDescriptor<MenuItemRatingRecord>()).map {
+            MenuItemRatingDTO(key: $0.key, itemID: $0.itemID, restaurantID: $0.restaurantID,
+                              itemName: $0.itemName, restaurantName: $0.restaurantName,
+                              rating: $0.rating, updatedAt: $0.updatedAt)
         }
         snapshot.weights = try context.fetch(FetchDescriptor<BodyWeightEntry>()).map {
             WeightDTO(date: $0.date, weightKg: $0.weightKg, source: $0.sourceRaw)
@@ -525,6 +544,7 @@ enum ExportImportService {
                                             confidence: item.confidence, order: index,
                                             fromPreset: item.fromPreset ?? false)
                                })
+            meal.rating = m.rating ?? 0
             context.insert(meal); count += 1
         }
         var existingPresetSignatures = Set((try? context.fetch(FetchDescriptor<FoodPreset>()))?.map {
@@ -534,10 +554,21 @@ enum ExportImportService {
             let signature = "\(p.name)|\(p.serving)|\(p.calories)"
             guard !existingPresetSignatures.contains(signature) else { continue }
             existingPresetSignatures.insert(signature)
-            context.insert(FoodPreset(name: p.name, serving: p.serving, referenceGrams: p.referenceGrams,
-                                      calories: p.calories, protein: p.protein, carbs: p.carbs, fat: p.fat,
-                                      fiber: p.fiber, sodium: p.sodium, category: p.category, notes: p.notes,
-                                      cookingMethod: CookingMethod(rawValue: p.cookingMethod) ?? .unknown))
+            let preset = FoodPreset(name: p.name, serving: p.serving, referenceGrams: p.referenceGrams,
+                                    calories: p.calories, protein: p.protein, carbs: p.carbs, fat: p.fat,
+                                    fiber: p.fiber, sodium: p.sodium, category: p.category, notes: p.notes,
+                                    cookingMethod: CookingMethod(rawValue: p.cookingMethod) ?? .unknown)
+            preset.rating = p.rating
+            context.insert(preset)
+            count += 1
+        }
+        var existingRatingKeys = Set((try? context.fetch(FetchDescriptor<MenuItemRatingRecord>()))?.map(\.key) ?? [])
+        for r in snapshot.menuItemRatings {
+            guard !r.key.isEmpty, r.rating > 0, !existingRatingKeys.contains(r.key) else { continue }
+            existingRatingKeys.insert(r.key)
+            context.insert(MenuItemRatingRecord(key: r.key, itemID: r.itemID, restaurantID: r.restaurantID,
+                                                itemName: r.itemName, restaurantName: r.restaurantName,
+                                                rating: r.rating, updatedAt: r.updatedAt))
             count += 1
         }
         var existingWeightSignatures = Set((try? context.fetch(FetchDescriptor<BodyWeightEntry>()))?.map {

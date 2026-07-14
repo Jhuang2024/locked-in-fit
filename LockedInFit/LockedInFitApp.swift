@@ -51,7 +51,8 @@ struct LockedInFitApp: App {
                     AppearanceCheckIn.self, AppearanceSuggestion.self, DailyChecklistItem.self,
                     WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
                     SleepLog.self, NapLog.self,
-                    CartLine.self, SavedRestaurantRecord.self, SavedMenuItemRecord.self, RecentRestaurantRecord.self)
+                    CartLine.self, SavedRestaurantRecord.self, SavedMenuItemRecord.self, RecentRestaurantRecord.self,
+                    MenuItemRatingRecord.self)
             }
         } catch {
             fatalError("Failed to create model container: \(error)")

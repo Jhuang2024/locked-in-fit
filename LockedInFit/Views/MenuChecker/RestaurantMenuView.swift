@@ -10,6 +10,7 @@ struct RestaurantMenuView: View {
     @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @Query private var cartLines: [CartLine]
     @Query private var savedRestaurants: [SavedRestaurantRecord]
+    @Query private var itemRatings: [MenuItemRatingRecord]
 
     let restaurant: Restaurant
     var origin: GeoPoint?
@@ -30,11 +31,12 @@ struct RestaurantMenuView: View {
 
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     enum MenuSort: String, CaseIterable, Identifiable {
-        case recommended, calories, protein, price, name
+        case recommended, rating, calories, protein, price, name
         var id: String { rawValue }
         var label: String {
             switch self {
             case .recommended: return "Health"
+            case .rating: return "My rating"
             case .calories: return "Calories"
             case .protein: return "Protein"
             case .price: return "Price"
@@ -240,6 +242,10 @@ struct RestaurantMenuView: View {
         return result
     }
 
+    private func ratingFor(_ item: MenuItem) -> Int {
+        FoodRatingService.rating(for: item, in: itemRatings)
+    }
+
     private func sorted(_ list: [MenuItem]) -> [MenuItem] {
         switch sort {
         case .name: return list.sorted { $0.name < $1.name }
@@ -248,6 +254,14 @@ struct RestaurantMenuView: View {
             let scored = list.map { ($0, MenuItemResolver.resolve(item: $0, profile: profile)) }
             switch sort {
             case .recommended: return scored.sorted { $0.1.healthScore > $1.1.healthScore }.map(\.0)
+            case .rating:
+                // Highest rated first; unrated items fall back to health order
+                // so the tail of the list stays useful rather than arbitrary.
+                return scored.sorted {
+                    let l = ratingFor($0.0), r = ratingFor($1.0)
+                    if l != r { return l > r }
+                    return $0.1.healthScore > $1.1.healthScore
+                }.map(\.0)
             case .calories: return scored.sorted { $0.1.perUnit.calories < $1.1.perUnit.calories }.map(\.0)
             case .protein: return scored.sorted { $0.1.perUnit.protein > $1.1.perUnit.protein }.map(\.0)
             default: return list
@@ -269,7 +283,8 @@ struct RestaurantMenuView: View {
                             .font(.headline)
                         ForEach(categoryItems) { item in
                             NavigationLink(value: MenuRoute.item(item, restaurant.name)) {
-                                MenuItemCardView(item: item, restaurantName: restaurant.name, profile: profile)
+                                MenuItemCardView(item: item, restaurantName: restaurant.name, profile: profile,
+                                                 rating: ratingFor(item))
                             }
                             .buttonStyle(.plain)
                         }

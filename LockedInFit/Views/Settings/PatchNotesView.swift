@@ -5,6 +5,15 @@ struct PatchNotesView: View {
     var body: some View {
         List {
             Section {
+                releaseHeader("Food Ratings", version: "1.2")
+                note("star.fill", "Rate your food",
+                     "Give anything you eat a 1–5 star rating: logged meals (in the meal's detail screen), food presets, and restaurant dishes in Menu Checker. Tap a star again to clear a rating.")
+                note("arrow.up.arrow.down", "Sort by your ratings",
+                     "Food Presets and every Menu Checker menu can now sort by highest rating, so your proven favorites float to the top when you're deciding what to eat or log again.")
+                note("link", "Ratings flow through the app",
+                     "Rating a logged meal also rates the matching food presets for the foods in it. Menu Checker ratings are saved per restaurant and dish, survive menu refreshes, and are included in backups and JSON export/import like the rest of your data.")
+            }
+            Section {
                 releaseHeader("Menu Checker", version: "1.1")
                 note("menucard.fill", "Menu Checker",
                      "Discover restaurants near you or anywhere in the world, browse their menus, and see estimated nutrition, a Health Score, and a Satiety Score for every item. List and map views, distance, cuisine, open-now, price, average menu health, and whether official nutrition is available. Search by name, cuisine, dish, address, city, or country, set a manual city, and keep saved restaurants, saved items, and recently viewed.")
