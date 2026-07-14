@@ -130,6 +130,7 @@ struct CalorieTrendsView: View {
                             RuleMark(x: .value("Selected day", point.date, unit: .day))
                                 .foregroundStyle(.secondary.opacity(0.45))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .zIndex(10)
                                 .annotation(
                                     position: .top,
                                     spacing: 4,
@@ -161,6 +162,7 @@ struct CalorieTrendsView: View {
                             RuleMark(x: .value("Selected day", point.date, unit: .day))
                                 .foregroundStyle(.secondary.opacity(0.45))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .zIndex(10)
                                 .annotation(
                                     position: .top,
                                     spacing: 4,
@@ -200,6 +202,7 @@ struct CalorieTrendsView: View {
                             RuleMark(x: .value("Selected day", point.date, unit: .day))
                                 .foregroundStyle(.secondary.opacity(0.45))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .zIndex(10)
                                 .annotation(
                                     position: .top,
                                     spacing: 4,
@@ -236,6 +239,7 @@ struct CalorieTrendsView: View {
                             RuleMark(x: .value("Selected day", point.date, unit: .day))
                                 .foregroundStyle(.secondary.opacity(0.45))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .zIndex(10)
                                 .annotation(
                                     position: .top,
                                     spacing: 4,

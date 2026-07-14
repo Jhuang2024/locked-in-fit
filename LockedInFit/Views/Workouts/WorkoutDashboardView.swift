@@ -127,6 +127,7 @@ struct WorkoutDashboardView: View {
                                 RuleMark(x: .value("Selected week", point.week, unit: .weekOfYear))
                                     .foregroundStyle(.secondary.opacity(0.45))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .zIndex(10)
                                     .annotation(
                                         position: .top,
                                         spacing: 4,

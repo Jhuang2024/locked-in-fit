@@ -63,6 +63,7 @@ struct StrengthScoresView: View {
                             RuleMark(y: .value("Selected movement", score.movement.label))
                                 .foregroundStyle(.secondary.opacity(0.45))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .zIndex(10)
                                 .annotation(
                                     position: .trailing,
                                     spacing: 4,

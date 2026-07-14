@@ -132,6 +132,7 @@ struct AppearanceTrendsView: View {
                         RuleMark(x: .value("Selected date", point.date))
                             .foregroundStyle(.secondary.opacity(0.45))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            .zIndex(10)
                             .annotation(
                                 position: .top,
                                 spacing: 4,
@@ -175,6 +176,7 @@ struct AppearanceTrendsView: View {
                     RuleMark(x: .value("Selected date", checkIn.date))
                         .foregroundStyle(.secondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .zIndex(10)
                         .annotation(
                             position: .top,
                             spacing: 4,

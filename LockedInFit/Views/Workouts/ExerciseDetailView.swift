@@ -60,6 +60,7 @@ struct ExerciseDetailView: View {
                                 RuleMark(x: .value("Selected date", session.date))
                                     .foregroundStyle(.secondary.opacity(0.45))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .zIndex(10)
                                     .annotation(
                                         position: .top,
                                         spacing: 4,
@@ -93,6 +94,7 @@ struct ExerciseDetailView: View {
                                 RuleMark(x: .value("Selected date", session.date))
                                     .foregroundStyle(.secondary.opacity(0.45))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .zIndex(10)
                                     .annotation(
                                         position: .top,
                                         spacing: 4,
