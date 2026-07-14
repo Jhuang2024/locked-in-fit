@@ -404,7 +404,7 @@ struct SettingsView: View {
         } header: {
             Text("Local Backups")
         } footer: {
-            Text("Backups are separate from the export file above: up to \(BackupService.maxBackupsKept) rotate on this device, the most complete one is never rotated out, and each backup is also mirrored to the shared App Group container so it survives app updates. Restoring merges records back in without deleting anything.")
+            Text("Backups are separate from the export file above: up to \(BackupService.maxBackupsKept) rotate on this device, the most complete one is never rotated out, and each backup is also mirrored to the shared App Group container so it survives app updates. Backup Now records your current data as the most complete backup. Restoring merges records back in without deleting anything.")
         }
     }
 

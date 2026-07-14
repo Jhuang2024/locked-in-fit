@@ -14,6 +14,8 @@ struct PatchNotesView: View {
                      "Logged meals, food presets, and Menu Checker dishes each keep their own separate star rating; rating one never changes another. Menu Checker ratings are saved per restaurant and dish, survive menu refreshes, and are included in backups and JSON export/import like the rest of your data.")
                 note("clock.arrow.circlepath", "Automatic backup recovery",
                      "If LockedInFit ever launches to find no data at all, it now automatically restores your most complete backup, including the shared-container backups that survive reinstalls, with no taps required.")
+                note("externaldrive.badge.checkmark", "Backup Now sets the record",
+                     "Tapping Backup Now records your current data as the most complete backup, so the stat always reflects the backup you just took instead of staying stuck on an older, larger one. Older backups remain in the restore list until they rotate out normally.")
                 note("heart.text.square", "Health & Satiety sorting everywhere",
                      "Food presets now carry the same Health and Satiety Scores as Menu Checker items (computed with the identical calculators) and can be sorted by either. Restaurant menus add a Satiety sort next to Health, and the restaurant list itself can be sorted by average menu Health or Satiety Score, filled in automatically for any restaurant whose menu has been seen.")
             }

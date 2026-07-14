@@ -37,6 +37,21 @@ enum BackupService {
     static let minimumAutomaticInterval: TimeInterval = 5 * 60
     fileprivate static let lastAutomaticBackupKey = "LockedInFit.lastAutomaticBackupDate"
     private static let lastBackupHashKey = "LockedInFit.lastBackupContentHash"
+    private static let manualBaselineDateKey = "LockedInFit.manualBackupBaselineDate"
+
+    /// Set every time the user explicitly taps "Backup Now": that tap is the
+    /// user asserting the app's CURRENT data is the source of truth, so
+    /// backups from before it (however large their record counts) stop
+    /// headlining the "Most complete backup" stat and stop being pinned by
+    /// rotation. Without this reference point, one old backup with an
+    /// inflated count (an additive restore that duplicated records, or data
+    /// the user has since deliberately deleted) outranks every backup taken
+    /// after it FOREVER, and no amount of tapping Backup Now can ever move
+    /// the stat. Superseded backups aren't deleted: they stay in the restore
+    /// pickers until rotation ages them out normally.
+    private static var manualBaselineDate: Date? {
+        UserDefaults.standard.object(forKey: manualBaselineDateKey) as? Date
+    }
 
     struct BackupInfo: Identifiable {
         enum Location {
@@ -135,7 +150,7 @@ enum BackupService {
             PerfLog.event("backup.background.expired")
         }
         Task.detached(priority: .utility) {
-            _ = await BackupCoordinator.shared.backupManually(container: container)
+            _ = await BackupCoordinator.shared.backupImmediately(container: container)
             token.end()
         }
     }
@@ -147,14 +162,18 @@ enum BackupService {
     /// backup's URL handed back, nothing written); callers use that to
     /// decide whether the throttle clock should reset.
     ///
-    /// `forceFreshTimestamp` only matters on the dedupe path: when true, the
-    /// existing (content-identical) backup's index entry is bumped to now
-    /// instead of left untouched. Only the explicit manual "Backup Now" tap
-    /// sets this: the user asked for a backup right now and expects to see
-    /// that confirmed, whereas an automatic/background trigger with nothing
-    /// new to capture should stay silent so "Latest backup" keeps meaning
-    /// "when data was last actually captured," not "when the app last woke up."
-    static func performBackup(context: ModelContext, forceFreshTimestamp: Bool = false) -> (url: URL?, wrote: Bool) {
+    /// `manual` is true only for the explicit "Backup Now" tap, which does
+    /// two things an automatic/background trigger never does. First, it
+    /// promotes the resulting snapshot to the canonical most-complete
+    /// backup (see `manualBaselineDate`): the user asked for a backup of
+    /// what's in the app right now, and expects the "Most complete backup"
+    /// stat to record exactly that, not stay pinned to some larger, staler
+    /// backup from before. Second, on the dedupe path (content identical to
+    /// the last backup, nothing written) it bumps the existing backup's
+    /// index entry to now, so the tap is still visibly confirmed, whereas an
+    /// automatic trigger with nothing new stays silent so "Latest backup"
+    /// keeps meaning "when data was last actually captured."
+    static func performBackup(context: ModelContext, manual: Bool = false) -> (url: URL?, wrote: Bool) {
         guard let snapshot = PerfLog.measure("backup.snapshot", { try? ExportImportService.makeSnapshot(context: context) }) else {
             return (nil, false)
         }
@@ -173,10 +192,22 @@ enum BackupService {
         if let hash, hash == UserDefaults.standard.string(forKey: lastBackupHashKey),
            let newest = existingIndex.max(by: { $0.date < $1.date }) {
             PerfLog.event("backup.unchanged")
-            if forceFreshTimestamp, let index = existingIndex.firstIndex(where: { $0.filename == newest.filename }) {
-                var updatedIndex = existingIndex
-                updatedIndex[index].date = .now
-                writeIndex(updatedIndex)
+            if manual {
+                // One shared timestamp for the index bump and the baseline,
+                // so the promoted entry can never fall a few milliseconds
+                // BEFORE the baseline that's supposed to include it.
+                let now = Date.now
+                if let index = existingIndex.firstIndex(where: { $0.filename == newest.filename }) {
+                    var updatedIndex = existingIndex
+                    updatedIndex[index].date = now
+                    writeIndex(updatedIndex)
+                }
+                UserDefaults.standard.set(now, forKey: manualBaselineDateKey)
+                // Nothing new was written, but the tap still promotes the
+                // existing (content-identical) snapshot to the "best" mirror.
+                if let existingData = try? Data(contentsOf: backupsDirectory.appendingPathComponent(newest.filename)) {
+                    mirrorBestToAppGroup(data: existingData, date: now, recordCount: newest.recordCount)
+                }
             }
             return (backupsDirectory.appendingPathComponent(newest.filename), false)
         }
@@ -204,8 +235,15 @@ enum BackupService {
         var updatedIndex = existingIndex
         updatedIndex.append(IndexEntry(filename: filename, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount))
         writeIndex(updatedIndex)
+        if manual {
+            // Baseline before rotate(), so the pinning decision below is
+            // already made relative to this backup. Same instant as the
+            // index entry's date, so `>=` comparisons always include it.
+            UserDefaults.standard.set(snapshot.exportedAt, forKey: manualBaselineDateKey)
+        }
         rotate()
-        mirrorToAppGroup(data: data, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount)
+        mirrorToAppGroup(data: data, date: snapshot.exportedAt, recordCount: snapshot.totalRecordCount,
+                         promoteToBest: manual)
         if let hash {
             UserDefaults.standard.set(hash, forKey: lastBackupHashKey)
         }
@@ -272,17 +310,27 @@ enum BackupService {
     /// App Group container, but if the on-disk sandbox is then replaced,
     /// only the mirror survives, and a local-only "latest" stat would show a
     /// smaller, staler count than what's actually safely backed up.
-    static func mostCompleteBackup() -> BackupInfo? { allKnownBackups().first }
+    ///
+    /// Scoped to backups taken at or after the last explicit "Backup Now"
+    /// (see `manualBaselineDate`): a manual backup records the app's current
+    /// data as the most complete state by definition, so a pre-baseline
+    /// backup with a larger record count no longer pins this stat forever.
+    /// Falls back to the overall best when nothing post-baseline exists
+    /// (e.g. right after a wipe replaced the sandbox but the mirrors survived).
+    static func mostCompleteBackup() -> BackupInfo? {
+        let all = allKnownBackups()
+        guard let baseline = manualBaselineDate else { return all.first }
+        return all.first { $0.date >= baseline } ?? all.first
+    }
 
     /// Every backup this device knows about (local + App Group mirrors),
     /// sorted purely by recency rather than completeness. Settings shows
-    /// this as "Latest backup": `mostCompleteBackup()` is sorted by record
-    /// count first, so after a stretch of record-count churn (a wipe, a
-    /// partial restore) an older, larger backup can permanently outrank
-    /// every backup taken since, making a "Backup Now" tap look like it
-    /// did nothing, when a fresh backup genuinely was written. This is the
-    /// literal answer to "when did a backup last happen," independent of
-    /// how complete that backup was.
+    /// this as "Latest backup": `mostCompleteBackup()` sorts by record count
+    /// first, so after a stretch of record-count churn (a wipe, a partial
+    /// restore) an older, larger backup can outrank backups taken since,
+    /// until the next explicit "Backup Now" resets that reference point.
+    /// This is the literal answer to "when did a backup last happen,"
+    /// independent of how complete that backup was.
     static func mostRecentBackup() -> BackupInfo? {
         (listBackups() + appGroupMirrorBackups()).max { $0.date < $1.date }
     }
@@ -369,10 +417,17 @@ enum BackupService {
     /// app container), the app starts taking fresh automatic backups of the
     /// nearly-empty post-wipe state; a plain newest-N policy let those push
     /// the one copy of the real data off the end of the list.
+    ///
+    /// The pin uses the same manual-backup baseline as `mostCompleteBackup()`:
+    /// once the user explicitly taps "Backup Now," an older larger backup is
+    /// superseded, not sacred, so it keeps its normal place in the rotation
+    /// (still restorable for a good while) but is no longer pinned forever.
     private static func rotate() {
         let sorted = readIndex().sorted { $0.date > $1.date }
         guard sorted.count > maxBackupsKept else { return }
-        let bestFilename = sorted.max(by: { $0.recordCount < $1.recordCount })?.filename
+        let postBaseline = manualBaselineDate.map { baseline in sorted.filter { $0.date >= baseline } } ?? sorted
+        let pinPool = postBaseline.isEmpty ? sorted : postBaseline
+        let bestFilename = pinPool.max(by: { $0.recordCount < $1.recordCount })?.filename
         var kept: [IndexEntry] = []
         for (index, entry) in sorted.enumerated() {
             if index < maxBackupsKept || entry.filename == bestFilename {
@@ -405,7 +460,13 @@ enum BackupService {
         return dir
     }
 
-    private static func mirrorToAppGroup(data: Data, date: Date, recordCount: Int) {
+    /// `promoteToBest` is set for explicit manual backups only: the "best
+    /// only ever advances" record-count guard below exists so a post-wipe
+    /// rebuild's AUTOMATIC backups can never overwrite the most complete
+    /// copy, but a deliberate "Backup Now" tap is the user declaring the
+    /// current data authoritative, so it always becomes the best mirror
+    /// regardless of count.
+    private static func mirrorToAppGroup(data: Data, date: Date, recordCount: Int, promoteToBest: Bool = false) {
         guard let dir = appGroupBackupsDirectory else { return }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -413,6 +474,10 @@ enum BackupService {
 
         writeMirror(named: "backup-latest", data: data, meta: meta, in: dir)
 
+        if promoteToBest {
+            writeMirror(named: "backup-best", data: data, meta: meta, in: dir)
+            return
+        }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let bestCount = (try? Data(contentsOf: dir.appendingPathComponent("backup-best.meta.json")))
@@ -421,6 +486,17 @@ enum BackupService {
         if recordCount >= bestCount {
             writeMirror(named: "backup-best", data: data, meta: meta, in: dir)
         }
+    }
+
+    /// The dedupe-path variant of promotion: a manual "Backup Now" whose
+    /// content matched the last backup writes nothing locally, but the tap
+    /// still overwrites the best mirror with that existing snapshot.
+    private static func mirrorBestToAppGroup(data: Data, date: Date, recordCount: Int) {
+        guard let dir = appGroupBackupsDirectory else { return }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let meta = try? encoder.encode(MirrorMeta(date: date, recordCount: recordCount)) else { return }
+        writeMirror(named: "backup-best", data: data, meta: meta, in: dir)
     }
 
     private static func writeMirror(named name: String, data: Data, meta: Data, in dir: URL) {
@@ -516,21 +592,33 @@ private actor BackupCoordinator {
 
     func backupManually(container: ModelContainer) async -> URL? {
         guard !isRunning else { return nil }
-        // The user explicitly asked for a backup right now; even when
-        // there's nothing new to capture, the existing backup's timestamp
-        // should be bumped so "Latest backup" confirms the tap did
+        // The user explicitly asked for a backup right now: the resulting
+        // snapshot is promoted to the most-complete backup record, and even
+        // when there's nothing new to capture, the existing backup's
+        // timestamp is bumped so "Latest backup" confirms the tap did
         // something instead of silently reusing a stale date.
-        return await runBackup(container: container, forceFreshTimestamp: true)
+        return await runBackup(container: container, manual: true)
+    }
+
+    /// Backgrounding backup: bypasses the debounce and throttle exactly like
+    /// a manual tap (the moment before an app update can't wait five
+    /// minutes), but it is NOT the user asserting anything about their data,
+    /// so it must never promote its snapshot to the most-complete record or
+    /// bump timestamps on the no-change dedupe path. Routing backgrounding
+    /// through `backupManually` used to conflate those two meanings.
+    func backupImmediately(container: ModelContainer) async -> URL? {
+        guard !isRunning else { return nil }
+        return await runBackup(container: container, manual: false)
     }
 
     @discardableResult
-    private func runBackup(container: ModelContainer, forceFreshTimestamp: Bool = false) async -> URL? {
+    private func runBackup(container: ModelContainer, manual: Bool = false) async -> URL? {
         isRunning = true
         defer { isRunning = false }
         PerfLog.event("backup.started")
         let actor = backupActor ?? BackupActor(modelContainer: container)
         backupActor = actor
-        let (url, wroteNewBackup) = await actor.backupNow(forceFreshTimestamp: forceFreshTimestamp)
+        let (url, wroteNewBackup) = await actor.backupNow(manual: manual)
         PerfLog.event("backup.finished")
         // Only a real write resets the throttle window. A dedupe no-op
         // (content unchanged since the last backup) still returns the
@@ -551,8 +639,8 @@ private actor BackupCoordinator {
 /// main context; nothing here ever touches `container.mainContext`.
 @ModelActor
 actor BackupActor {
-    func backupNow(forceFreshTimestamp: Bool = false) -> (url: URL?, wrote: Bool) {
-        BackupService.performBackup(context: modelContext, forceFreshTimestamp: forceFreshTimestamp)
+    func backupNow(manual: Bool = false) -> (url: URL?, wrote: Bool) {
+        BackupService.performBackup(context: modelContext, manual: manual)
     }
 }
 
