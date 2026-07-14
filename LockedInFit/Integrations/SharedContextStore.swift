@@ -10,10 +10,19 @@ enum SharedContextStore {
 
     private static let lockedInFitFilename = "lockedinfit_public_context_v1.json"
     private static let socialClimberFilename = "socialclimber_public_context_v1.json"
+    private static let briefFeedFilename = "lockedinfit_brief_feed_v1.json"
 
     @discardableResult
     static func writeLockedInFitContext(_ context: LockedInFitPublicContext) -> Bool {
         write(context, filename: lockedInFitFilename)
+    }
+
+    /// The richer morning-brief feed read by the Brief app (see
+    /// LockedInFitBriefFeed / BriefFeedPublisher). Same atomic write and
+    /// same fail-silent behavior as the peer-bridge snapshot above.
+    @discardableResult
+    static func writeBriefFeed(_ feed: LockedInFitBriefFeed) -> Bool {
+        write(feed, filename: briefFeedFilename)
     }
 
     static func readSocialClimberContext() -> SocialClimberPublicContext? {
@@ -30,7 +39,7 @@ enum SharedContextStore {
         do {
             try FileManager.default.createDirectory(at: containerURL, withIntermediateDirectories: true)
             // Write to a temp file first, then replace atomically so a reader
-            // (Social Climber) never observes a partially-written file.
+            // (Social Climber, Brief) never observes a partially-written file.
             let destination = containerURL.appendingPathComponent(filename)
             let temp = containerURL.appendingPathComponent(filename + ".tmp-\(UUID().uuidString)")
             try data.write(to: temp, options: .atomic)

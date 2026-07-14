@@ -362,14 +362,18 @@ struct DashboardView: View {
     }
 
     /// Optional cross-app bridge: publishes a small public snapshot for
-    /// Social Climber to read, and turns any fresh Social Climber event
+    /// Social Climber to read, a richer brief feed for the Brief app's
+    /// morning summary, and turns any fresh Social Climber event
     /// context into ordinary checklist items owned by LockedInFit. Entirely
     /// a no-op if the shared App Group container isn't available or Social
     /// Climber's context is missing, stale, or corrupt. See
-    /// CrossAppIntegrationManager.
+    /// CrossAppIntegrationManager and BriefFeedPublisher.
     private func syncCrossAppContext() {
         guard crossAppSharingEnabled else { return }
         CrossAppIntegrationManager.publish(crossAppPublishInput)
+        // Morning-brief feed for the Brief app rides the same refresh cadence
+        // and the same sharing toggle; also fail-silent (see BriefFeedPublisher).
+        BriefFeedPublisher.publish(modelContext: context)
         guard let socialReadiness else { return }
         EventAwareChecklistService.generateItems(
             readiness: socialReadiness,

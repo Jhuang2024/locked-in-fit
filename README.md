@@ -17,6 +17,13 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **HealthKit** (optional): reads steps, body mass, body fat %, active energy; Renpho data flows in via Apple Health. The app works fully without the permission. Auto-syncs every second while the app is open, and instantly in the background via HKObserverQuery whenever new Health data lands (HealthKit has no true background polling interval; this is the event-driven equivalent).
 - **Export/import**: JSON and CSV export via share sheet, JSON import. All data stays on device.
 
+## Cross-app sharing (optional)
+
+Both integrations are fail-silent, gated by the *Settings → Social Climber* sharing toggle, and never affect the app's own local storage. There is no server: everything goes through small, versioned JSON files in the shared App Group container (`group.com.jerry.personalOS`), written atomically on dashboard load/refresh.
+
+- **Social Climber peer bridge**: publishes a deliberately minimal daily snapshot (`lockedinfit_public_context_v1.json`) and reads Social Climber's event context back. See `LockedInFit/Integrations/`.
+- **Morning brief feed**: publishes `lockedinfit_brief_feed_v1.json` for the Brief app's morning summary — recent-day overviews (workouts, nutrition vs. targets, sleep, steps, weight, check-ins, checklist) plus today's and tomorrow's reminders (checklist items, scheduled workout sessions). Richer than the peer bridge on purpose: it's read by the user's own brief, not another app. The schema contract lives in the Brief repo's `LINKED_APPS.md`; changes must stay additive. See `BriefFeedModels.swift` / `BriefFeedPublisher.swift`.
+
 ## Install on your iPhone (free Apple ID is fine)
 
 1. Open `LockedInFit.xcodeproj` in **Xcode 16+** on a Mac.
