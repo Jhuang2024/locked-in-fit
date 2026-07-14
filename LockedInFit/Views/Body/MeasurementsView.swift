@@ -6,6 +6,7 @@ struct MeasurementsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \MeasurementEntry.date) private var entries: [MeasurementEntry]
     @State private var showNew = false
+    @State private var selectedWaistDate: Date?
 
     private var waistPoints: [(date: Date, value: Double)] {
         entries.compactMap { entry in entry.waist.map { (entry.date, $0) } }
@@ -15,14 +16,37 @@ struct MeasurementsView: View {
         List {
             if !waistPoints.isEmpty {
                 Section {
-                    ChartCard(title: "Waist", subtitle: "cm over time") {
-                        Chart(waistPoints, id: \.date) { point in
-                            LineMark(x: .value("Date", point.date), y: .value("cm", point.value))
-                                .interpolationMethod(.monotone)
-                            PointMark(x: .value("Date", point.date), y: .value("cm", point.value))
-                                .symbolSize(24)
+                    ChartCard(title: "Waist", subtitle: "cm over time · tap or drag for the exact value") {
+                        Chart {
+                            ForEach(waistPoints, id: \.date) { point in
+                                LineMark(x: .value("Date", point.date), y: .value("cm", point.value))
+                                    .interpolationMethod(.monotone)
+                                PointMark(x: .value("Date", point.date), y: .value("cm", point.value))
+                                    .symbolSize(24)
+                            }
+                            if let point = nearestWaistPoint(to: selectedWaistDate) {
+                                RuleMark(x: .value("Selected date", point.date))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
+                                        ChartPointCallout(date: point.date, values: [
+                                            ("Waist", "\(Formatters.trimmed(point.value)) cm")
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected date", point.date),
+                                          y: .value("Selected waist", point.value))
+                                    .symbolSize(70)
+                            }
                         }
                         .chartYScale(domain: .automatic(includesZero: false))
+                        .chartXSelection(value: $selectedWaistDate)
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -57,6 +81,13 @@ struct MeasurementsView: View {
         }
         .sheet(isPresented: $showNew) {
             NavigationStack { MeasurementEditorView(entry: nil) }
+        }
+    }
+
+    private func nearestWaistPoint(to date: Date?) -> (date: Date, value: Double)? {
+        guard let date else { return nil }
+        return waistPoints.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         }
     }
 

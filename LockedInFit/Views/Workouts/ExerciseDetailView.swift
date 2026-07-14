@@ -8,6 +8,8 @@ struct ExerciseDetailView: View {
     private var workouts: [Workout]
 
     let exerciseName: String
+    @State private var selectedOneRMDate: Date?
+    @State private var selectedVolumeDate: Date?
 
     private struct Session: Identifiable {
         let date: Date
@@ -46,21 +48,70 @@ struct ExerciseDetailView: View {
                     .padding(14)
                     .cardBackground()
 
-                    ChartCard(title: "Estimated 1RM", subtitle: "Epley formula from best completed set") {
-                        Chart(sessions) { session in
-                            LineMark(x: .value("Date", session.date), y: .value("kg", session.best1RM))
-                                .interpolationMethod(.monotone)
-                            PointMark(x: .value("Date", session.date), y: .value("kg", session.best1RM))
-                                .symbolSize(28)
+                    ChartCard(title: "Estimated 1RM", subtitle: "Epley formula from best completed set · tap or drag for exact values") {
+                        Chart {
+                            ForEach(sessions) { session in
+                                LineMark(x: .value("Date", session.date), y: .value("kg", session.best1RM))
+                                    .interpolationMethod(.monotone)
+                                PointMark(x: .value("Date", session.date), y: .value("kg", session.best1RM))
+                                    .symbolSize(28)
+                            }
+                            if let session = nearestSession(to: selectedOneRMDate) {
+                                RuleMark(x: .value("Selected date", session.date))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
+                                        ChartPointCallout(date: session.date, values: [
+                                            ("Estimated 1RM", "\(Formatters.trimmed(session.best1RM)) kg"),
+                                            ("Top set", session.topSet)
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected date", session.date),
+                                          y: .value("Selected 1RM", session.best1RM))
+                                    .foregroundStyle(Color.accentColor)
+                                    .symbolSize(70)
+                            }
                         }
                         .chartYScale(domain: .automatic(includesZero: false))
+                        .chartXSelection(value: $selectedOneRMDate)
                     }
 
-                    ChartCard(title: "Session Volume", subtitle: "kg × reps per session") {
-                        Chart(sessions) { session in
-                            BarMark(x: .value("Date", session.date), y: .value("Volume", session.volume))
-                                .foregroundStyle(Color.accentColor.gradient)
+                    ChartCard(title: "Session Volume", subtitle: "kg × reps per session · tap or drag for the exact value") {
+                        Chart {
+                            ForEach(sessions) { session in
+                                BarMark(x: .value("Date", session.date), y: .value("Volume", session.volume))
+                                    .foregroundStyle(Color.accentColor.gradient)
+                            }
+                            if let session = nearestSession(to: selectedVolumeDate) {
+                                RuleMark(x: .value("Selected date", session.date))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
+                                        ChartPointCallout(date: session.date, values: [
+                                            ("Volume", "\(Int(session.volume.rounded())) kg × reps")
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected date", session.date),
+                                          y: .value("Selected volume", session.volume))
+                                    .foregroundStyle(Color.accentColor)
+                                    .symbolSize(70)
+                            }
                         }
+                        .chartXSelection(value: $selectedVolumeDate)
                     }
 
                     DashboardCard(title: "Sessions", systemImage: "list.bullet") {
@@ -87,5 +138,12 @@ struct ExerciseDetailView: View {
         .brandScreenBackground()
         .navigationTitle(exerciseName)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func nearestSession(to date: Date?) -> Session? {
+        guard let date else { return nil }
+        return sessions.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
     }
 }

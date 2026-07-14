@@ -132,7 +132,14 @@ struct AppearanceTrendsView: View {
                         RuleMark(x: .value("Selected date", point.date))
                             .foregroundStyle(.secondary.opacity(0.45))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                            .annotation(position: .top) {
+                            .annotation(
+                                position: .top,
+                                spacing: 4,
+                                overflowResolution: .init(
+                                    x: .fit(to: .chart),
+                                    y: .fit(to: .chart)
+                                )
+                            ) {
                                 ChartPointCallout(date: point.date, values: [
                                     ("Score", Formatters.trimmed(point.score))
                                 ])
@@ -168,7 +175,14 @@ struct AppearanceTrendsView: View {
                     RuleMark(x: .value("Selected date", checkIn.date))
                         .foregroundStyle(.secondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                        .annotation(position: .top) {
+                        .annotation(
+                            position: .top,
+                            spacing: 4,
+                            overflowResolution: .init(
+                                x: .fit(to: .chart),
+                                y: .fit(to: .chart)
+                            )
+                        ) {
                             ChartPointCallout(date: checkIn.date, values: [
                                 ("Skin", Formatters.trimmed(checkIn.skinScore)),
                                 ("Grooming", Formatters.trimmed(checkIn.groomingScore)),

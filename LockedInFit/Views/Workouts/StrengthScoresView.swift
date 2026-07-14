@@ -8,6 +8,7 @@ struct StrengthScoresView: View {
     @Query private var strengthScores: [StrengthScore]
     @Query(filter: #Predicate<Workout> { !$0.isTemplate }) private var workouts: [Workout]
     @Query(sort: \BodyWeightEntry.date) private var weights: [BodyWeightEntry]
+    @State private var selectedMovementLabel: String?
 
     private var overall: Double { StrengthScoreCalculator.overallScore(scores: strengthScores) }
     private var sortedScores: [StrengthScore] {
@@ -51,13 +52,38 @@ struct StrengthScoresView: View {
                     }
                 }
 
-                ChartCard(title: "Movement Balance", subtitle: "Spot weak patterns") {
-                    Chart(sortedScores, id: \.movementRaw) { score in
-                        BarMark(x: .value("Score", score.score),
-                                y: .value("Movement", score.movement.label))
-                            .foregroundStyle(Color.accentColor.gradient)
+                ChartCard(title: "Movement Balance", subtitle: "Spot weak patterns · tap or drag a bar for exact values") {
+                    Chart {
+                        ForEach(sortedScores, id: \.movementRaw) { score in
+                            BarMark(x: .value("Score", score.score),
+                                    y: .value("Movement", score.movement.label))
+                                .foregroundStyle(Color.accentColor.gradient)
+                        }
+                        if let score = selectedStrengthScore {
+                            RuleMark(y: .value("Selected movement", score.movement.label))
+                                .foregroundStyle(.secondary.opacity(0.45))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .annotation(
+                                    position: .trailing,
+                                    spacing: 4,
+                                    overflowResolution: .init(
+                                        x: .fit(to: .chart),
+                                        y: .fit(to: .chart)
+                                    )
+                                ) {
+                                    ChartValueCallout(title: score.movement.label, values: [
+                                        ("Score", Formatters.trimmed(score.score)),
+                                        ("Level", score.levelName)
+                                    ])
+                                }
+                            PointMark(x: .value("Selected score", score.score),
+                                      y: .value("Selected movement", score.movement.label))
+                                .foregroundStyle(Color.accentColor)
+                                .symbolSize(70)
+                        }
                     }
                     .chartXScale(domain: 0...1000)
+                    .chartYSelection(value: $selectedMovementLabel)
                 }
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -82,6 +108,11 @@ struct StrengthScoresView: View {
         }
         .brandScreenBackground()
         .navigationTitle("Strength Scores")
+    }
+
+    private var selectedStrengthScore: StrengthScore? {
+        guard let selectedMovementLabel else { return nil }
+        return sortedScores.first { $0.movement.label == selectedMovementLabel }
     }
 
     private var badges: some View {

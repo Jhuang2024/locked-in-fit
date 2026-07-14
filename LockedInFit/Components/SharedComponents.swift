@@ -403,8 +403,19 @@ struct ChartPointCallout: View {
     let values: [(label: String, value: String)]
 
     var body: some View {
+        ChartValueCallout(title: Formatters.mediumDate(date), values: values)
+    }
+}
+
+/// The categorical counterpart to ChartPointCallout for charts whose selected
+/// axis is a name (for example a movement pattern) instead of a date.
+struct ChartValueCallout: View {
+    let title: String
+    let values: [(label: String, value: String)]
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(Formatters.mediumDate(date))
+            Text(title)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             ForEach(Array(values.enumerated()), id: \.offset) { _, item in
@@ -420,7 +431,7 @@ struct ChartPointCallout: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .frame(minWidth: 104)
+        .frame(minWidth: 104, maxWidth: 180)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)

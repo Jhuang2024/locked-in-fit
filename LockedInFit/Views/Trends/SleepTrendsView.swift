@@ -11,6 +11,7 @@ struct SleepTrendsView: View {
 
     @State private var windowDays = 30
     @State private var selectedScoreDate: Date?
+    @State private var selectedDurationDate: Date?
     @State private var selectedBreakdownDate: Date?
 
     static let allTimeWindow = Int.max
@@ -101,7 +102,14 @@ struct SleepTrendsView: View {
                         RuleMark(x: .value("Selected date", point.date))
                             .foregroundStyle(.secondary.opacity(0.45))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                            .annotation(position: .top) {
+                            .annotation(
+                                position: .top,
+                                spacing: 4,
+                                overflowResolution: .init(
+                                    x: .fit(to: .chart),
+                                    y: .fit(to: .chart)
+                                )
+                            ) {
                                 ChartPointCallout(date: point.date, values: [
                                     ("Sleep score", Formatters.trimmed(point.score))
                                 ])
@@ -124,17 +132,39 @@ struct SleepTrendsView: View {
     @ViewBuilder
     private var durationChart: some View {
         if !durationPoints.isEmpty {
-            ChartCard(title: "Sleep Duration", subtitle: "Hours asleep per night · 7–9h is the target range") {
+            ChartCard(title: "Sleep Duration", subtitle: "Hours asleep per night · 7–9h target · tap or drag for the exact value") {
                 Chart {
                     ForEach(Array(durationPoints.enumerated()), id: \.offset) { _, point in
                         BarMark(x: .value("Date", point.date), y: .value("Hours", point.hours))
                             .foregroundStyle(Color.teal.gradient)
+                    }
+                    if let point = nearestDurationPoint(to: selectedDurationDate) {
+                        RuleMark(x: .value("Selected date", point.date))
+                            .foregroundStyle(.secondary.opacity(0.45))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            .annotation(
+                                position: .top,
+                                spacing: 4,
+                                overflowResolution: .init(
+                                    x: .fit(to: .chart),
+                                    y: .fit(to: .chart)
+                                )
+                            ) {
+                                ChartPointCallout(date: point.date, values: [
+                                    ("Sleep", "\(Formatters.trimmed(point.hours)) h")
+                                ])
+                            }
+                        PointMark(x: .value("Selected date", point.date),
+                                  y: .value("Selected duration", point.hours))
+                            .foregroundStyle(Color.teal)
+                            .symbolSize(70)
                     }
                 }
                 .id("duration-\(windowDays)")
                 .chartYScale(domain: 0.0...12.0)
                 .chartXScale(domain: chartDomainStart...chartDomainEnd)
                 .chartXAxis { dateAxisMarks }
+                .chartXSelection(value: $selectedDurationDate)
             }
         }
     }
@@ -187,7 +217,14 @@ struct SleepTrendsView: View {
                     RuleMark(x: .value("Selected date", log.date))
                         .foregroundStyle(.secondary.opacity(0.45))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                        .annotation(position: .top) {
+                        .annotation(
+                            position: .top,
+                            spacing: 4,
+                            overflowResolution: .init(
+                                x: .fit(to: .chart),
+                                y: .fit(to: .chart)
+                            )
+                        ) {
                             ChartPointCallout(date: log.date, values: [
                                 ("Duration", Formatters.trimmed(log.durationScore)),
                                 ("Consistency", Formatters.trimmed(log.consistencyScore)),
@@ -224,6 +261,13 @@ struct SleepTrendsView: View {
     private func nearestScorePoint(to date: Date?) -> (date: Date, score: Double)? {
         guard let date else { return nil }
         return scorePoints.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
+    }
+
+    private func nearestDurationPoint(to date: Date?) -> (date: Date, hours: Double)? {
+        guard let date else { return nil }
+        return durationPoints.min {
             abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         }
     }

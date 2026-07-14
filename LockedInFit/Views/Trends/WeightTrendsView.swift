@@ -101,7 +101,14 @@ struct WeightTrendsView: View {
                                 RuleMark(x: .value("Selected date", point.date))
                                     .foregroundStyle(.secondary.opacity(0.45))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                                    .annotation(position: .top) {
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
                                         ChartPointCallout(date: point.date, values: [
                                             ("Scale", Formatters.kg(point.weightKg)),
                                             ("Trend", Formatters.kg(point.trendKg))
@@ -135,7 +142,14 @@ struct WeightTrendsView: View {
                                 RuleMark(x: .value("Selected date", entry.date))
                                     .foregroundStyle(.secondary.opacity(0.45))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                                    .annotation(position: .top) {
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
                                         ChartPointCallout(date: entry.date, values: [
                                             ("Body fat", "\(Formatters.trimmed(entry.bodyFatPercentage))%")
                                         ])

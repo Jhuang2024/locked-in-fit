@@ -13,6 +13,7 @@ struct WorkoutDashboardView: View {
     @State private var showGenerator = false
     @State private var showScheduleGenerator = false
     @State private var activeWorkout: Workout?
+    @State private var selectedWeeklyVolumeDate: Date?
     /// True when `activeWorkout` was just created via createBlankWorkout()
     /// and hasn't been saved yet. See WorkoutLogView's Cancel/Save toolbar.
     @State private var activeWorkoutIsDraft = false
@@ -46,6 +47,13 @@ struct WorkoutDashboardView: View {
         }
         return grouped.map { (week: $0.key, volume: $0.value.reduce(0) { $0 + $1.totalVolume }) }
             .sorted { $0.week < $1.week }
+    }
+
+    private func nearestWeeklyVolume(to date: Date?) -> (week: Date, volume: Double)? {
+        guard let date else { return nil }
+        return weeklyVolume.min {
+            abs($0.week.timeIntervalSince(date)) < abs($1.week.timeIntervalSince(date))
+        }
     }
 
     private var overall: Double { StrengthScoreCalculator.overallScore(scores: strengthScores) }
@@ -108,12 +116,36 @@ struct WorkoutDashboardView: View {
                 }
 
                 if !weeklyVolume.isEmpty {
-                    ChartCard(title: "Weekly Volume", subtitle: "Total kg lifted per week") {
-                        Chart(weeklyVolume, id: \.week) { point in
-                            BarMark(x: .value("Week", point.week, unit: .weekOfYear),
-                                    y: .value("Volume", point.volume))
-                                .foregroundStyle(Color.accentColor.gradient)
+                    ChartCard(title: "Weekly Volume", subtitle: "Total kg lifted per week · tap or drag for the exact value") {
+                        Chart {
+                            ForEach(weeklyVolume, id: \.week) { point in
+                                BarMark(x: .value("Week", point.week, unit: .weekOfYear),
+                                        y: .value("Volume", point.volume))
+                                    .foregroundStyle(Color.accentColor.gradient)
+                            }
+                            if let point = nearestWeeklyVolume(to: selectedWeeklyVolumeDate) {
+                                RuleMark(x: .value("Selected week", point.week, unit: .weekOfYear))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(
+                                        position: .top,
+                                        spacing: 4,
+                                        overflowResolution: .init(
+                                            x: .fit(to: .chart),
+                                            y: .fit(to: .chart)
+                                        )
+                                    ) {
+                                        ChartPointCallout(date: point.week, values: [
+                                            ("Volume", "\(Int(point.volume.rounded())) kg")
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected week", point.week, unit: .weekOfYear),
+                                          y: .value("Selected volume", point.volume))
+                                    .foregroundStyle(Color.accentColor)
+                                    .symbolSize(70)
+                            }
                         }
+                        .chartXSelection(value: $selectedWeeklyVolumeDate)
                     }
                 }
 

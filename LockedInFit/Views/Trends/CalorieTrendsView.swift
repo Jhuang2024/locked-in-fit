@@ -13,6 +13,10 @@ struct CalorieTrendsView: View {
     @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
 
     @State private var windowDays = 30
+    @State private var selectedCalorieDate: Date?
+    @State private var selectedDeficitDate: Date?
+    @State private var selectedProteinDate: Date?
+    @State private var selectedStepsDate: Date?
 
     static let allTimeWindow = Int.max
 
@@ -111,55 +115,146 @@ struct CalorieTrendsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil\(portionUplift > 0 ? " & portions" : ""), net of TEF & activity" }) {
-                    Chart(caloriePoints) { point in
-                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
-                            .foregroundStyle(Color.accentColor.gradient)
+                ChartCard(title: "Calories", subtitle: goals.first.map { "Target \(Int($0.calorieTarget)) kcal · includes hidden oil\(portionUplift > 0 ? " & portions" : ""), net of TEF & activity · tap or drag for exact values" }) {
+                    Chart {
+                        ForEach(caloriePoints) { point in
+                            BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
+                                .foregroundStyle(Color.accentColor.gradient)
+                        }
                         if let goal = goals.first {
                             RuleMark(y: .value("Target", goal.calorieTarget))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                                 .foregroundStyle(.secondary)
                         }
+                        if let point = nearestDayPoint(to: selectedCalorieDate, in: caloriePoints) {
+                            RuleMark(x: .value("Selected day", point.date, unit: .day))
+                                .foregroundStyle(.secondary.opacity(0.45))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .annotation(
+                                    position: .top,
+                                    spacing: 4,
+                                    overflowResolution: .init(
+                                        x: .fit(to: .chart),
+                                        y: .fit(to: .chart)
+                                    )
+                                ) {
+                                    ChartPointCallout(date: point.date, values: calorieCalloutValues(for: point))
+                                }
+                            PointMark(x: .value("Selected day", point.date, unit: .day),
+                                      y: .value("Selected calories", point.value))
+                                .foregroundStyle(Color.accentColor)
+                                .symbolSize(70)
+                        }
                     }
                     .id("calories-\(windowDays)")
                     .chartXScale(domain: chartDomain)
+                    .chartXSelection(value: $selectedCalorieDate)
                 }
 
-                ChartCard(title: "Deficit / Surplus", subtitle: "net of TEF & activity, vs estimated maintenance (\(Int(maintenance)) kcal)") {
-                    Chart(deficitPoints) { point in
-                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
-                            .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)
+                ChartCard(title: "Deficit / Surplus", subtitle: "net of TEF & activity, vs estimated maintenance (\(Int(maintenance)) kcal) · tap or drag for the exact value") {
+                    Chart {
+                        ForEach(deficitPoints) { point in
+                            BarMark(x: .value("Day", point.date, unit: .day), y: .value("kcal", point.value))
+                                .foregroundStyle(point.value <= 0 ? Color.green.gradient : Color.red.gradient)
+                        }
+                        if let point = nearestDayPoint(to: selectedDeficitDate, in: deficitPoints) {
+                            RuleMark(x: .value("Selected day", point.date, unit: .day))
+                                .foregroundStyle(.secondary.opacity(0.45))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .annotation(
+                                    position: .top,
+                                    spacing: 4,
+                                    overflowResolution: .init(
+                                        x: .fit(to: .chart),
+                                        y: .fit(to: .chart)
+                                    )
+                                ) {
+                                    ChartPointCallout(date: point.date, values: [
+                                        (point.value <= 0 ? "Deficit" : "Surplus", String(format: "%+.0f kcal", point.value)),
+                                        ("Maintenance", Formatters.kcal(maintenance))
+                                    ])
+                                }
+                            PointMark(x: .value("Selected day", point.date, unit: .day),
+                                      y: .value("Selected balance", point.value))
+                                .foregroundStyle(point.value <= 0 ? Color.green : Color.red)
+                                .symbolSize(70)
+                        }
                     }
                     .id("deficit-\(windowDays)")
                     .chartXScale(domain: chartDomain)
+                    .chartXSelection(value: $selectedDeficitDate)
                 }
 
-                ChartCard(title: "Protein", subtitle: goals.first.map { "Target \(Int($0.proteinTarget)) g" }) {
-                    Chart(proteinPoints) { point in
-                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("g", point.value))
-                            .foregroundStyle(Color.red.gradient)
+                ChartCard(title: "Protein", subtitle: goals.first.map { "Target \(Int($0.proteinTarget)) g · tap or drag for exact values" }) {
+                    Chart {
+                        ForEach(proteinPoints) { point in
+                            BarMark(x: .value("Day", point.date, unit: .day), y: .value("g", point.value))
+                                .foregroundStyle(Color.red.gradient)
+                        }
                         if let goal = goals.first {
                             RuleMark(y: .value("Target", goal.proteinTarget))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                                 .foregroundStyle(.secondary)
                         }
+                        if let point = nearestDayPoint(to: selectedProteinDate, in: proteinPoints) {
+                            RuleMark(x: .value("Selected day", point.date, unit: .day))
+                                .foregroundStyle(.secondary.opacity(0.45))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .annotation(
+                                    position: .top,
+                                    spacing: 4,
+                                    overflowResolution: .init(
+                                        x: .fit(to: .chart),
+                                        y: .fit(to: .chart)
+                                    )
+                                ) {
+                                    ChartPointCallout(date: point.date, values: proteinCalloutValues(for: point))
+                                }
+                            PointMark(x: .value("Selected day", point.date, unit: .day),
+                                      y: .value("Selected protein", point.value))
+                                .foregroundStyle(Color.red)
+                                .symbolSize(70)
+                        }
                     }
                     .id("protein-\(windowDays)")
                     .chartXScale(domain: chartDomain)
+                    .chartXSelection(value: $selectedProteinDate)
                 }
 
-                ChartCard(title: "Steps", subtitle: goals.first.map { "Target \($0.stepTarget)" }) {
-                    Chart(stepPoints) { point in
-                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("steps", point.value))
-                            .foregroundStyle(Color.teal.gradient)
+                ChartCard(title: "Steps", subtitle: goals.first.map { "Target \($0.stepTarget) · tap or drag for exact values" }) {
+                    Chart {
+                        ForEach(stepPoints) { point in
+                            BarMark(x: .value("Day", point.date, unit: .day), y: .value("steps", point.value))
+                                .foregroundStyle(Color.teal.gradient)
+                        }
                         if let goal = goals.first {
                             RuleMark(y: .value("Target", Double(goal.stepTarget)))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                                 .foregroundStyle(.secondary)
                         }
+                        if let point = nearestDayPoint(to: selectedStepsDate, in: stepPoints) {
+                            RuleMark(x: .value("Selected day", point.date, unit: .day))
+                                .foregroundStyle(.secondary.opacity(0.45))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                .annotation(
+                                    position: .top,
+                                    spacing: 4,
+                                    overflowResolution: .init(
+                                        x: .fit(to: .chart),
+                                        y: .fit(to: .chart)
+                                    )
+                                ) {
+                                    ChartPointCallout(date: point.date, values: stepsCalloutValues(for: point))
+                                }
+                            PointMark(x: .value("Selected day", point.date, unit: .day),
+                                      y: .value("Selected steps", point.value))
+                                .foregroundStyle(Color.teal)
+                                .symbolSize(70)
+                        }
                     }
                     .id("steps-\(windowDays)")
                     .chartXScale(domain: chartDomain)
+                    .chartXSelection(value: $selectedStepsDate)
                 }
             }
             .padding(.horizontal)
@@ -167,5 +262,30 @@ struct CalorieTrendsView: View {
         }
         .brandScreenBackground()
         .navigationTitle("Calorie Trends")
+    }
+
+    private func nearestDayPoint(to date: Date?, in points: [DayPoint]) -> DayPoint? {
+        guard let date else { return nil }
+        return points.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
+    }
+
+    private func calorieCalloutValues(for point: DayPoint) -> [(label: String, value: String)] {
+        var values: [(label: String, value: String)] = [("Net calories", Formatters.kcal(point.value))]
+        if let goal = goals.first { values.append(("Target", Formatters.kcal(goal.calorieTarget))) }
+        return values
+    }
+
+    private func proteinCalloutValues(for point: DayPoint) -> [(label: String, value: String)] {
+        var values: [(label: String, value: String)] = [("Protein", Formatters.grams(point.value))]
+        if let goal = goals.first { values.append(("Target", Formatters.grams(goal.proteinTarget))) }
+        return values
+    }
+
+    private func stepsCalloutValues(for point: DayPoint) -> [(label: String, value: String)] {
+        var values: [(label: String, value: String)] = [("Steps", "\(Int(point.value.rounded()))")]
+        if let goal = goals.first { values.append(("Target", "\(goal.stepTarget)")) }
+        return values
     }
 }
