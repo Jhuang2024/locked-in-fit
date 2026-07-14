@@ -10,8 +10,10 @@ struct PatchNotesView: View {
                      "Give anything you eat a 1–5 star rating: logged meals (in the meal's detail screen), food presets, and restaurant dishes in Menu Checker. Tap a star again to clear a rating.")
                 note("arrow.up.arrow.down", "Sort by your ratings",
                      "Food Presets and every Menu Checker menu can now sort by highest rating, so your proven favorites float to the top when you're deciding what to eat or log again.")
-                note("link", "Ratings flow through the app",
-                     "Rating a logged meal also rates the matching food presets for the foods in it. Menu Checker ratings are saved per restaurant and dish, survive menu refreshes, and are included in backups and JSON export/import like the rest of your data.")
+                note("star.leadinghalf.filled", "Independent ratings",
+                     "Logged meals, food presets, and Menu Checker dishes each keep their own separate star rating; rating one never changes another. Menu Checker ratings are saved per restaurant and dish, survive menu refreshes, and are included in backups and JSON export/import like the rest of your data.")
+                note("clock.arrow.circlepath", "Automatic backup recovery",
+                     "If LockedInFit ever launches to find no data at all, it now automatically restores your most complete backup, including the shared-container backups that survive reinstalls, with no taps required.")
                 note("heart.text.square", "Health & Satiety sorting everywhere",
                      "Food presets now carry the same Health and Satiety Scores as Menu Checker items (computed with the identical calculators) and can be sorted by either. Restaurant menus add a Satiety sort next to Health, and the restaurant list itself can be sorted by average menu Health or Satiety Score, filled in automatically for any restaurant whose menu has been seen.")
             }

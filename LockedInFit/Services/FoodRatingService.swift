@@ -1,11 +1,12 @@
 import Foundation
 import SwiftData
 
-/// One place for every food-rating rule: the star scale, the stable key for
-/// restaurant menu items, upserting menu-item ratings, and the sync that
-/// carries a logged meal's rating over to its matching food presets. All three
-/// rating surfaces (logged meals, presets, Menu Checker items) go through here
-/// so they can never drift apart on normalization or scale.
+/// One place for every food-rating rule: the star scale and the stable key
+/// plus upsert logic for restaurant menu items. All three rating surfaces
+/// (logged meals, presets, Menu Checker items) share the scale defined here,
+/// but each is otherwise deliberately independent: rating a logged meal says
+/// "that meal was good," rating a preset says "this food is a keeper," and
+/// neither ever writes to the other.
 enum FoodRatingService {
     /// Ratings are 1–5 stars everywhere; 0 always means "not rated".
     static let maxRating = 5
@@ -51,22 +52,5 @@ enum FoodRatingService {
                                                 restaurantName: restaurantName, rating: value))
         }
         try? context.save()
-    }
-
-    // MARK: - Logged meals → presets
-
-    /// Rating a logged meal also rates the presets for the foods in it
-    /// (matched by the same normalized name the preset sync uses, so this
-    /// finds the presets that `FoodPresetSyncService.addMissingPresets`
-    /// auto-created from this very meal). This is what makes "rate what you
-    /// logged" feed the preset sorter without a separate rating pass.
-    /// Clearing a meal's rating leaves preset ratings alone: the preset may
-    /// have earned its stars from other meals.
-    static func syncPresetRatings(from meal: MealLog, presets: [FoodPreset]) {
-        let value = clamped(meal.rating)
-        guard value > 0 else { return }
-        for item in meal.items {
-            FoodPresetSyncService.matchingPreset(named: item.name, in: presets)?.rating = value
-        }
     }
 }

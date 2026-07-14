@@ -6,7 +6,6 @@ struct MealDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query private var settingsList: [UserSettings]
-    @Query private var presets: [FoodPreset]
     @Bindable var meal: MealLog
     @State private var confirmDelete = false
     /// Loaded once on appear instead of decoded from disk inside the body:
@@ -55,7 +54,7 @@ struct MealDetailView: View {
             } header: {
                 Text("Your Rating")
             } footer: {
-                Text("How good was this food? Ratings also apply to the matching food presets, so your favorites sort to the top when logging again.")
+                Text("How good was this meal? This rating stays with the logged meal only; food presets keep their own separate star ratings, editable in Food Presets.")
             }
 
             Section("Nutrition Analysis") {
@@ -125,16 +124,13 @@ struct MealDetailView: View {
         }
     }
 
-    /// Writing through this binding (instead of $meal.rating directly) is what
-    /// carries a meal rating over to the presets for the foods in it: see
-    /// FoodRatingService.syncPresetRatings.
+    /// Meal ratings are their own system: they stay on the logged meal and
+    /// never write through to food presets, which are rated separately in
+    /// Food Presets. This binding exists only to clamp to the shared scale.
     private var ratingBinding: Binding<Int> {
         Binding(
             get: { meal.rating },
-            set: { newValue in
-                meal.rating = FoodRatingService.clamped(newValue)
-                FoodRatingService.syncPresetRatings(from: meal, presets: presets)
-            })
+            set: { meal.rating = FoodRatingService.clamped($0) })
     }
 
     /// Recomputes the meal's totals from its food items, same as

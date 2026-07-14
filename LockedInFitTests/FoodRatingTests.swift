@@ -2,9 +2,10 @@ import XCTest
 import SwiftData
 @testable import LockedInFit
 
-/// Food rating rules: the menu-item rating key, upsert/clear behavior for
-/// MenuItemRatingRecord, and the meal-rating → preset-rating sync. Uses an
-/// in-memory store.
+/// Food rating rules: the menu-item rating key and upsert/clear behavior for
+/// MenuItemRatingRecord. Meal ratings and preset ratings are independent
+/// systems (rating one never writes to the other), so there is deliberately
+/// no cross-surface sync to test. Uses an in-memory store.
 @MainActor
 final class FoodRatingTests: XCTestCase {
 
@@ -81,31 +82,5 @@ final class FoodRatingTests: XCTestCase {
         FoodRatingService.setRating(99, for: item, restaurantName: restaurantName,
                                     records: [], context: ctx)
         XCTAssertEqual(try fetchRatings(ctx)[0].rating, FoodRatingService.maxRating)
-    }
-
-    // MARK: Meal → preset sync
-
-    func testMealRatingFlowsToMatchingPresets() throws {
-        let preset = FoodPreset(name: "White Rice", serving: "180 g",
-                                calories: 230, protein: 4, carbs: 50, fat: 1)
-        let other = FoodPreset(name: "Chicken Thigh", serving: "120 g",
-                               calories: 210, protein: 25, carbs: 0, fat: 12)
-        let meal = MealLog(foodItems: [FoodItem(name: " white  rice.", calories: 230)])
-        meal.rating = 5
-
-        FoodRatingService.syncPresetRatings(from: meal, presets: [preset, other])
-        XCTAssertEqual(preset.rating, 5)
-        XCTAssertEqual(other.rating, 0, "Foods not in the meal must keep their own rating")
-    }
-
-    func testClearingMealRatingLeavesPresetsAlone() throws {
-        let preset = FoodPreset(name: "White Rice", serving: "180 g",
-                                calories: 230, protein: 4, carbs: 50, fat: 1)
-        preset.rating = 4
-        let meal = MealLog(foodItems: [FoodItem(name: "white rice", calories: 230)])
-        meal.rating = 0
-
-        FoodRatingService.syncPresetRatings(from: meal, presets: [preset])
-        XCTAssertEqual(preset.rating, 4, "A preset may have earned its stars from other meals")
     }
 }
