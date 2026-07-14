@@ -148,15 +148,23 @@ struct SleepTrendsView: View {
                     LineMark(x: .value("Date", log.date), y: .value("Points", log.durationScore),
                              series: .value("Component", "Duration"))
                         .foregroundStyle(by: .value("Component", "Duration"))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.monotone)
                     LineMark(x: .value("Date", log.date), y: .value("Points", log.consistencyScore),
                              series: .value("Component", "Consistency"))
                         .foregroundStyle(by: .value("Component", "Consistency"))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.monotone)
                     LineMark(x: .value("Date", log.date), y: .value("Points", log.interruptionScore),
                              series: .value("Component", "Interruptions"))
                         .foregroundStyle(by: .value("Component", "Interruptions"))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.monotone)
                     LineMark(x: .value("Date", log.date), y: .value("Points", log.timingScore),
                              series: .value("Component", "Timing"))
                         .foregroundStyle(by: .value("Component", "Timing"))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.monotone)
                 }
             }
             .id("breakdown-\(windowDays)")
