@@ -78,6 +78,10 @@ struct SettingsView: View {
     /// no Mac/Xcode anywhere nearby when it happened.
     @State private var dataLossIncidents: [DataLossGuard.Incident] = []
 
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1"
+    }
+
     private var latestWeight: BodyWeightEntry? { weights.last }
 
     var body: some View {
@@ -146,7 +150,7 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Storage", value: "On-device only")
-                LabeledContent("Version", value: "1.0")
+                LabeledContent("Version", value: appVersion)
                 NavigationLink(value: SettingsRoute.patchNotes) {
                     Label("What's New", systemImage: "sparkles")
                 }
