@@ -10,6 +10,8 @@ struct SleepTrendsView: View {
     @Query(sort: \NapLog.napStart) private var naps: [NapLog]
 
     @State private var windowDays = 30
+    @State private var selectedScoreDate: Date?
+    @State private var selectedBreakdownDate: Date?
 
     static let allTimeWindow = Int.max
 
@@ -80,7 +82,7 @@ struct SleepTrendsView: View {
                                message: "Sleep scores appear once you log a night's sleep.")
             }
         } else {
-            ChartCard(title: "Sleep Score", subtitle: "0–100 · duration, consistency, interruptions, timing") {
+            ChartCard(title: "Sleep Score", subtitle: "0–100 · duration, consistency, interruptions, timing · tap or drag for the exact score") {
                 Chart {
                     ForEach(Array(scorePoints.enumerated()), id: \.offset) { _, point in
                         AreaMark(x: .value("Date", point.date), y: .value("Score", point.score))
@@ -95,11 +97,26 @@ struct SleepTrendsView: View {
                             .foregroundStyle(Color.indigo.opacity(0.5))
                             .symbolSize(24)
                     }
+                    if let point = nearestScorePoint(to: selectedScoreDate) {
+                        RuleMark(x: .value("Selected date", point.date))
+                            .foregroundStyle(.secondary.opacity(0.45))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            .annotation(position: .top) {
+                                ChartPointCallout(date: point.date, values: [
+                                    ("Sleep score", Formatters.trimmed(point.score))
+                                ])
+                            }
+                        PointMark(x: .value("Selected date", point.date),
+                                  y: .value("Selected score", point.score))
+                            .foregroundStyle(Color.indigo)
+                            .symbolSize(70)
+                    }
                 }
                 .id("score-\(windowDays)")
                 .chartYScale(domain: 0.0...100.0)
                 .chartXScale(domain: chartDomainStart...chartDomainEnd)
                 .chartXAxis { dateAxisMarks }
+                .chartXSelection(value: $selectedScoreDate)
             }
         }
     }
@@ -142,7 +159,7 @@ struct SleepTrendsView: View {
     }
 
     private var breakdownChart: some View {
-        ChartCard(title: "Sleep Score Breakdown", subtitle: "Component points over time") {
+        ChartCard(title: "Sleep Score Breakdown", subtitle: "Component points over time · tap or drag for exact values") {
             Chart {
                 ForEach(Array(windowedLogs.enumerated()), id: \.offset) { _, log in
                     LineMark(x: .value("Date", log.date), y: .value("Points", log.durationScore),
@@ -166,11 +183,55 @@ struct SleepTrendsView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                         .interpolationMethod(.monotone)
                 }
+                if let log = nearestBreakdownLog(to: selectedBreakdownDate) {
+                    RuleMark(x: .value("Selected date", log.date))
+                        .foregroundStyle(.secondary.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .annotation(position: .top) {
+                            ChartPointCallout(date: log.date, values: [
+                                ("Duration", Formatters.trimmed(log.durationScore)),
+                                ("Consistency", Formatters.trimmed(log.consistencyScore)),
+                                ("Interruptions", Formatters.trimmed(log.interruptionScore)),
+                                ("Timing", Formatters.trimmed(log.timingScore))
+                            ])
+                        }
+                    PointMark(x: .value("Selected date", log.date),
+                              y: .value("Selected duration", log.durationScore))
+                        .foregroundStyle(by: .value("Component", "Duration"))
+                        .symbolSize(58)
+                    PointMark(x: .value("Selected date", log.date),
+                              y: .value("Selected consistency", log.consistencyScore))
+                        .foregroundStyle(by: .value("Component", "Consistency"))
+                        .symbolSize(58)
+                    PointMark(x: .value("Selected date", log.date),
+                              y: .value("Selected interruptions", log.interruptionScore))
+                        .foregroundStyle(by: .value("Component", "Interruptions"))
+                        .symbolSize(58)
+                    PointMark(x: .value("Selected date", log.date),
+                              y: .value("Selected timing", log.timingScore))
+                        .foregroundStyle(by: .value("Component", "Timing"))
+                        .symbolSize(58)
+                }
             }
             .id("breakdown-\(windowDays)")
             .chartYScale(domain: 0.0...40.0)
             .chartXScale(domain: chartDomainStart...chartDomainEnd)
             .chartXAxis { dateAxisMarks }
+            .chartXSelection(value: $selectedBreakdownDate)
+        }
+    }
+
+    private func nearestScorePoint(to date: Date?) -> (date: Date, score: Double)? {
+        guard let date else { return nil }
+        return scorePoints.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
+    }
+
+    private func nearestBreakdownLog(to date: Date?) -> SleepLog? {
+        guard let date else { return nil }
+        return windowedLogs.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         }
     }
 
