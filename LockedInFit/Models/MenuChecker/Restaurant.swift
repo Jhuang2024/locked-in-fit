@@ -85,6 +85,10 @@ struct Restaurant: Identifiable, Codable, Equatable, Hashable {
     /// Average health score across the menu, 0–100. Filled in once the menu is
     /// loaded; `nil` until then.
     var averageMenuHealthScore: Double?
+    /// Average satiety score across the menu, 0–100. Same lifecycle as
+    /// `averageMenuHealthScore`. Defaulted so provider call sites and older
+    /// encoded snapshots (which lack the key) keep working unchanged.
+    var averageMenuSatietyScore: Double? = nil
     /// Which provider produced this record: used for attribution and merging.
     var providerName: String
     /// Dietary properties the restaurant broadly supports (has vegan options…).

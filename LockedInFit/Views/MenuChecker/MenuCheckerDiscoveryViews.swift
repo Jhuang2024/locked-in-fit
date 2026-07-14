@@ -36,6 +36,9 @@ struct RestaurantRowView: View {
                 if let avg = restaurant.averageMenuHealthScore {
                     HealthChip(score: avg)
                 }
+                if let satiety = restaurant.averageMenuSatietyScore {
+                    SatietyChip(score: satiety)
+                }
                 if restaurant.hasOfficialNutrition {
                     Label("Official", systemImage: "checkmark.seal.fill").font(.system(size: 9, weight: .semibold)).foregroundStyle(.green)
                 }

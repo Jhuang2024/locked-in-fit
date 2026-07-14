@@ -71,6 +71,41 @@ struct MenuCheckerRepository {
         return (scores.reduce(0, +) / Double(scores.count)).rounded()
     }
 
+    /// Average Health + Satiety across a menu in one resolve pass per item.
+    static func averageMenuScores(items: [MenuItem], profile: ScoringProfile) -> (health: Double, satiety: Double)? {
+        guard !items.isEmpty else { return nil }
+        let resolved = items.map { MenuItemResolver.resolve(item: $0, profile: profile) }
+        let health = resolved.reduce(0) { $0 + $1.healthScore } / Double(resolved.count)
+        let satiety = resolved.reduce(0) { $0 + $1.satietyScore } / Double(resolved.count)
+        return (health.rounded(), satiety.rounded())
+    }
+
+    /// A restaurant's menu when it's already available for free: sample menus
+    /// are generated locally, and real restaurants that were opened before have
+    /// a persistent disk-cache entry. Never triggers a network/AI fetch.
+    static func knownMenuItems(for restaurant: Restaurant) -> [MenuItem]? {
+        if restaurant.id.hasPrefix("sample:") { return SampleMenuData.menu(for: restaurant) }
+        return MenuDiskCache.load(restaurantID: restaurant.id, maxAge: .infinity)?.items
+    }
+
+    /// Fill in `averageMenuHealthScore`/`averageMenuSatietyScore` for every
+    /// restaurant whose menu is already known (see `knownMenuItems`), so the
+    /// discovery list can sort by menu-wide scores. Uses a neutral profile:
+    /// restaurant-level averages should be stable landmarks, not shift with
+    /// today's remaining macros the way per-item scores deliberately do.
+    /// Restaurants we've never opened keep their provider-supplied values and
+    /// simply sort after the scored ones.
+    static func enrichWithMenuScores(_ restaurants: [Restaurant]) -> [Restaurant] {
+        restaurants.map { restaurant in
+            guard let items = knownMenuItems(for: restaurant),
+                  let scores = averageMenuScores(items: items, profile: .neutral) else { return restaurant }
+            var enriched = restaurant
+            enriched.averageMenuHealthScore = scores.health
+            enriched.averageMenuSatietyScore = scores.satiety
+            return enriched
+        }
+    }
+
     private func cacheKey(for query: RestaurantQuery) -> String {
         var parts = [query.text.lowercased(), query.worldwide ? "world" : "near"]
         if let o = query.origin { parts.append("\(Int(o.latitude * 100)),\(Int(o.longitude * 100))") }

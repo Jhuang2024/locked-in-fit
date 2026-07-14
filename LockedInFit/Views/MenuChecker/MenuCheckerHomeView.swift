@@ -30,8 +30,21 @@ struct MenuCheckerHomeView: View {
     @State private var showFilters = false
     @State private var showCart = false
     @State private var showManualLocation = false
+    @State private var restaurantSort: RestaurantSort = .standard
 
     enum ViewMode: String, CaseIterable { case list, map }
+
+    enum RestaurantSort: String, CaseIterable, Identifiable {
+        case standard, health, satiety
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .standard: return "Default"
+            case .health: return "Health Score"
+            case .satiety: return "Satiety Score"
+            }
+        }
+    }
 
     private var settings: UserSettings? { settingsList.first }
     /// The location "nearby" is based on. No default: nil means we simply don't
@@ -166,12 +179,43 @@ struct MenuCheckerHomeView: View {
             SectionLabel(text: searchText.isEmpty ? (worldwide ? "Worldwide" : (needsLocation ? "Discover" : "Nearby")) : "Results")
             if loading { ProgressView().controlSize(.mini) }
             Spacer()
+            Menu {
+                Picker("Sort", selection: $restaurantSort) {
+                    ForEach(RestaurantSort.allCases) { Text($0.label).tag($0) }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.subheadline)
+            }
+            .accessibilityLabel("Sort restaurants")
             Picker("View", selection: $viewMode) {
                 Image(systemName: "list.bullet").tag(ViewMode.list)
                 Image(systemName: "map").tag(ViewMode.map)
             }
             .pickerStyle(.segmented).frame(width: 96)
         }
+    }
+
+    /// Results in the user's chosen order. Score sorts put restaurants whose
+    /// menu we haven't seen yet (no averages to compare) after the scored ones,
+    /// preserving the provider order within each group (index tie-break, since
+    /// Swift's sort makes no stability promise on its own).
+    private var displayedResults: [Restaurant] {
+        let score: ((Restaurant) -> Double?)
+        switch restaurantSort {
+        case .standard:
+            return results
+        case .health:
+            score = { $0.averageMenuHealthScore }
+        case .satiety:
+            score = { $0.averageMenuSatietyScore }
+        }
+        return results.enumerated().sorted { lhs, rhs in
+            let l = score(lhs.element) ?? -1
+            let r = score(rhs.element) ?? -1
+            if l != r { return l > r }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private var resultsList: some View {
@@ -183,7 +227,11 @@ struct MenuCheckerHomeView: View {
                                title: "No restaurants",
                                message: searchText.isEmpty ? "Nothing here. Try worldwide search or a different city." : "Nothing matched “\(searchText)”. Try another term or turn on worldwide search.")
             }
-            ForEach(results) { r in
+            if restaurantSort != .standard, results.contains(where: { $0.averageMenuHealthScore == nil }) {
+                Text("Menu scores exist once a restaurant's menu has been seen; the rest are listed after.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            ForEach(displayedResults) { r in
                 NavigationLink(value: MenuRoute.menu(r, origin)) {
                     RestaurantRowView(restaurant: r, origin: origin, imperial: settings?.usesImperial ?? false)
                 }
@@ -324,7 +372,12 @@ struct MenuCheckerHomeView: View {
             // Guarantee unique ids: duplicate ids in ForEach make SwiftUI thrash
             // reconciling the list (a freeze), and provider results can collide.
             var seen = Set<String>()
-            results = fetched.filter { seen.insert($0.id).inserted }
+            let unique = fetched.filter { seen.insert($0.id).inserted }
+            // Attach average menu Health/Satiety wherever the menu is already
+            // known (sample data or a prior visit's disk cache) so the score
+            // sorts and row chips have something real to work with. Free: no
+            // network or AI calls involved.
+            results = MenuCheckerRepository.enrichWithMenuScores(unique)
         } catch is CancellationError {
             // Superseded by a newer search (the search token changed, e.g. the
             // location just resolved). Not a real failure: keep current results.

@@ -12,6 +12,8 @@ struct PatchNotesView: View {
                      "Food Presets and every Menu Checker menu can now sort by highest rating, so your proven favorites float to the top when you're deciding what to eat or log again.")
                 note("link", "Ratings flow through the app",
                      "Rating a logged meal also rates the matching food presets for the foods in it. Menu Checker ratings are saved per restaurant and dish, survive menu refreshes, and are included in backups and JSON export/import like the rest of your data.")
+                note("heart.text.square", "Health & Satiety sorting everywhere",
+                     "Food presets now carry the same Health and Satiety Scores as Menu Checker items (computed with the identical calculators) and can be sorted by either. Restaurant menus add a Satiety sort next to Health, and the restaurant list itself can be sorted by average menu Health or Satiety Score, filled in automatically for any restaurant whose menu has been seen.")
             }
             Section {
                 releaseHeader("Menu Checker", version: "1.1")

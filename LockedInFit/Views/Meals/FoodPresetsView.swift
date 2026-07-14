@@ -4,20 +4,39 @@ import SwiftData
 struct FoodPresetsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
+    @Query private var settingsList: [UserSettings]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
+    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @State private var search = ""
     @State private var editing: FoodPreset?
     @State private var showNew = false
     @State private var sort: PresetSort = .name
 
     enum PresetSort: String, CaseIterable, Identifiable {
-        case name, rating
+        case name, rating, health, satiety
         var id: String { rawValue }
         var label: String {
             switch self {
             case .name: return "Name"
             case .rating: return "Highest rated"
+            case .health: return "Health Score"
+            case .satiety: return "Satiety Score"
             }
         }
+        var flatSectionTitle: String {
+            switch self {
+            case .name: return ""
+            case .rating: return "Highest rated first"
+            case .health: return "Healthiest first"
+            case .satiety: return "Most filling first"
+            }
+        }
+    }
+
+    /// Same personalized profile the Menu Checker screens build, so a preset
+    /// scores exactly like a menu item with identical macros would today.
+    private var profile: ScoringProfile {
+        ScoringProfileBuilder.make(settings: settingsList.first, goal: goals.first, meals: meals)
     }
 
     private var filtered: [FoodPreset] {
@@ -30,43 +49,59 @@ struct FoodPresetsView: View {
             .sorted { $0.category < $1.category }
     }
 
-    /// Rating sort is a single flat list (rated first, best on top, ties by
-    /// name); category sections would bury a 5-star food in whatever group it
-    /// happens to live in, which defeats the point of the sort.
-    private var byRating: [FoodPreset] {
-        filtered.sorted {
-            if $0.rating != $1.rating { return $0.rating > $1.rating }
-            return $0.name < $1.name
+    /// The non-name sorts are a single flat list (best on top, ties by name);
+    /// category sections would bury a top preset in whatever group it happens
+    /// to live in, which defeats the point of sorting.
+    private var flatSorted: [FoodPreset] {
+        switch sort {
+        case .name:
+            return filtered
+        case .rating:
+            return filtered.sorted {
+                if $0.rating != $1.rating { return $0.rating > $1.rating }
+                return $0.name < $1.name
+            }
+        case .health, .satiety:
+            // Score each preset once, not once per comparison.
+            let scored = filtered.map { ($0, PresetScoringService.scores(for: $0, profile: profile)) }
+            return scored.sorted {
+                let l = sort == .health ? $0.1.health : $0.1.satiety
+                let r = sort == .health ? $1.1.health : $1.1.satiety
+                if l != r { return l > r }
+                return $0.0.name < $1.0.name
+            }.map(\.0)
         }
+    }
+
+    private func presetRow(_ preset: FoodPreset) -> some View {
+        let scores = PresetScoringService.scores(for: preset, profile: profile)
+        return Button { editing = preset } label: {
+            FoodPresetRowView(preset: preset, health: scores.health, satiety: scores.satiety)
+        }
+        .buttonStyle(.plain)
     }
 
     var body: some View {
         List {
-            switch sort {
-            case .name:
+            if sort == .name {
                 ForEach(grouped, id: \.category) { group in
                     Section(group.category) {
                         ForEach(group.items) { preset in
-                            Button { editing = preset } label: {
-                                FoodPresetRowView(preset: preset)
-                            }
-                            .buttonStyle(.plain)
+                            presetRow(preset)
                         }
                         .onDelete { offsets in
                             for index in offsets { context.delete(group.items[index]) }
                         }
                     }
                 }
-            case .rating:
-                Section("Highest rated first") {
-                    ForEach(byRating) { preset in
-                        Button { editing = preset } label: {
-                            FoodPresetRowView(preset: preset)
-                        }
-                        .buttonStyle(.plain)
+            } else {
+                let sorted = flatSorted
+                Section(sort.flatSectionTitle) {
+                    ForEach(sorted) { preset in
+                        presetRow(preset)
                     }
                     .onDelete { offsets in
-                        for index in offsets { context.delete(byRating[index]) }
+                        for index in offsets { context.delete(sorted[index]) }
                     }
                 }
             }

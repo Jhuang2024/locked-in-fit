@@ -102,6 +102,11 @@ struct HealthScanRowView: View {
 
 struct FoodPresetRowView: View {
     let preset: FoodPreset
+    /// Computed Health/Satiety scores (see PresetScoringService); passed in by
+    /// screens that want the chips shown so lists that don't (e.g. the Add
+    /// Meal picker) pay nothing.
+    var health: Double? = nil
+    var satiety: Double? = nil
 
     var body: some View {
         HStack {
@@ -114,6 +119,13 @@ struct FoodPresetRowView: View {
                 Text("\(preset.serving) · P\(Int(preset.protein)) C\(Int(preset.carbs)) F\(Int(preset.fat))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let health, let satiety {
+                    HStack(spacing: 6) {
+                        HealthChip(score: health)
+                        SatietyChip(score: satiety)
+                    }
+                    .padding(.top, 2)
+                }
                 if preset.cookingMethod == .stirFried || preset.cookingMethod == .deepFried || preset.cookingMethod == .braised {
                     Text(HiddenOilEstimator.riskLabel(for: preset.cookingMethod))
                         .font(.caption2)

@@ -31,11 +31,12 @@ struct RestaurantMenuView: View {
 
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     enum MenuSort: String, CaseIterable, Identifiable {
-        case recommended, rating, calories, protein, price, name
+        case recommended, satiety, rating, calories, protein, price, name
         var id: String { rawValue }
         var label: String {
             switch self {
             case .recommended: return "Health"
+            case .satiety: return "Satiety"
             case .rating: return "My rating"
             case .calories: return "Calories"
             case .protein: return "Protein"
@@ -254,6 +255,7 @@ struct RestaurantMenuView: View {
             let scored = list.map { ($0, MenuItemResolver.resolve(item: $0, profile: profile)) }
             switch sort {
             case .recommended: return scored.sorted { $0.1.healthScore > $1.1.healthScore }.map(\.0)
+            case .satiety: return scored.sorted { $0.1.satietyScore > $1.1.satietyScore }.map(\.0)
             case .rating:
                 // Highest rated first; unrated items fall back to health order
                 // so the tail of the list stays useful rather than arbitrary.
