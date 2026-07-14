@@ -14,6 +14,8 @@ struct AppearanceTrendsView: View {
     @Query(filter: #Predicate<Goal> { $0.active }) private var activeGoals: [Goal]
 
     @State private var windowDays = 30
+    @State private var selectedScoreDates: [String: Date] = [:]
+    @State private var selectedBreakdownDate: Date?
 
     static let allTimeWindow = Int.max
 
@@ -110,7 +112,8 @@ struct AppearanceTrendsView: View {
                 EmptyStateView(systemImage: "chart.xyaxis.line", title: "No data in this window", message: emptyMessage)
             }
         } else {
-            ChartCard(title: title, subtitle: "0–100 · higher confidence with consistent photos") {
+            let selection = scoreSelection(for: title)
+            ChartCard(title: title, subtitle: "0–100 · higher confidence with consistent photos · tap or drag for the exact score") {
                 Chart {
                     ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                         AreaMark(x: .value("Date", point.date), y: .value("Score", point.score))
@@ -125,15 +128,30 @@ struct AppearanceTrendsView: View {
                             .foregroundStyle(color.opacity(0.5))
                             .symbolSize(24)
                     }
+                    if let point = nearestScorePoint(to: selectedScoreDates[title], in: points) {
+                        RuleMark(x: .value("Selected date", point.date))
+                            .foregroundStyle(.secondary.opacity(0.45))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            .annotation(position: .top) {
+                                ChartPointCallout(date: point.date, values: [
+                                    ("Score", Formatters.trimmed(point.score))
+                                ])
+                            }
+                        PointMark(x: .value("Selected date", point.date),
+                                  y: .value("Selected score", point.score))
+                            .foregroundStyle(color)
+                            .symbolSize(70)
+                    }
                 }
                 .id("\(title)-\(windowDays)")
                 .chartYScale(domain: 0.0...100.0)
+                .chartXSelection(value: selection)
             }
         }
     }
 
     private var faceBreakdownChart: some View {
-        ChartCard(title: "Face Score Breakdown", subtitle: "Component points over time") {
+        ChartCard(title: "Face Score Breakdown", subtitle: "Component points over time · tap or drag for exact values") {
             Chart {
                 ForEach(Array(faceCheckIns.enumerated()), id: \.offset) { _, checkIn in
                     LineMark(x: .value("Date", checkIn.date), y: .value("Points", checkIn.skinScore),
@@ -146,9 +164,55 @@ struct AppearanceTrendsView: View {
                              series: .value("Component", "Puffiness"))
                         .foregroundStyle(by: .value("Component", "Puffiness"))
                 }
+                if let checkIn = nearestFaceCheckIn(to: selectedBreakdownDate) {
+                    RuleMark(x: .value("Selected date", checkIn.date))
+                        .foregroundStyle(.secondary.opacity(0.45))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .annotation(position: .top) {
+                            ChartPointCallout(date: checkIn.date, values: [
+                                ("Skin", Formatters.trimmed(checkIn.skinScore)),
+                                ("Grooming", Formatters.trimmed(checkIn.groomingScore)),
+                                ("Puffiness", Formatters.trimmed(checkIn.puffinessScore))
+                            ])
+                        }
+                    PointMark(x: .value("Selected date", checkIn.date),
+                              y: .value("Selected skin", checkIn.skinScore))
+                        .foregroundStyle(by: .value("Component", "Skin"))
+                        .symbolSize(58)
+                    PointMark(x: .value("Selected date", checkIn.date),
+                              y: .value("Selected grooming", checkIn.groomingScore))
+                        .foregroundStyle(by: .value("Component", "Grooming"))
+                        .symbolSize(58)
+                    PointMark(x: .value("Selected date", checkIn.date),
+                              y: .value("Selected puffiness", checkIn.puffinessScore))
+                        .foregroundStyle(by: .value("Component", "Puffiness"))
+                        .symbolSize(58)
+                }
             }
             .id("breakdown-\(windowDays)")
             .chartYScale(domain: 0.0...30.0)
+            .chartXSelection(value: $selectedBreakdownDate)
+        }
+    }
+
+    private func scoreSelection(for title: String) -> Binding<Date?> {
+        Binding(
+            get: { selectedScoreDates[title] },
+            set: { selectedScoreDates[title] = $0 }
+        )
+    }
+
+    private func nearestScorePoint(to date: Date?, in points: [(date: Date, score: Double)]) -> (date: Date, score: Double)? {
+        guard let date else { return nil }
+        return points.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
+    }
+
+    private func nearestFaceCheckIn(to date: Date?) -> AppearanceCheckIn? {
+        guard let date else { return nil }
+        return faceCheckIns.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         }
     }
 
