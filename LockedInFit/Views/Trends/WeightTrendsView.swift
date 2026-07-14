@@ -12,6 +12,8 @@ struct WeightTrendsView: View {
     @State private var showLogWeight = false
     @State private var newWeight = ""
     @State private var newBodyFat = ""
+    @State private var selectedWeightDate: Date?
+    @State private var selectedBodyFatDate: Date?
 
     static let allTimeWindow = Int.max
 
@@ -76,7 +78,7 @@ struct WeightTrendsView: View {
                         EmptyStateView(systemImage: "scalemass", title: "Connect HealthKit or enter weight manually", message: "Your trend appears once you have weigh-ins.")
                     }
                 } else {
-                    ChartCard(title: "Bodyweight", subtitle: "Dots are scale readings; the line is your smoothed trend.") {
+                    ChartCard(title: "Bodyweight", subtitle: "Dots are scale readings; the line is your smoothed trend. Tap or drag for exact values.") {
                         Chart {
                             ForEach(trendPoints) { point in
                                 AreaMark(x: .value("Date", point.date), y: .value("kg", point.trendKg))
@@ -95,26 +97,59 @@ struct WeightTrendsView: View {
                                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                                     .interpolationMethod(.monotone)
                             }
+                            if let point = nearestTrendPoint(to: selectedWeightDate) {
+                                RuleMark(x: .value("Selected date", point.date))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(position: .top) {
+                                        ChartPointCallout(date: point.date, values: [
+                                            ("Scale", Formatters.kg(point.weightKg)),
+                                            ("Trend", Formatters.kg(point.trendKg))
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected date", point.date),
+                                          y: .value("Selected trend", point.trendKg))
+                                    .foregroundStyle(Color.accentColor)
+                                    .symbolSize(70)
+                            }
                         }
                         .id("weight-\(windowDays)")
                         .chartXScale(domain: chartDomain)
                         .chartYScale(domain: .automatic(includesZero: false))
+                        .chartXSelection(value: $selectedWeightDate)
                     }
                 }
 
                 if !fatPoints.isEmpty {
-                    ChartCard(title: "Body Fat %", subtitle: "From Renpho via Apple Health, or manual entries.") {
-                        Chart(fatPoints) { entry in
-                            LineMark(x: .value("Date", entry.date), y: .value("%", entry.bodyFatPercentage))
-                                .foregroundStyle(Color.orange)
-                                .interpolationMethod(.monotone)
-                            PointMark(x: .value("Date", entry.date), y: .value("%", entry.bodyFatPercentage))
-                                .foregroundStyle(Color.orange.opacity(0.5))
-                                .symbolSize(20)
+                    ChartCard(title: "Body Fat %", subtitle: "From Renpho via Apple Health, or manual entries. Tap or drag for the exact value.") {
+                        Chart {
+                            ForEach(fatPoints) { entry in
+                                LineMark(x: .value("Date", entry.date), y: .value("%", entry.bodyFatPercentage))
+                                    .foregroundStyle(Color.orange)
+                                    .interpolationMethod(.monotone)
+                                PointMark(x: .value("Date", entry.date), y: .value("%", entry.bodyFatPercentage))
+                                    .foregroundStyle(Color.orange.opacity(0.5))
+                                    .symbolSize(20)
+                            }
+                            if let entry = nearestBodyFatPoint(to: selectedBodyFatDate) {
+                                RuleMark(x: .value("Selected date", entry.date))
+                                    .foregroundStyle(.secondary.opacity(0.45))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                                    .annotation(position: .top) {
+                                        ChartPointCallout(date: entry.date, values: [
+                                            ("Body fat", "\(Formatters.trimmed(entry.bodyFatPercentage))%")
+                                        ])
+                                    }
+                                PointMark(x: .value("Selected date", entry.date),
+                                          y: .value("Selected body fat", entry.bodyFatPercentage))
+                                    .foregroundStyle(Color.orange)
+                                    .symbolSize(70)
+                            }
                         }
                         .id("fat-\(windowDays)")
                         .chartXScale(domain: chartDomain)
                         .chartYScale(domain: .automatic(includesZero: false))
+                        .chartXSelection(value: $selectedBodyFatDate)
                     }
                 }
 
@@ -135,6 +170,20 @@ struct WeightTrendsView: View {
                 .keyboardType(.decimalPad)
             Button("Save") { saveEntry() }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func nearestTrendPoint(to date: Date?) -> WeightTrendCalculator.TrendPoint? {
+        guard let date else { return nil }
+        return trendPoints.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
+    }
+
+    private func nearestBodyFatPoint(to date: Date?) -> BodyFatEntry? {
+        guard let date else { return nil }
+        return fatPoints.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         }
     }
 
