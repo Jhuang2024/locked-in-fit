@@ -395,6 +395,41 @@ struct ChartCard<Content: View>: View {
     }
 }
 
+/// Compact value readout used by interactive trend charts. Keeping the
+/// presentation shared means every chart reports selected points with the
+/// same date, typography, and exact-value hierarchy.
+struct ChartPointCallout: View {
+    let date: Date
+    let values: [(label: String, value: String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(Formatters.mediumDate(date))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ForEach(Array(values.enumerated()), id: \.offset) { _, item in
+                HStack(spacing: 8) {
+                    Text(item.label)
+                    Spacer(minLength: 8)
+                    Text(item.value)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                .font(.caption2)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(minWidth: 104)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+    }
+}
+
 // MARK: - IconBadge
 
 /// A tinted circular badge behind an SF Symbol, used wherever a glyph is the
