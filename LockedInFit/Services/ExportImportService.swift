@@ -274,6 +274,9 @@ enum ExportImportService {
         var sleepReminderMinute: Int; var checklistReminderEnabled: Bool
         var dietaryLimitAlertsEnabled: Bool; var goalAlertsEnabled: Bool
         var crossAppSharingEnabled: Bool
+        /// The "I'm sick today" marker. Optional and defaulted so a backup
+        /// written before this field existed still decodes (missing key → nil).
+        var sickDayDate: Date? = nil
     }
 
     // MARK: - Export
@@ -420,7 +423,8 @@ enum ExportImportService {
                             checklistReminderEnabled: $0.checklistReminderEnabled,
                             dietaryLimitAlertsEnabled: $0.dietaryLimitAlertsEnabled,
                             goalAlertsEnabled: $0.goalAlertsEnabled,
-                            crossAppSharingEnabled: $0.crossAppSharingEnabled)
+                            crossAppSharingEnabled: $0.crossAppSharingEnabled,
+                            sickDayDate: $0.sickDayDate)
         }
         snapshot.goals = try context.fetch(FetchDescriptor<Goal>()).map {
             GoalDTO(phase: $0.phaseRaw, startDate: $0.startDate, startWeightKg: $0.startWeightKg,
@@ -877,6 +881,7 @@ enum ExportImportService {
             settings.dietaryLimitAlertsEnabled = u.dietaryLimitAlertsEnabled
             settings.goalAlertsEnabled = u.goalAlertsEnabled
             settings.crossAppSharingEnabled = u.crossAppSharingEnabled
+            settings.sickDayDate = u.sickDayDate
             count += 1
         }
         return count
