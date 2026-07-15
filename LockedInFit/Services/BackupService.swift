@@ -11,17 +11,21 @@ import UIKit
 /// Every backup, automatic or manual, builds and writes on `BackupActor`, a
 /// private `@ModelActor` with its own background-safe `ModelContext`.
 /// Fetching, encoding, and writing to disk never touch the main actor or
-/// `container.mainContext`. Scheduling (debounce + throttle + in-flight
-/// guard) lives on `BackupCoordinator`, a plain actor, so the shared
-/// scheduling state can't race even though calls come from the main thread
-/// (view code) and background tasks concurrently.
+/// `container.mainContext`. Scheduling (debounce + in-flight guard) lives on
+/// `BackupCoordinator`, a plain actor, so the shared scheduling state can't
+/// race even though calls come from the main thread (view code) and
+/// background tasks concurrently.
 ///
-/// Automatic (throttled) backups run after an actual data mutation is
-/// reported via `scheduleBackupSoon`; nothing here runs on launch or as a
-/// side effect of routine notification refreshes. Backgrounding is the one
-/// deliberate exception (see `backupOnBackgrounding`) since it's the
-/// moment right before an app update, which is exactly the event these
-/// backups exist to survive.
+/// Automatic backups run, debounced, after ANY save reaches the store:
+/// `AutoBackupObserver` watches `ModelContext.didSave`, and individual
+/// mutation sites also report changes via `scheduleBackupSoon`. There is no
+/// minimum-interval throttle — a burst of saves coalesces through the
+/// debounce, and the content-hash dedupe below turns a save that changed
+/// nothing observable into a cheap no-op, so backing up on every change stays
+/// cheap. Nothing here runs on launch or as a side effect of routine
+/// notification refreshes. Backgrounding is a deliberate extra trigger (see
+/// `backupOnBackgrounding`) since it's the moment right before an app update,
+/// which is exactly the event these backups exist to survive.
 ///
 /// Important boundary to be honest about: these backups live inside this
 /// app's own sandbox, so they protect against in-app mistakes (a bad
@@ -30,12 +34,7 @@ import UIKit
 /// survives an uninstall is a file saved outside the app (Settings →
 /// Export JSON, shared to Files/iCloud Drive/AirDrop).
 enum BackupService {
-    static let maxBackupsKept = 10
-    /// Automatic backups never run more often than this, no matter how many
-    /// changes happen in between. Only the explicit "Backup Now" button
-    /// bypasses it.
-    static let minimumAutomaticInterval: TimeInterval = 5 * 60
-    fileprivate static let lastAutomaticBackupKey = "LockedInFit.lastAutomaticBackupDate"
+    static let maxBackupsKept = 5
     private static let lastBackupHashKey = "LockedInFit.lastBackupContentHash"
     private static let manualBaselineDateKey = "LockedInFit.manualBackupBaselineDate"
 
@@ -98,20 +97,22 @@ enum BackupService {
 
     private static var indexURL: URL { backupsDirectory.appendingPathComponent("index.json") }
 
-    // MARK: - Scheduling (debounced, throttled, background-safe)
+    // MARK: - Scheduling (debounced, background-safe)
 
-    /// Call this after an actual data mutation only: adding a meal, editing
-    /// a goal, saving a setting, logging a workout/sleep/check-in, an
-    /// import. Never call it from launch, backgrounding, or routine refresh
-    /// code, none of which are data-mutation events. Fire-and-forget: hops
-    /// onto `BackupCoordinator` to debounce and throttle, never blocking the
-    /// caller.
+    /// Call this after an actual data mutation: adding a meal, editing a
+    /// goal, saving a setting, logging a workout/sleep/check-in, an import.
+    /// `AutoBackupObserver` also calls it after any `ModelContext.didSave`, so
+    /// these per-site calls are redundant safety nets rather than the only
+    /// trigger. Never call it from launch or routine refresh code, which
+    /// aren't data-mutation events. Fire-and-forget: hops onto
+    /// `BackupCoordinator` to debounce (coalescing a burst of changes), never
+    /// blocking the caller.
     static func scheduleBackupSoon(container: ModelContainer, after seconds: Double = 3) {
         PerfLog.event("backup.scheduled")
         Task { await BackupCoordinator.shared.scheduleSoon(container: container, after: seconds) }
     }
 
-    /// Explicit manual "Backup Now": bypasses the throttle, but still
+    /// Explicit manual "Backup Now": bypasses the debounce, but still
     /// refuses to overlap an in-flight backup. Fully off the main thread;
     /// callers should show their own progress UI around the await for a
     /// large database.
@@ -122,8 +123,8 @@ enum BackupService {
 
     /// Backup fired when the app is backgrounded: the moment that precedes
     /// an app update, the event local backups exist to survive. Bypasses
-    /// the debounce and throttle (backgrounding frequency is bounded by the
-    /// user), never blocks resigning active (all work runs on the
+    /// the debounce (backgrounding frequency is bounded by the user), never
+    /// blocks resigning active (all work runs on the
     /// background actor), and the content-hash check inside `performBackup`
     /// makes the no-changes case a cheap no-op, so ordinary app switching
     /// doesn't churn out duplicate backups.
@@ -159,8 +160,8 @@ enum BackupService {
     /// `BackupActor`'s isolated context, so it always runs off the main
     /// thread. Not private so `BackupActor` (a separate type) can call it.
     /// Second tuple element is false for the dedupe no-op path (an existing
-    /// backup's URL handed back, nothing written); callers use that to
-    /// decide whether the throttle clock should reset.
+    /// backup's URL handed back, nothing written); callers can use that to
+    /// tell a real write from a no-op.
     ///
     /// `manual` is true only for the explicit "Backup Now" tap, which does
     /// two things an automatic/background trigger never does. First, it
@@ -564,28 +565,20 @@ private actor BackupCoordinator {
         pendingTask = Task.detached(priority: .utility) { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await self?.runAutomaticIfDue(container: container)
+            await self?.runAutomatic(container: container)
         }
     }
 
-    /// Trailing-edge throttle: a change landing inside the minimum interval
-    /// is DEFERRED to when the interval expires, never dropped. The old
-    /// behavior silently discarded it, which meant "make a change, close the
-    /// app, update" lost the change forever: the exact event backups exist
-    /// for. (The backgrounding hook additionally captures state immediately
-    /// whenever the app leaves the foreground.)
-    private func runAutomaticIfDue(container: ModelContainer) async {
+    /// Runs the debounced automatic backup. If a backup is already in flight,
+    /// reschedule shortly rather than overlap; otherwise back up now. There's
+    /// no rate limit — the debounce coalesces bursts and the content-hash
+    /// dedupe skips no-op writes, so an automatic backup can safely follow
+    /// every change. (The backgrounding hook additionally captures state
+    /// immediately whenever the app leaves the foreground.)
+    private func runAutomatic(container: ModelContainer) async {
         if isRunning {
             scheduleSoon(container: container, after: 5)
             return
-        }
-        if let last = UserDefaults.standard.object(forKey: BackupService.lastAutomaticBackupKey) as? Date {
-            let remaining = BackupService.minimumAutomaticInterval - Date().timeIntervalSince(last)
-            if remaining > 0 {
-                PerfLog.event("backup.deferred")
-                scheduleSoon(container: container, after: remaining + 1)
-                return
-            }
         }
         _ = await runBackup(container: container)
     }
@@ -618,17 +611,8 @@ private actor BackupCoordinator {
         PerfLog.event("backup.started")
         let actor = backupActor ?? BackupActor(modelContainer: container)
         backupActor = actor
-        let (url, wroteNewBackup) = await actor.backupNow(manual: manual)
+        let (url, _) = await actor.backupNow(manual: manual)
         PerfLog.event("backup.finished")
-        // Only a real write resets the throttle window. A dedupe no-op
-        // (content unchanged since the last backup) still returns the
-        // existing file's URL for callers that just want "a backup exists",
-        // but must NOT push the throttle clock forward; otherwise a
-        // no-change backup (e.g. from routine backgrounding) could delay
-        // capturing a genuine edit that lands moments later.
-        if wroteNewBackup {
-            UserDefaults.standard.set(Date(), forKey: BackupService.lastAutomaticBackupKey)
-        }
         return url
     }
 }

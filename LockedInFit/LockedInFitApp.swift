@@ -78,6 +78,10 @@ struct LockedInFitApp: App {
                 naps: (try? container.mainContext.fetch(FetchDescriptor<NapLog>())) ?? [])
         }
         HealthKitManager.shared.configureAutoSync(container: container)
+        // Take a debounced automatic backup after ANY save reaches the store,
+        // not just the mutation sites that explicitly call scheduleBackupSoon.
+        // See AutoBackupObserver.
+        AutoBackupObserver.start(container: container)
     }
 
     private static func configureNavigationTitleTypography() {
