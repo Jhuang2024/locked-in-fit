@@ -51,27 +51,43 @@ enum DataLossGuard {
         UserDefaults.standard.set(data, forKey: incidentLogKey)
     }
 
-    /// Total records across the same categories `Snapshot.totalRecordCount`
-    /// counts, using `fetchCount` rather than fetching and DTO-converting
-    /// every row. This runs on every launch, so it has to stay cheap
-    /// regardless of how much history the user has: building a full
-    /// `ExportImportService.makeSnapshot` here (as an earlier version did)
-    /// meant fetching and converting every row across every table
-    /// synchronously on the main thread before the app could even show its
-    /// first screen, which for a real amount of data is exactly the kind of
-    /// long main-thread stall that gets an app killed by the launch
-    /// watchdog. `fetchCount` never materializes the rows at all.
+    /// How much of the USER's own data is present — the signal for "did the
+    /// user lose data," which every loss check here depends on. Uses
+    /// `fetchCount` rather than fetching and DTO-converting every row, because
+    /// it runs on every launch and has to stay cheap regardless of how much
+    /// history the user has: building a full `ExportImportService.makeSnapshot`
+    /// here (as an earlier version did) meant fetching and converting every
+    /// row across every table synchronously on the main thread before the app
+    /// could even show its first screen — exactly the kind of long
+    /// main-thread stall that gets an app killed by the launch watchdog.
+    /// `fetchCount` never materializes the rows at all.
+    ///
+    /// Records HealthKit re-imports on its own — steps, active energy, body
+    /// weight, and any body-fat/sleep it backs — are deliberately excluded.
+    /// Apple Health survives an app reinstall, so those rows silently reappear
+    /// on the first relaunch after a wipe (HealthKitManager.configureAutoSync
+    /// runs at app launch). Counting them here made a freshly-wiped store look
+    /// like it still had data, so the empty-launch auto-restore never fired and
+    /// the user's meals/workouts/goals stayed gone while only their Health
+    /// metrics came back. Only rows the user actually authored count.
     static func currentRecordCount(context: ModelContext) -> Int {
         func count<T: PersistentModel>(_ type: T.Type) -> Int {
             (try? context.fetchCount(FetchDescriptor<T>())) ?? 0
         }
-        return count(MealLog.self) + count(FoodPreset.self) + count(BodyWeightEntry.self)
-            + count(BodyFatEntry.self) + count(MeasurementEntry.self) + count(StepEntry.self)
-            + count(ActiveEnergyEntry.self) + count(Goal.self) + count(Workout.self)
-            + count(ExercisePreset.self)
-            + count(ProgressPhoto.self) + count(DailyChecklistItem.self) + count(SleepLog.self)
-            + count(NapLog.self) + count(StrengthScore.self) + count(AppearanceCheckIn.self)
+        func authored<T: PersistentModel>(_ type: T.Type, _ predicate: Predicate<T>) -> Int {
+            (try? context.fetchCount(FetchDescriptor<T>(predicate: predicate))) ?? 0
+        }
+        return count(MealLog.self) + count(FoodPreset.self) + count(MeasurementEntry.self)
+            + count(Goal.self) + count(Workout.self) + count(ExercisePreset.self)
+            + count(ProgressPhoto.self) + count(DailyChecklistItem.self)
+            + count(StrengthScore.self) + count(AppearanceCheckIn.self)
             + count(AppearanceSuggestion.self) + count(WorkoutSchedule.self) + count(HealthScan.self)
+            + authored(BodyWeightEntry.self, #Predicate<BodyWeightEntry> { $0.sourceRaw != "health_kit" })
+            + authored(BodyFatEntry.self, #Predicate<BodyFatEntry> { $0.sourceRaw != "health_kit" })
+            + authored(StepEntry.self, #Predicate<StepEntry> { $0.sourceRaw != "health_kit" })
+            + authored(ActiveEnergyEntry.self, #Predicate<ActiveEnergyEntry> { $0.sourceRaw != "health_kit" })
+            + authored(SleepLog.self, #Predicate<SleepLog> { $0.sourceRaw != "health_kit" })
+            + authored(NapLog.self, #Predicate<NapLog> { $0.sourceRaw != "health_kit" })
     }
 
     /// First pass of the launch check: compares today's count against the
