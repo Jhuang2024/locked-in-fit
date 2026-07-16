@@ -75,9 +75,6 @@ final class MealLog {
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
     /// Calories this meal counts for: logged calories plus hidden oil.
     var consumedCalories: Double { calories + hiddenOilCalories }
-    /// Calories from preset (known, pre-measured) items in this meal. Excluded
-    /// from the portion-underestimation uplift.
-    var presetCalories: Double { (foodItems ?? []).filter { $0.fromPreset }.reduce(0) { $0 + $1.calories } }
 
     /// "Estimated 620 kcal, likely range 520–820, oil uncertainty +80 to +260."
     var honestSummary: String {

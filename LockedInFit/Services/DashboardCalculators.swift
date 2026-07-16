@@ -9,16 +9,10 @@ struct DailyNutritionSummary {
     let sodium: Double
     let hiddenOilLow: Double
     let hiddenOilHigh: Double
-    /// Calories from preset (known, pre-measured) foods. Excluded from the
-    /// portion-underestimation uplift.
-    let presetCalories: Double
 
     /// Midpoint of the hidden-oil range: the single value applied to calorie
     /// math everywhere (dashboard, food log, trends). Zero when no oil risk.
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
-    /// Logged food calories the portion uplift should scale: everything except
-    /// preset foods, whose portions are known rather than eyeballed.
-    var estimatedCalories: Double { max(0, calories - presetCalories) }
 }
 
 enum DailyNutritionCalculator {
@@ -32,8 +26,7 @@ enum DailyNutritionCalculator {
             fiber: dayMeals.reduce(0) { $0 + $1.fiber },
             sodium: dayMeals.reduce(0) { $0 + $1.sodium },
             hiddenOilLow: dayMeals.reduce(0) { $0 + $1.hiddenOilLow },
-            hiddenOilHigh: dayMeals.reduce(0) { $0 + $1.hiddenOilHigh },
-            presetCalories: dayMeals.reduce(0) { $0 + $1.presetCalories }
+            hiddenOilHigh: dayMeals.reduce(0) { $0 + $1.hiddenOilHigh }
         )
     }
 }
@@ -179,9 +172,10 @@ enum CalorieRemainingCalculator {
         let roundedExercise = activityAdjustment.adjustmentCalories.rounded()
         let roundedTEF = tefCalories.rounded()
         let roundedOil = nutrition.hiddenOilCalories.rounded()
-        // Preset foods are pre-measured, so only the estimated (eyeballed/AI)
-        // calories get the portion-underestimation uplift.
-        let roundedPortion = (nutrition.estimatedCalories * portionUplift).rounded()
+        // The uplift scales ALL logged food, presets included: a preset fixes
+        // nutrition per gram, but the portion entered against it (grams or
+        // servings) is still the user's estimate unless they used a scale.
+        let roundedPortion = (nutrition.calories * portionUplift).rounded()
         let roundedFood = nutrition.calories.rounded()
         let adjustedTarget = roundedBase + roundedExercise + roundedTEF - roundedOil - roundedPortion
         return CalorieRemainingSummary(
