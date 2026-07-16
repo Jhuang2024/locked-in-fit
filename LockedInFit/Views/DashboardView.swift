@@ -482,6 +482,24 @@ struct DashboardView: View {
         }
     }
 
+    /// Whether the hero card's Calories box checks: eaten is near target, from
+    /// the side the phase allows. Near means within 15%, but a cut can never
+    /// check the box from above (any amount over target is over — Today's
+    /// Checklist warns on it, and this box must not disagree) and a bulk can
+    /// never check it from below. Maintenance and custom keep the symmetric
+    /// band.
+    private var caloriesOnTrack: Bool {
+        let eaten = viewModel.calories.eaten
+        let target = viewModel.calories.adjustedTarget
+        guard eaten > 0, target > 0 else { return false }
+        let deviation = (eaten - target) / target
+        switch goal?.phase {
+        case .cut: return deviation <= 0 && deviation > -0.15
+        case .leanBulk, .aggressiveBulk: return deviation >= 0 && deviation < 0.15
+        default: return abs(deviation) < 0.15
+        }
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -532,7 +550,7 @@ struct DashboardView: View {
                 .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    scoreRow("Calories", done: viewModel.calories.eaten > 0 && abs(viewModel.calories.eaten - viewModel.calories.adjustedTarget) / max(viewModel.calories.adjustedTarget, 1) < 0.15)
+                    scoreRow("Calories", done: caloriesOnTrack)
                     scoreRow("Protein \(Int(viewModel.nutrition.protein))/\(Int(proteinTarget))g", done: viewModel.nutrition.protein >= proteinTarget)
                     scoreRow("Sodium \(Int(viewModel.nutrition.sodium))/\(Int(sodiumLimit))mg", done: viewModel.nutrition.sodium <= sodiumLimit)
                     scoreRow("Steps \(viewModel.stepsToday)/\(viewModel.stepTarget)", done: viewModel.stepsToday >= viewModel.stepTarget)
