@@ -126,8 +126,15 @@ struct FoodPresetRowView: View {
                     }
                     .padding(.top, 2)
                 }
-                if preset.cookingMethod == .stirFried || preset.cookingMethod == .deepFried || preset.cookingMethod == .braised {
-                    Text(HiddenOilEstimator.riskLabel(for: preset.cookingMethod))
+                // Name the cooking method alongside the risk: presets
+                // auto-created from a logged meal inherit that meal's
+                // method (celery from a stir-fry arrives stir-fried), and
+                // a bare "Medium–high oil risk" on plain celery reads as a
+                // bug when the method isn't shown. Naming it also points
+                // at the fix — edit the preset and change the method.
+                if [.sauteed, .braised, .panFried, .stirFried, .deepFried, .restaurantHighOil]
+                    .contains(preset.cookingMethod) {
+                    Text("\(preset.cookingMethod.label) · \(HiddenOilEstimator.riskLabel(for: preset.cookingMethod))")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }

@@ -225,12 +225,70 @@ final class FoodPreset {
     /// leading number out of `serving` (e.g. "150 g", written automatically
     /// by `FoodPresetSyncService` before this field existed), so presets
     /// saved by earlier app versions still scale correctly instead of
-    /// falling back to unscaled substitution forever.
+    /// falling back to unscaled substitution forever. The parse only
+    /// accepts the number when it's followed by a mass/volume unit: a
+    /// count-style label like "1 meal" or "2 slices" must read as
+    /// unknown (0), not as 1 or 2 *grams* — that off-by-a-few-hundred-x
+    /// reference would blow up every gram-scaled substitution of the
+    /// preset (Menu Checker's saved meals all use "1 meal").
     var effectiveReferenceGrams: Double {
         if referenceGrams > 0 { return referenceGrams }
-        let digits = serving.prefix { $0.isNumber || $0 == "." }
-        return Double(digits) ?? 0
+        guard let parsed = FoodPreset.parseServingLabel(serving), parsed.isMassOrVolume else { return 0 }
+        return parsed.value
     }
+
+    /// True when this food is naturally counted in whole pieces or servings
+    /// rather than weighed — a hardboiled egg, a popsicle, a saved "1 meal"
+    /// preset. Used by the Add Meal amount step to default to "how many?"
+    /// instead of asking for a mass the user has no way of knowing.
+    /// Two signals, either one suffices:
+    /// - the serving label is count-style ("1 meal", "2 slices"): a leading
+    ///   number followed by something that isn't a mass/volume unit;
+    /// - the name contains a word for a discrete, countable food. Matched
+    ///   on whole words so "bar" can't hide inside "barbecue".
+    var isCountedInServings: Bool {
+        if let parsed = FoodPreset.parseServingLabel(serving), !parsed.isMassOrVolume {
+            return true
+        }
+        let words = name.lowercased().split { !$0.isLetter }
+        return words.contains { word in
+            if FoodPreset.countableFoodWords.contains(String(word)) { return true }
+            // Plurals: "eggs" → "egg", "sandwiches" → "sandwich".
+            if word.hasSuffix("es"), FoodPreset.countableFoodWords.contains(String(word.dropLast(2))) { return true }
+            if word.hasSuffix("s"), FoodPreset.countableFoodWords.contains(String(word.dropLast())) { return true }
+            return false
+        }
+    }
+
+    /// Splits a serving label like "150 g", "330ml", or "1 meal" into its
+    /// leading number and whether the word after it is a mass/volume unit.
+    /// Returns nil when the label doesn't start with a number, or when
+    /// nothing follows the number (a bare "2" says nothing either way).
+    private static func parseServingLabel(_ serving: String) -> (value: Double, isMassOrVolume: Bool)? {
+        let trimmed = serving.trimmingCharacters(in: .whitespaces).lowercased()
+        let digits = trimmed.prefix { $0.isNumber || $0 == "." }
+        guard !digits.isEmpty, let value = Double(digits) else { return nil }
+        let rest = trimmed.dropFirst(digits.count).trimmingCharacters(in: .whitespaces)
+        let unit = rest.prefix { $0.isLetter }
+        guard !unit.isEmpty else { return nil }
+        let massOrVolumeUnits: Set<Substring> =
+            ["g", "gram", "grams", "ml", "milliliter", "milliliters", "millilitre", "millilitres"]
+        return (value, massOrVolumeUnits.contains(unit))
+    }
+
+    /// Discrete foods people count instead of weigh. Deliberately biased
+    /// toward things with a well-defined "one": produce sold by the piece,
+    /// baked goods, and hand-held items. Bulk foods (rice, noodles,
+    /// vegetables, meat by the cut) stay gram-first.
+    static let countableFoodWords: Set<String> = [
+        "egg", "popsicle", "slice", "sandwich", "burger", "wrap", "cookie",
+        "muffin", "donut", "doughnut", "pancake", "waffle", "taco", "burrito",
+        "dumpling", "nugget", "meatball", "sausage", "hotdog", "cutlet",
+        "patty", "drumstick", "wing", "skewer", "roll", "bun", "tortilla",
+        "biscuit", "cracker", "scoop", "bar", "cupcake", "brownie",
+        "croissant", "bagel", "pretzel", "banana", "apple", "orange", "pear",
+        "peach", "plum", "kiwi", "mandarin", "clementine", "avocado",
+    ]
 
     init(name: String,
          serving: String,

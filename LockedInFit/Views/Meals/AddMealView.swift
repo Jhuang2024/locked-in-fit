@@ -117,25 +117,24 @@ struct AddMealView: View {
                 }
             }
             .sheet(isPresented: $showPresetPicker) {
-                PresetPickerView { preset, grams in
-                    // Grams come from the user (entered right after picking,
-                    // in PresetAmountEntryView), never from a preset default.
-                    // The preset's saved nutrition is scaled by grams / its
-                    // own reference weight so grams and calories describe the
-                    // same amount of food from the moment the item is
-                    // created: FoodItemEditorRow scales proportionally from
-                    // whatever pair it starts with, so a mismatched starting
-                    // pair would throw every later edit off by that same
-                    // wrong ratio. When the reference weight is unknown
-                    // (legacy presets), the saved numbers are used unscaled —
-                    // same rule as MealEstimate.FoodItemEstimate.makeFoodItem.
-                    let reference = preset.effectiveReferenceGrams
-                    let ratio = (reference > 0 && grams > 0) ? grams / reference : 1
-                    let item = FoodItem(name: preset.name, grams: grams,
-                                        calories: preset.calories * ratio,
-                                        protein: preset.protein * ratio, carbs: preset.carbs * ratio,
-                                        fat: preset.fat * ratio, fiber: preset.fiber * ratio,
-                                        sodium: preset.sodium * ratio,
+                PresetPickerView { preset, portion in
+                    // The portion comes from the user (entered right after
+                    // picking, in PresetAmountEntryView — grams for weighed
+                    // foods, a serving count for countable ones), never from
+                    // a preset default. grams and the scaled nutrition are
+                    // computed together there so they describe the same
+                    // amount of food from the moment the item is created:
+                    // FoodItemEditorRow scales proportionally from whatever
+                    // pair it starts with, so a mismatched starting pair
+                    // would throw every later edit off by that same wrong
+                    // ratio.
+                    let item = FoodItem(name: preset.name, grams: portion.grams,
+                                        calories: preset.calories * portion.ratio,
+                                        protein: preset.protein * portion.ratio,
+                                        carbs: preset.carbs * portion.ratio,
+                                        fat: preset.fat * portion.ratio,
+                                        fiber: preset.fiber * portion.ratio,
+                                        sodium: preset.sodium * portion.ratio,
                                         cookingMethod: preset.cookingMethod, order: addedItems.count,
                                         fromPreset: true)
                     addedItems.append(item)
@@ -240,16 +239,25 @@ struct AddMealView: View {
     }
 }
 
+/// What the user said they ate of a preset: the grams to record on the
+/// FoodItem (0 when unknowable, e.g. servings of a preset with no saved
+/// weight) and the factor to scale the preset's saved nutrition by. The two
+/// are computed together so they always describe the same amount of food.
+struct PresetPortion {
+    var grams: Double
+    var ratio: Double
+}
+
 /// Searchable preset picker used by AddMealView. Picking a preset doesn't
 /// add it directly: presets carry no default portion, so the user first
-/// enters the mass they actually ate (PresetAmountEntryView) and only then
-/// does `onPick` fire with both the preset and that mass.
+/// enters how much they ate (PresetAmountEntryView) and only then does
+/// `onPick` fire with both the preset and that portion.
 struct PresetPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
     @State private var search = ""
     @State private var pendingPreset: FoodPreset?
-    let onPick: (FoodPreset, Double) -> Void
+    let onPick: (FoodPreset, PresetPortion) -> Void
 
     private var filtered: [FoodPreset] {
         search.isEmpty ? presets : presets.filter { $0.name.localizedCaseInsensitiveContains(search) }
@@ -272,8 +280,8 @@ struct PresetPickerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
             .sheet(item: $pendingPreset) { preset in
-                PresetAmountEntryView(preset: preset) { grams in
-                    onPick(preset, grams)
+                PresetAmountEntryView(preset: preset) { portion in
+                    onPick(preset, portion)
                     dismiss()
                 }
             }
@@ -281,40 +289,108 @@ struct PresetPickerView: View {
     }
 }
 
-/// Second step of picking a preset: enter the mass eaten. Starts blank on
-/// purpose — a preset has no default mass, so the user always types the
-/// actual portion instead of accepting a seeded number.
+/// Second step of picking a preset: say how much was eaten. Starts blank on
+/// purpose — a preset has no default portion, so the user always types the
+/// actual amount instead of accepting a seeded number.
+///
+/// Two ways to answer, because not every food is weighable: **Servings**
+/// counts whole pieces of the preset's saved serving (2 hardboiled eggs —
+/// nobody knows what one weighs, but the preset does), **Grams** weighs bulk
+/// foods (rice, chicken breast). Countable foods (`isCountedInServings`) and
+/// presets with no usable reference weight start on Servings; everything
+/// else starts on Grams.
 struct PresetAmountEntryView: View {
     @Environment(\.dismiss) private var dismiss
     let preset: FoodPreset
-    let onConfirm: (Double) -> Void
+    let onConfirm: (PresetPortion) -> Void
 
+    enum Mode: String, CaseIterable, Identifiable {
+        case servings, grams
+        var id: String { rawValue }
+        var label: String { self == .servings ? "Servings" : "Grams" }
+    }
+
+    @State private var mode: Mode
+    @State private var servings: Double?
     @State private var grams: Double?
     @FocusState private var amountFocused: Bool
 
-    private var enteredGrams: Double { grams ?? 0 }
+    init(preset: FoodPreset, onConfirm: @escaping (PresetPortion) -> Void) {
+        self.preset = preset
+        self.onConfirm = onConfirm
+        _mode = State(initialValue:
+            preset.isCountedInServings || preset.effectiveReferenceGrams <= 0 ? .servings : .grams)
+    }
+
+    private var referenceGrams: Double { preset.effectiveReferenceGrams }
+
+    private var portion: PresetPortion? {
+        switch mode {
+        case .servings:
+            guard let servings, servings > 0 else { return nil }
+            return PresetPortion(grams: referenceGrams > 0 ? servings * referenceGrams : 0,
+                                 ratio: servings)
+        case .grams:
+            guard let grams, grams > 0 else { return nil }
+            return PresetPortion(grams: grams,
+                                 ratio: referenceGrams > 0 ? grams / referenceGrams : 1)
+        }
+    }
+
+    /// What "1 serving" means for this preset, best label first: the saved
+    /// serving text ("1 bowl", "180 g"), else the reference weight.
+    private var servingDescription: String {
+        let label = preset.serving.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !label.isEmpty { return label }
+        if referenceGrams > 0 { return "\(referenceGrams.formatted()) g" }
+        return "the amounts saved on this preset"
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    Picker("Measure by", selection: $mode) {
+                        ForEach(Mode.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                     HStack {
-                        Text("Amount")
+                        Text(mode == .servings ? "Servings" : "Amount")
                         Spacer()
-                        TextField("Amount", value: $grams, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
-                            .focused($amountFocused)
-                        Text("g").foregroundStyle(.secondary).font(.caption)
+                        if mode == .servings {
+                            TextField("How many", value: $servings, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 90)
+                                .focused($amountFocused)
+                            Text("×").foregroundStyle(.secondary).font(.caption)
+                        } else {
+                            TextField("Weight", value: $grams, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 90)
+                                .focused($amountFocused)
+                            Text("g").foregroundStyle(.secondary).font(.caption)
+                        }
+                    }
+                    if let portion {
+                        LabeledContent("Adds") {
+                            Text(portion.grams > 0
+                                 ? "\(Int((preset.calories * portion.ratio).rounded())) kcal · \(portion.grams.formatted()) g"
+                                 : "\(Int((preset.calories * portion.ratio).rounded())) kcal")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text(preset.name)
                 } footer: {
-                    if preset.effectiveReferenceGrams > 0 {
-                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(preset.effectiveReferenceGrams.formatted()) g).")
+                    if mode == .servings {
+                        Text("1 serving = \(servingDescription). Half servings like 0.5 work too.")
+                    } else if referenceGrams > 0 {
+                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(referenceGrams.formatted()) g).")
                     } else {
-                        Text("This preset has no saved weight, so its nutrition is applied as-is to the amount you enter.")
+                        Text("This preset has no saved weight, so its nutrition is applied as-is regardless of the amount you enter. Switch to Servings, or set a Weight on the preset.")
                     }
                 }
             }
@@ -325,14 +401,17 @@ struct PresetAmountEntryView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        onConfirm(enteredGrams)
+                        if let portion {
+                            onConfirm(portion)
+                        }
                         dismiss()
                     }
-                    .disabled(enteredGrams <= 0)
+                    .disabled(portion == nil)
                 }
             }
             .onAppear { amountFocused = true }
-            .presentationDetents([.height(260), .medium])
+            .onChange(of: mode) { amountFocused = true }
+            .presentationDetents([.height(320), .medium])
         }
     }
 }
