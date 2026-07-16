@@ -313,6 +313,11 @@ struct FoodItemEditorRow: View {
                     .font(.caption2)
                     .foregroundStyle(.orange)
             }
+            Toggle(isOn: Binding(get: { item.weighed }, set: { item.weighed = $0; onChanged() })) {
+                Label("Weighed on a scale", systemImage: "scalemass")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 2)
     }

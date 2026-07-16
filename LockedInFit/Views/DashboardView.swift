@@ -699,7 +699,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.orange)
                         }
                         if viewModel.calories.portionUpliftCalories > 0 {
-                            Label("Portions subtract \(Int(viewModel.calories.portionUpliftCalories)) kcal from today's target, your allowance for underestimating portion sizes.", systemImage: "fork.knife")
+                            Label("Portions subtract \(Int(viewModel.calories.portionUpliftCalories)) kcal from today's target, your allowance for underestimating portion sizes. Items marked as weighed are exempt.", systemImage: "fork.knife")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }

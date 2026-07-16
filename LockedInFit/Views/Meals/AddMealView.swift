@@ -136,7 +136,7 @@ struct AddMealView: View {
                                         fiber: preset.fiber * portion.ratio,
                                         sodium: preset.sodium * portion.ratio,
                                         cookingMethod: preset.cookingMethod, order: addedItems.count,
-                                        fromPreset: true)
+                                        fromPreset: true, weighed: portion.weighed)
                     addedItems.append(item)
                     recalcTotals()
                 }
@@ -246,6 +246,9 @@ struct AddMealView: View {
 struct PresetPortion {
     var grams: Double
     var ratio: Double
+    /// True when the user said the gram amount came off a scale, exempting
+    /// the item from the portion-underestimation uplift.
+    var weighed: Bool = false
 }
 
 /// Searchable preset picker used by AddMealView. Picking a preset doesn't
@@ -313,6 +316,7 @@ struct PresetAmountEntryView: View {
     @State private var mode: Mode
     @State private var servings: Double?
     @State private var grams: Double?
+    @State private var weighed = false
     @FocusState private var amountFocused: Bool
 
     init(preset: FoodPreset, onConfirm: @escaping (PresetPortion) -> Void) {
@@ -333,7 +337,8 @@ struct PresetAmountEntryView: View {
         case .grams:
             guard let grams, grams > 0 else { return nil }
             return PresetPortion(grams: grams,
-                                 ratio: referenceGrams > 0 ? grams / referenceGrams : 1)
+                                 ratio: referenceGrams > 0 ? grams / referenceGrams : 1,
+                                 weighed: weighed)
         }
     }
 
@@ -373,6 +378,11 @@ struct PresetAmountEntryView: View {
                             Text("g").foregroundStyle(.secondary).font(.caption)
                         }
                     }
+                    if mode == .grams {
+                        Toggle(isOn: $weighed) {
+                            Label("Weighed on a scale", systemImage: "scalemass")
+                        }
+                    }
                     if let portion {
                         LabeledContent("Adds") {
                             Text(portion.grams > 0
@@ -388,7 +398,7 @@ struct PresetAmountEntryView: View {
                     if mode == .servings {
                         Text("1 serving = \(servingDescription). Half servings like 0.5 work too.")
                     } else if referenceGrams > 0 {
-                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(referenceGrams.formatted()) g).")
+                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(referenceGrams.formatted()) g). Turn on Weighed on a scale if the amount came off a food scale — weighed items skip the Portion estimation adjustment.")
                     } else {
                         Text("This preset has no saved weight, so its nutrition is applied as-is regardless of the amount you enter. Switch to Servings, or set a Weight on the preset.")
                     }

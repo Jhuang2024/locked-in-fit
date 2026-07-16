@@ -75,6 +75,9 @@ final class MealLog {
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
     /// Calories this meal counts for: logged calories plus hidden oil.
     var consumedCalories: Double { calories + hiddenOilCalories }
+    /// Calories from items the user weighed on a scale. Exempt from the
+    /// portion-underestimation uplift: a measured amount can't be misjudged.
+    var weighedCalories: Double { (foodItems ?? []).filter { $0.weighed }.reduce(0) { $0 + $1.calories } }
 
     /// "Estimated 620 kcal, likely range 520–820, oil uncertainty +80 to +260."
     var honestSummary: String {
@@ -150,11 +153,14 @@ final class FoodItem {
     var meal: MealLog?
     /// Position within the meal's food list; see MealLog.items.
     var order: Int = 0
-    /// True when this item's numbers came from a saved preset (a known,
-    /// pre-measured food) rather than an eyeballed/AI estimate. Preset calories
-    /// are excluded from the portion-underestimation uplift, since there's no
-    /// portion to underestimate.
+    /// True when this item's numbers came from a saved preset rather than an
+    /// eyeballed/AI estimate. Informational only: a preset fixes nutrition per
+    /// gram, but the portion logged against it is still the user's estimate.
     var fromPreset: Bool = false
+    /// True when the user actually weighed this portion on a scale. Weighed
+    /// items are exempt from the portion-underestimation uplift — the amount
+    /// is measured, not guessed.
+    var weighed: Bool = false
 
     var cookingMethod: CookingMethod {
         get { CookingMethod(rawValue: cookingMethodRaw) ?? .unknown }
@@ -172,7 +178,8 @@ final class FoodItem {
          cookingMethod: CookingMethod = .unknown,
          confidence: Double = 1.0,
          order: Int = 0,
-         fromPreset: Bool = false) {
+         fromPreset: Bool = false,
+         weighed: Bool = false) {
         self.name = name
         self.grams = grams
         self.calories = calories
@@ -185,6 +192,7 @@ final class FoodItem {
         self.confidence = confidence
         self.order = order
         self.fromPreset = fromPreset
+        self.weighed = weighed
     }
 }
 

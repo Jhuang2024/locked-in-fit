@@ -9,10 +9,16 @@ struct DailyNutritionSummary {
     let sodium: Double
     let hiddenOilLow: Double
     let hiddenOilHigh: Double
+    /// Calories from items the user weighed on a scale. Exempt from the
+    /// portion-underestimation uplift.
+    let weighedCalories: Double
 
     /// Midpoint of the hidden-oil range: the single value applied to calorie
     /// math everywhere (dashboard, food log, trends). Zero when no oil risk.
     var hiddenOilCalories: Double { (hiddenOilLow + hiddenOilHigh) / 2 }
+    /// Logged food calories the portion uplift scales: everything except
+    /// scale-weighed items, whose amounts are measured rather than guessed.
+    var upliftableCalories: Double { max(0, calories - weighedCalories) }
 }
 
 enum DailyNutritionCalculator {
@@ -26,7 +32,8 @@ enum DailyNutritionCalculator {
             fiber: dayMeals.reduce(0) { $0 + $1.fiber },
             sodium: dayMeals.reduce(0) { $0 + $1.sodium },
             hiddenOilLow: dayMeals.reduce(0) { $0 + $1.hiddenOilLow },
-            hiddenOilHigh: dayMeals.reduce(0) { $0 + $1.hiddenOilHigh }
+            hiddenOilHigh: dayMeals.reduce(0) { $0 + $1.hiddenOilHigh },
+            weighedCalories: dayMeals.reduce(0) { $0 + $1.weighedCalories }
         )
     }
 }
@@ -172,10 +179,11 @@ enum CalorieRemainingCalculator {
         let roundedExercise = activityAdjustment.adjustmentCalories.rounded()
         let roundedTEF = tefCalories.rounded()
         let roundedOil = nutrition.hiddenOilCalories.rounded()
-        // The uplift scales ALL logged food, presets included: a preset fixes
-        // nutrition per gram, but the portion entered against it (grams or
-        // servings) is still the user's estimate unless they used a scale.
-        let roundedPortion = (nutrition.calories * portionUplift).rounded()
+        // The uplift scales all logged food except scale-weighed items:
+        // presets included, since a preset fixes nutrition per gram but the
+        // portion entered against it is still the user's estimate. Only an
+        // item explicitly marked as weighed has a measured amount.
+        let roundedPortion = (nutrition.upliftableCalories * portionUplift).rounded()
         let roundedFood = nutrition.calories.rounded()
         let adjustedTarget = roundedBase + roundedExercise + roundedTEF - roundedOil - roundedPortion
         return CalorieRemainingSummary(

@@ -92,7 +92,7 @@ struct CalorieTrendsView: View {
     }
 
     /// The user's portion-underestimation setting, applied to all logged food
-    /// (hidden oil is estimated separately), matching the dashboard.
+    /// except scale-weighed items, matching the dashboard.
     private var portionUplift: Double {
         (settingsList.first?.portionEstimationAdjustment ?? .off).uplift
     }
@@ -100,7 +100,7 @@ struct CalorieTrendsView: View {
     private var portionUpliftByDay: [Date: Double] {
         guard portionUplift > 0 else { return [:] }
         return Dictionary(grouping: meals.filter { $0.date >= cutoff }, by: { $0.date.startOfDay })
-            .mapValues { entries in entries.reduce(0) { $0 + $1.calories } * portionUplift }
+            .mapValues { entries in entries.reduce(0) { $0 + max(0, $1.calories - $1.weighedCalories) } * portionUplift }
     }
 
     var body: some View {

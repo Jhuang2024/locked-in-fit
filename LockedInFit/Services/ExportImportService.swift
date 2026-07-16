@@ -96,6 +96,7 @@ enum ExportImportService {
             var carbs: Double; var fat: Double; var fiber: Double; var sodium: Double
             var cookingMethod: String; var confidence: Double
             var fromPreset: Bool?
+            var weighed: Bool?
         }
     }
 
@@ -293,7 +294,7 @@ enum ExportImportService {
                         .init(name: $0.name, grams: $0.grams, calories: $0.calories, protein: $0.protein,
                               carbs: $0.carbs, fat: $0.fat, fiber: $0.fiber, sodium: $0.sodium,
                               cookingMethod: $0.cookingMethodRaw, confidence: $0.confidence,
-                              fromPreset: $0.fromPreset)
+                              fromPreset: $0.fromPreset, weighed: $0.weighed)
                     },
                     rating: meal.rating)
         }
@@ -546,7 +547,8 @@ enum ExportImportService {
                                             sodium: item.sodium,
                                             cookingMethod: CookingMethod(rawValue: item.cookingMethod) ?? .unknown,
                                             confidence: item.confidence, order: index,
-                                            fromPreset: item.fromPreset ?? false)
+                                            fromPreset: item.fromPreset ?? false,
+                                            weighed: item.weighed ?? false)
                                })
             meal.rating = m.rating ?? 0
             context.insert(meal); count += 1
