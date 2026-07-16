@@ -117,18 +117,25 @@ struct AddMealView: View {
                 }
             }
             .sheet(isPresented: $showPresetPicker) {
-                PresetPickerView { preset in
-                    // Seed grams from the preset's own reference weight so
-                    // grams and calories describe the same amount of food
-                    // from the moment the item is created: FoodItemEditorRow
-                    // scales proportionally from whatever grams starts at,
-                    // so a mismatched starting pair (e.g. grams: 0 next to
-                    // the preset's full calories) throws every later edit
-                    // off by that same wrong ratio.
-                    let seedGrams = preset.effectiveReferenceGrams > 0 ? preset.effectiveReferenceGrams : 100
-                    let item = FoodItem(name: preset.name, grams: seedGrams, calories: preset.calories,
-                                        protein: preset.protein, carbs: preset.carbs, fat: preset.fat,
-                                        fiber: preset.fiber, sodium: preset.sodium,
+                PresetPickerView { preset, grams in
+                    // Grams come from the user (entered right after picking,
+                    // in PresetAmountEntryView), never from a preset default.
+                    // The preset's saved nutrition is scaled by grams / its
+                    // own reference weight so grams and calories describe the
+                    // same amount of food from the moment the item is
+                    // created: FoodItemEditorRow scales proportionally from
+                    // whatever pair it starts with, so a mismatched starting
+                    // pair would throw every later edit off by that same
+                    // wrong ratio. When the reference weight is unknown
+                    // (legacy presets), the saved numbers are used unscaled —
+                    // same rule as MealEstimate.FoodItemEstimate.makeFoodItem.
+                    let reference = preset.effectiveReferenceGrams
+                    let ratio = (reference > 0 && grams > 0) ? grams / reference : 1
+                    let item = FoodItem(name: preset.name, grams: grams,
+                                        calories: preset.calories * ratio,
+                                        protein: preset.protein * ratio, carbs: preset.carbs * ratio,
+                                        fat: preset.fat * ratio, fiber: preset.fiber * ratio,
+                                        sodium: preset.sodium * ratio,
                                         cookingMethod: preset.cookingMethod, order: addedItems.count,
                                         fromPreset: true)
                     addedItems.append(item)
@@ -233,12 +240,16 @@ struct AddMealView: View {
     }
 }
 
-/// Searchable preset picker used by AddMealView.
+/// Searchable preset picker used by AddMealView. Picking a preset doesn't
+/// add it directly: presets carry no default portion, so the user first
+/// enters the mass they actually ate (PresetAmountEntryView) and only then
+/// does `onPick` fire with both the preset and that mass.
 struct PresetPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
     @State private var search = ""
-    let onPick: (FoodPreset) -> Void
+    @State private var pendingPreset: FoodPreset?
+    let onPick: (FoodPreset, Double) -> Void
 
     private var filtered: [FoodPreset] {
         search.isEmpty ? presets : presets.filter { $0.name.localizedCaseInsensitiveContains(search) }
@@ -248,8 +259,7 @@ struct PresetPickerView: View {
         NavigationStack {
             List(filtered) { preset in
                 Button {
-                    onPick(preset)
-                    dismiss()
+                    pendingPreset = preset
                 } label: {
                     FoodPresetRowView(preset: preset)
                 }
@@ -261,6 +271,68 @@ struct PresetPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
+            .sheet(item: $pendingPreset) { preset in
+                PresetAmountEntryView(preset: preset) { grams in
+                    onPick(preset, grams)
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+/// Second step of picking a preset: enter the mass eaten. Starts blank on
+/// purpose — a preset has no default mass, so the user always types the
+/// actual portion instead of accepting a seeded number.
+struct PresetAmountEntryView: View {
+    @Environment(\.dismiss) private var dismiss
+    let preset: FoodPreset
+    let onConfirm: (Double) -> Void
+
+    @State private var grams: Double?
+    @FocusState private var amountFocused: Bool
+
+    private var enteredGrams: Double { grams ?? 0 }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Text("Amount")
+                        Spacer()
+                        TextField("Amount", value: $grams, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 90)
+                            .focused($amountFocused)
+                        Text("g").foregroundStyle(.secondary).font(.caption)
+                    }
+                } header: {
+                    Text(preset.name)
+                } footer: {
+                    if preset.effectiveReferenceGrams > 0 {
+                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(preset.effectiveReferenceGrams.formatted()) g).")
+                    } else {
+                        Text("This preset has no saved weight, so its nutrition is applied as-is to the amount you enter.")
+                    }
+                }
+            }
+            .navigationTitle("How Much?")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        onConfirm(enteredGrams)
+                        dismiss()
+                    }
+                    .disabled(enteredGrams <= 0)
+                }
+            }
+            .onAppear { amountFocused = true }
+            .presentationDetents([.height(260), .medium])
         }
     }
 }

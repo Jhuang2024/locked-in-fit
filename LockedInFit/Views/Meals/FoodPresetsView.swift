@@ -169,7 +169,7 @@ struct PresetEditorView: View {
                 } header: {
                     Text("Nutrition per serving")
                 } footer: {
-                    Text("Weight is what makes this preset reusable at other portion sizes: when a logged meal's amount differs from this weight, the calories and macros above are scaled proportionally instead of applied as-is.")
+                    Text("Weight is what makes this preset reusable at any portion size: it's not a default amount, just the weight the nutrition above describes. When you log this food you enter the amount you actually ate, and the calories and macros are scaled proportionally from this weight.")
                 }
                 Section {
                     StarRatingView(rating: $rating)
