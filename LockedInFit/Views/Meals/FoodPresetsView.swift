@@ -76,7 +76,7 @@ struct FoodPresetsView: View {
     private func presetRow(_ preset: FoodPreset) -> some View {
         let scores = PresetScoringService.scores(for: preset, profile: profile)
         return Button { editing = preset } label: {
-            FoodPresetRowView(preset: preset, health: scores.health, satiety: scores.satiety)
+            FoodPresetRowView(preset: preset, health: scores.health, satiety: scores.satiety, showsCalorieDensity: true)
         }
         .buttonStyle(.plain)
     }

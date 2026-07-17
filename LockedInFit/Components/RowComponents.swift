@@ -107,6 +107,21 @@ struct FoodPresetRowView: View {
     /// Meal picker) pay nothing.
     var health: Double? = nil
     var satiety: Double? = nil
+    /// On the Food Presets management screen a preset carries no fixed portion
+    /// (the user enters the weight when logging it), so this hides the
+    /// per-serving weight/macro amounts and swaps the calorie total for the
+    /// portion-independent calorie density. The Add Meal picker leaves this
+    /// false so it still shows the serving weight while a preset is being added.
+    var showsCalorieDensity: Bool = false
+
+    /// Calories per gram, or nil when the reference weight is unknown (a
+    /// count-style preset like "1 meal"), where there's no gram basis to
+    /// divide by.
+    private var calorieDensity: Double? {
+        let grams = preset.effectiveReferenceGrams
+        guard grams > 0 else { return nil }
+        return preset.calories / grams
+    }
 
     var body: some View {
         HStack {
@@ -116,9 +131,11 @@ struct FoodPresetRowView: View {
                         .font(.subheadline.weight(.medium))
                     StarRatingBadge(rating: preset.rating)
                 }
-                Text("\(preset.serving) · P\(Int(preset.protein)) C\(Int(preset.carbs)) F\(Int(preset.fat))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if !showsCalorieDensity {
+                    Text("\(preset.serving) · P\(Int(preset.protein)) C\(Int(preset.carbs)) F\(Int(preset.fat))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let health, let satiety {
                     HStack(spacing: 6) {
                         HealthChip(score: health)
@@ -140,8 +157,19 @@ struct FoodPresetRowView: View {
                 }
             }
             Spacer()
-            Text("\(Int(preset.calories)) kcal")
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+            if showsCalorieDensity {
+                if let density = calorieDensity {
+                    Text(String(format: "%.2f cal/g", density))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                } else {
+                    Text("—")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("\(Int(preset.calories)) kcal")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+            }
         }
     }
 }
