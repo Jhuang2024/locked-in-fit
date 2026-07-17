@@ -81,8 +81,33 @@ struct FoodPresetsView: View {
         .buttonStyle(.plain)
     }
 
+    private var legendSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.green)
+                    Text("Health score: how healthy the food is.")
+                }
+                HStack(spacing: 6) {
+                    Image(systemName: "gauge.with.dots.needle.bottom.50percent")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.blue)
+                    Text("Satiety score: how filling it is.")
+                }
+                Text("Higher is better for both.")
+                    .foregroundStyle(.tertiary)
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .listRowBackground(Color.clear)
+        }
+    }
+
     var body: some View {
         List {
+            legendSection
             if sort == .name {
                 ForEach(grouped, id: \.category) { group in
                     Section(group.category) {

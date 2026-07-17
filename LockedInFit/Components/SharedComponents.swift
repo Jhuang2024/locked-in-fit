@@ -655,3 +655,106 @@ struct SectionLabel: View {
             .textCase(.uppercase)
     }
 }
+
+// MARK: - ZoomableImageViewer
+
+/// Identifiable photo payload for driving a `.fullScreenCover(item:)` presenting
+/// `ZoomableImageViewer`. A fresh id per selection so re-tapping the same photo
+/// still re-presents the cover.
+struct ViewerPhoto: Identifiable {
+    let id = UUID()
+    var caption: String? = nil
+    let image: UIImage
+}
+
+
+/// Full-screen, pinch-to-zoom and drag-to-pan viewer for a single photo.
+/// Presented via `.fullScreenCover` so thumbnails elsewhere (e.g. the Looks
+/// check-in detail) can be tapped to inspect the actual photo. Double-tap
+/// toggles between fit and 2.5x; a pinch zooms anywhere in 1x...5x. Panning is
+/// only enabled while zoomed in, and the offset is clamped so the image can't
+/// be dragged off-screen and lost.
+struct ZoomableImageViewer: View {
+    let image: UIImage
+    var caption: String? = nil
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var scale: CGFloat = 1
+    @GestureState private var pinch: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @GestureState private var drag: CGSize = .zero
+
+    private let minScale: CGFloat = 1
+    private let maxScale: CGFloat = 5
+
+    var body: some View {
+        GeometryReader { geo in
+            let liveScale = min(max(scale * pinch, minScale), maxScale)
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(liveScale)
+                    .offset(x: offset.width + drag.width, y: offset.height + drag.height)
+                    .gesture(
+                        MagnificationGesture()
+                            .updating($pinch) { value, state, _ in state = value }
+                            .onEnded { value in
+                                scale = min(max(scale * value, minScale), maxScale)
+                                if scale <= minScale { offset = .zero }
+                                offset = clamped(offset, scale: scale, in: geo.size)
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture()
+                            .updating($drag) { value, state, _ in
+                                if scale > minScale { state = value.translation }
+                            }
+                            .onEnded { value in
+                                guard scale > minScale else { return }
+                                offset = clamped(
+                                    CGSize(width: offset.width + value.translation.width,
+                                           height: offset.height + value.translation.height),
+                                    scale: scale, in: geo.size)
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if scale > minScale { scale = minScale; offset = .zero }
+                            else { scale = 2.5 }
+                        }
+                    }
+
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.white, .black.opacity(0.4))
+                        }
+                        .padding()
+                    }
+                    Spacer()
+                    if let caption {
+                        Text(caption)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .padding(.bottom, 24)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Keeps the panned image within bounds so the visible portion always
+    /// overlaps the screen, preventing it from being flung out of view.
+    private func clamped(_ proposed: CGSize, scale: CGFloat, in size: CGSize) -> CGSize {
+        let maxX = max(0, (size.width * (scale - 1)) / 2)
+        let maxY = max(0, (size.height * (scale - 1)) / 2)
+        return CGSize(width: min(max(proposed.width, -maxX), maxX),
+                      height: min(max(proposed.height, -maxY), maxY))
+    }
+}

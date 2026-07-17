@@ -270,6 +270,7 @@ struct AppearanceCheckInDetailView: View {
     let checkIn: AppearanceCheckIn
 
     @State private var confirmDelete = false
+    @State private var zoomedPhoto: ViewerPhoto?
 
     var body: some View {
         ScrollView {
@@ -337,6 +338,9 @@ struct AppearanceCheckInDetailView: View {
                 dismiss()
             }
         }
+        .fullScreenCover(item: $zoomedPhoto) { photo in
+            ZoomableImageViewer(image: photo.image, caption: photo.caption)
+        }
     }
 
     @ViewBuilder
@@ -351,18 +355,37 @@ struct AppearanceCheckInDetailView: View {
             DashboardCard(title: "Photos", systemImage: "photo") {
                 HStack(spacing: 8) {
                     ForEach(images, id: \.0) { label, image in
-                        VStack(spacing: 4) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 90, height: 120)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                            Text(label)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        Button {
+                            zoomedPhoto = ViewerPhoto(
+                                caption: "\(label) · \(Formatters.mediumDate(checkIn.date))",
+                                image: image)
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 90, height: 120)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(alignment: .bottomTrailing) {
+                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(4)
+                                            .background(.black.opacity(0.4), in: Circle())
+                                            .padding(4)
+                                    }
+                                Text(label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
+                Text("Tap a photo to view it full screen.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 4)
             }
         }
     }
