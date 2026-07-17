@@ -107,11 +107,14 @@ struct FoodPresetRowView: View {
     /// Meal picker) pay nothing.
     var health: Double? = nil
     var satiety: Double? = nil
-    /// On the Food Presets management screen a preset carries no fixed portion
-    /// (the user enters the weight when logging it), so this hides the
-    /// per-serving weight/macro amounts and swaps the calorie total for the
-    /// portion-independent calorie density. The Add Meal picker leaves this
-    /// false so it still shows the serving weight while a preset is being added.
+    /// Selects the presets-management layout vs. the Add Meal picker layout.
+    /// A preset carries no fixed portion (the user enters the weight when
+    /// logging it), so neither layout shows the per-serving calorie/macro
+    /// amounts. When true (management screen): hides those amounts, shows the
+    /// portion-independent calorie density plus the Health/Satiety chips and
+    /// any oil-risk note. When false (picker): shows only the food's identity
+    /// and its serving weight, so the user has a portion reference before
+    /// entering their own amount.
     var showsCalorieDensity: Bool = false
 
     /// Calories per gram, or nil when the reference weight is unknown (a
@@ -131,11 +134,6 @@ struct FoodPresetRowView: View {
                         .font(.subheadline.weight(.medium))
                     StarRatingBadge(rating: preset.rating)
                 }
-                if !showsCalorieDensity {
-                    Text("\(preset.serving) · P\(Int(preset.protein)) C\(Int(preset.carbs)) F\(Int(preset.fat))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
                 if let health, let satiety {
                     HStack(spacing: 6) {
                         HealthChip(score: health)
@@ -143,13 +141,12 @@ struct FoodPresetRowView: View {
                     }
                     .padding(.top, 2)
                 }
-                // Name the cooking method alongside the risk: presets
-                // auto-created from a logged meal inherit that meal's
-                // method (celery from a stir-fry arrives stir-fried), and
-                // a bare "Medium–high oil risk" on plain celery reads as a
-                // bug when the method isn't shown. Naming it also points
-                // at the fix — edit the preset and change the method.
-                if [.sauteed, .braised, .panFried, .stirFried, .deepFried, .restaurantHighOil]
+                // Cooking-method oil risk belongs on the presets management
+                // screen, where it points at the fix (edit the preset and
+                // change the method). The Add Meal picker is deliberately kept
+                // to just identity and serving weight, so it's hidden there.
+                if showsCalorieDensity,
+                   [.sauteed, .braised, .panFried, .stirFried, .deepFried, .restaurantHighOil]
                     .contains(preset.cookingMethod) {
                     Text("\(preset.cookingMethod.label) · \(HiddenOilEstimator.riskLabel(for: preset.cookingMethod))")
                         .font(.caption2)
@@ -166,9 +163,13 @@ struct FoodPresetRowView: View {
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
-            } else {
-                Text("\(Int(preset.calories)) kcal")
+            } else if !preset.serving.isEmpty {
+                // Picker: the serving weight is the only figure kept, so the
+                // user knows what portion this preset's stored nutrition
+                // describes before entering their own amount.
+                Text(preset.serving)
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
         }
     }
