@@ -258,9 +258,18 @@ struct PresetPortion {
 struct PresetPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \FoodPreset.name) private var presets: [FoodPreset]
+    @Query private var settingsList: [UserSettings]
+    @Query(filter: #Predicate<Goal> { $0.active }) private var goals: [Goal]
+    @Query(sort: \MealLog.date, order: .reverse) private var meals: [MealLog]
     @State private var search = ""
     @State private var pendingPreset: FoodPreset?
     let onPick: (FoodPreset, PresetPortion) -> Void
+
+    /// Same personalized profile the Food Presets screen builds, so a preset's
+    /// Health/Satiety chips read identically in both places.
+    private var profile: ScoringProfile {
+        ScoringProfileBuilder.make(settings: settingsList.first, goal: goals.first, meals: meals)
+    }
 
     private var filtered: [FoodPreset] {
         search.isEmpty ? presets : presets.filter { $0.name.localizedCaseInsensitiveContains(search) }
@@ -272,7 +281,9 @@ struct PresetPickerView: View {
                 Button {
                     pendingPreset = preset
                 } label: {
-                    FoodPresetRowView(preset: preset)
+                    let scores = PresetScoringService.scores(for: preset, profile: profile)
+                    FoodPresetRowView(preset: preset, health: scores.health,
+                                      satiety: scores.satiety, showsCalorieDensity: true)
                 }
                 .buttonStyle(.plain)
             }
