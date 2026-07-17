@@ -32,6 +32,18 @@ enum BriefFeedPublisher {
         return formatter
     }()
 
+    /// Publish gated on the cross-app sharing toggle, for call sites that
+    /// don't already know it (app backgrounding, HealthKit sync). The
+    /// dashboard checks the toggle itself before calling `publish`; every
+    /// other caller should come through here so a disabled bridge really
+    /// means nothing leaves the app.
+    @MainActor
+    static func publishIfSharingEnabled(modelContext: ModelContext, now: Date = .now) {
+        let settings = (try? modelContext.fetch(FetchDescriptor<UserSettings>()))?.first
+        guard settings?.crossAppSharingEnabled ?? true else { return }
+        publish(modelContext: modelContext, now: now)
+    }
+
     @discardableResult
     static func publish(modelContext: ModelContext, now: Date = .now) -> Bool {
         // Best-effort fetches, matching the repo's `(try? fetch) ?? []` idiom:

@@ -121,6 +121,13 @@ struct LockedInFitApp: App {
             guard newPhase == .background else { return }
             try? container.mainContext.save()
             BackupService.backupOnBackgrounding(container: container)
+            // Rewrite the Brief feed with the day's final state so far. The
+            // dashboard-load publish alone left the feed frozen at whatever
+            // the morning looked like (219 steps, checklist 0/3) whenever
+            // the app wasn't reopened later in the day; backgrounding is the
+            // last reliable moment to capture meals logged, checklist items
+            // ticked, and steps synced during this session.
+            BriefFeedPublisher.publishIfSharingEnabled(modelContext: container.mainContext)
         }
     }
 }

@@ -142,6 +142,15 @@ final class HealthKitManager {
             }
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
+            // Keep the Brief feed's step/energy/weight numbers current as
+            // Health data lands, including via the background observer
+            // deliveries above — without this, the feed only updated when
+            // the dashboard appeared, so the morning brief showed steps as
+            // of whenever the app was last opened rather than the day's
+            // actual totals.
+            if imported > 0 {
+                BriefFeedPublisher.publishIfSharingEnabled(modelContext: context)
+            }
         } catch {
             lastSyncSummary = "Sync failed: \(error.localizedDescription)"
         }
