@@ -328,7 +328,7 @@ struct SettingsView: View {
             Text("""
             Sodium is treated as a stay-under target in the Dashboard and Food Log. Set this lower if your doctor gave you a specific limit.
 
-            Portion estimation trims your daily target by a percentage of your logged food, since portions are easy to underestimate. Food items you mark as "Weighed on a scale" are exempt — a measured amount can't be misjudged. Pick how much you tend to underestimate by. It only affects calories, not your macro targets:
+            Portion estimation trims your daily target by a percentage of your logged food, since portions are easy to underestimate. Food items you mark as "Weighed on a scale" are exempt, since a measured amount can't be misjudged. Pick how much you tend to underestimate by. It only affects calories, not your macro targets:
             • Off (default): trust your log exactly.
             • Conservative: 5%.
             • Moderate: 10%.

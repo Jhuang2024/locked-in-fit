@@ -409,7 +409,7 @@ struct PresetAmountEntryView: View {
                     if mode == .servings {
                         Text("1 serving = \(servingDescription). Half servings like 0.5 work too.")
                     } else if referenceGrams > 0 {
-                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(referenceGrams.formatted()) g). Turn on Weighed on a scale if the amount came off a food scale — weighed items skip the Portion estimation adjustment.")
+                        Text("Calories and macros are scaled from the preset's saved nutrition (per \(referenceGrams.formatted()) g). Turn on Weighed on a scale if the amount came off a food scale. Weighed items skip the Portion estimation adjustment.")
                     } else {
                         Text("This preset has no saved weight, so its nutrition is applied as-is regardless of the amount you enter. Switch to Servings, or set a Weight on the preset.")
                     }

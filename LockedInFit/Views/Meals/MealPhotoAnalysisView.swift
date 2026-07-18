@@ -354,7 +354,7 @@ struct FoodItemEditorRow: View {
 
     private func labeledField(_ label: String, value: Binding<Double>) -> some View {
         VStack(spacing: 2) {
-            TextField("0", value: value, format: .number)
+            TextField("0", value: value, format: .number.precision(.fractionLength(0)))
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(.callout)

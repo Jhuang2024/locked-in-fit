@@ -159,7 +159,7 @@ struct FoodPresetRowView: View {
                     Text(String(format: "%.2f cal/g", density))
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 } else {
-                    Text("—")
+                    Text("-")
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
