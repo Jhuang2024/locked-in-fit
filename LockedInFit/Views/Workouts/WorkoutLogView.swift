@@ -51,9 +51,7 @@ struct WorkoutLogView: View {
                 HStack {
                     Text("Duration")
                     Spacer()
-                    TextField("min", value: $workout.duration, format: .number)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
+                    NumberField("min", value: $workout.duration, keyboard: .numberPad)
                         .frame(width: 70)
                     Text("min").font(.caption).foregroundStyle(.secondary)
                 }
@@ -95,9 +93,7 @@ struct WorkoutLogView: View {
                 HStack {
                     Text("Calories")
                     Spacer()
-                    TextField("kcal", value: $workout.caloriesBurned, format: .number)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
+                    NumberField("kcal", value: $workout.caloriesBurned, keyboard: .numberPad)
                         .frame(width: 70)
                     Text("kcal").font(.caption).foregroundStyle(.secondary)
                 }
@@ -300,9 +296,7 @@ private struct ExerciseSectionView: View {
             HStack {
                 Text("Rest between sets")
                 Spacer()
-                TextField("sec", value: $exercise.restSeconds, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                NumberField("sec", value: $exercise.restSeconds)
                     .frame(width: 60)
                     .disabled(exercise.setList.count <= 1)
                 Text("sec").font(.caption).foregroundStyle(.secondary)

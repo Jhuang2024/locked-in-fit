@@ -224,9 +224,7 @@ struct PresetEditorView: View {
         HStack {
             Text(label)
             Spacer()
-            TextField("0", value: value, format: .number)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
+            NumberField(value: value)
                 .frame(width: 90)
             Text(unit).foregroundStyle(.secondary).font(.caption)
         }

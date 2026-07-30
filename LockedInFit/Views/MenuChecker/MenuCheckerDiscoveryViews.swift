@@ -130,8 +130,7 @@ struct MenuFilterSheet: View {
         return HStack {
             Text(label)
             Spacer()
-            TextField("Any", value: proxy, format: .number)
-                .keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 80)
+            NumberField("Any", value: proxy).frame(width: 80)
             Text(unit).font(.caption).foregroundStyle(.secondary)
         }
     }

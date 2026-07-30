@@ -5,6 +5,15 @@ struct PatchNotesView: View {
     var body: some View {
         List {
             Section {
+                releaseHeader("Meal History & Editing", version: "1.3")
+                note("clock.arrow.circlepath", "Meal history",
+                     "A new Meal History screen shows every past day: what you ate, when, that day's calories against its target, and its protein, carbs, and fat. Open it from the Food Log, the Today dashboard, or Trends, tap any meal to edit it, or jump the Food Log straight to that day.")
+                note("chevron.left.forwardslash.chevron.right", "Step back a day at a time",
+                     "The Food Log now has back/forward day arrows and reads \"Today\" or \"Yesterday\" at a glance, with a Back to Today button whenever you're looking at another day.")
+                note("delete.left", "Numbers you can actually retype",
+                     "Every number field in the app can now be cleared completely. Changing a 200 g portion to 100 g used to be impossible: deleting the last digit put the old number straight back, so the field bottomed out at 2 g. Fields can be emptied and retyped, and editing a food's weight rescales its calories and macros from the food's own per-gram nutrition, so clearing the weight and typing a new one lands on exactly the right numbers.")
+            }
+            Section {
                 releaseHeader("Food Ratings", version: "1.2")
                 note("star.fill", "Rate your food",
                      "Give anything you eat a 1–5 star rating: logged meals (in the meal's detail screen), food presets, and restaurant dishes in Menu Checker. Tap a star again to clear a rating.")

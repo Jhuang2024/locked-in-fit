@@ -222,19 +222,16 @@ struct ExerciseSetRowView: View {
                 .background(Color(.tertiarySystemFill), in: Circle())
 
             if isDurationBased {
-                TextField("sec", value: $set.duration, format: .number)
-                    .keyboardType(.numberPad)
+                NumberField("sec", value: $set.duration, keyboard: .numberPad, alignment: .leading)
                     .frame(width: 60)
                     .textFieldStyle(.roundedBorder)
                 Text("sec").font(.caption).foregroundStyle(.secondary)
             } else {
-                TextField("kg", value: $set.weight, format: .number)
-                    .keyboardType(.decimalPad)
+                NumberField("kg", value: $set.weight, fractionDigits: 2, alignment: .leading)
                     .frame(width: 64)
                     .textFieldStyle(.roundedBorder)
                 Text("kg ×").font(.caption).foregroundStyle(.secondary)
-                TextField("reps", value: $set.reps, format: .number)
-                    .keyboardType(.numberPad)
+                NumberField("reps", value: $set.reps, alignment: .leading)
                     .frame(width: 48)
                     .textFieldStyle(.roundedBorder)
             }

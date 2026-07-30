@@ -1,5 +1,42 @@
 # Locked In Fit: Patch Notes
 
+## v1.3: Meal History & Editing
+
+### Meal history
+- New **Meal History** screen: every past day, newest first, with that day's
+  meals, calories against the target that day actually had (activity, TEF,
+  hidden oil, and the portion allowance all included, same math as the
+  dashboard), protein/carbs/fat, and a per-day meal list.
+- Days with nothing logged are shown as **Nothing logged** rather than being
+  skipped, so a gap in the history is visible instead of invisible.
+- 2W / 1M / 3M / All windows, plus an average-per-logged-day summary that counts
+  only the days you actually logged.
+- Reachable from the Food Log, the Today dashboard's meal card, and Trends. Tap
+  a meal to open and edit it; tap a day's totals to point the Food Log at that
+  day.
+
+### Food Log day navigation
+- Back/forward arrows step one day at a time, with a **Today** / **Yesterday** /
+  weekday label and a **Back to today** button. The date picker stays for
+  jumping to a specific day.
+
+### Number fields
+- **Fixed:** number fields could not be cleared. Because the text was rebuilt
+  from the stored value on every keystroke, an empty field was impossible:
+  deleting the last digit restored the old number, so a 200 g portion could only
+  be deleted down to 2 g and never retyped as 100 g. Fields now keep what you
+  type, can be emptied (an empty field reads as 0), and accept part-typed input
+  like "12." or ".5" while you're still typing.
+- Applies to every numeric field in the app: meal totals and per-food
+  calories/macros/weights, food presets, Menu Checker, health scans, goals,
+  settings, and workout sets.
+- Editing a food's weight now rescales its nutrition from that food's own
+  per-gram density instead of from the ratio between the old and new weight, so
+  clearing the weight and retyping it lands on exactly the right calories and
+  macros instead of compounding each keystroke's rounding.
+- Values are no longer silently rounded to what the field displays: a stored
+  175.4 kcal shown as "175" stays 175.4 unless you actually edit it.
+
 ## v1.1: Menu Checker
 
 A major new feature that turns eating out into first-class, honestly-estimated

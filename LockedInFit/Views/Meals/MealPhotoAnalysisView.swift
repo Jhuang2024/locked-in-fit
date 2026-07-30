@@ -259,9 +259,7 @@ struct MealDraftEditor: View {
         HStack {
             Text(label)
             Spacer()
-            TextField("0", value: value, format: .number)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
+            NumberField(value: value)
                 .frame(width: 90)
             Text(unit).foregroundStyle(.secondary).font(.caption)
         }
@@ -284,9 +282,48 @@ struct MealDraftEditor: View {
     }
 }
 
+/// A food's nutrition per gram, remembered so a weight edit can rescale from
+/// the food itself rather than from whatever the previous weight happened to
+/// be. See FoodItemEditorRow.perGram.
+private struct NutrientDensity {
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let fiber: Double
+    let sodium: Double
+
+    init(of item: FoodItem, per grams: Double) {
+        let divisor = grams > 0 ? grams : 1
+        calories = item.calories / divisor
+        protein = item.protein / divisor
+        carbs = item.carbs / divisor
+        fat = item.fat / divisor
+        fiber = item.fiber / divisor
+        sodium = item.sodium / divisor
+    }
+
+    func apply(to item: FoodItem, grams: Double) {
+        item.calories = calories * grams
+        item.protein = protein * grams
+        item.carbs = carbs * grams
+        item.fat = fat * grams
+        item.fiber = fiber * grams
+        item.sodium = sodium * grams
+    }
+}
+
 struct FoodItemEditorRow: View {
     @Bindable var item: FoodItem
     var onChanged: () -> Void = {}
+
+    /// This food's nutrition per gram, captured the last time its weight was
+    /// known. A weight edit rescales from this instead of from the previous
+    /// weight, so a weight that passes through 0 on the way to being retyped
+    /// (an empty field reads as 0) can't strand the macros: 200 g cleared and
+    /// retyped as 100 g lands on exactly half the nutrition, not on whatever
+    /// the intermediate keystrokes multiplied out to.
+    @State private var perGram: NutrientDensity?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -322,21 +359,23 @@ struct FoodItemEditorRow: View {
         .padding(.vertical, 2)
     }
 
+    /// Editing the weight scales the nutrition with it, from this food's own
+    /// per-gram density rather than from the ratio between the old and new
+    /// weights. Ratio scaling worked only while both weights were nonzero,
+    /// which stopped being true once an emptied field could legitimately read
+    /// as 0 g mid-edit.
     private func amountField(_ label: String) -> some View {
         labeledField(label, value: Binding(
             get: { item.grams },
             set: { newValue in
-                let oldValue = item.grams
-                item.grams = newValue
-                if oldValue > 0, newValue > 0, oldValue != newValue {
-                    let ratio = newValue / oldValue
-                    item.calories *= ratio
-                    item.protein *= ratio
-                    item.carbs *= ratio
-                    item.fat *= ratio
-                    item.fiber *= ratio
-                    item.sodium *= ratio
-                }
+                // Recaptured from the item itself whenever it still has a
+                // weight (density is invariant under weight edits, so this
+                // stays right across a whole edit), falling back to the last
+                // one remembered while the field sits at 0.
+                let density = item.grams > 0 ? NutrientDensity(of: item, per: item.grams) : perGram
+                item.grams = max(0, newValue)
+                density?.apply(to: item, grams: item.grams)
+                perGram = density
                 onChanged()
             }
         ))
@@ -347,6 +386,9 @@ struct FoodItemEditorRow: View {
             get: { item[keyPath: keyPath] },
             set: { newValue in
                 item[keyPath: keyPath] = newValue
+                // Typed-in nutrition redefines this food's density, so the
+                // remembered one is stale; the next weight edit recaptures it.
+                perGram = nil
                 onChanged()
             }
         )
@@ -354,9 +396,7 @@ struct FoodItemEditorRow: View {
 
     private func labeledField(_ label: String, value: Binding<Double>) -> some View {
         VStack(spacing: 2) {
-            TextField("0", value: value, format: .number.precision(.fractionLength(0)))
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
+            NumberField(value: value, alignment: .center)
                 .font(.callout)
                 .padding(.vertical, 4)
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 6))

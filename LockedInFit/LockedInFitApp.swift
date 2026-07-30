@@ -349,6 +349,9 @@ struct TrendsHomeView: View {
                 NavigationLink(destination: CalorieTrendsView()) {
                     Label("Calorie Trends", systemImage: "calendar")
                 }
+                NavigationLink(destination: MealHistoryView()) {
+                    Label("Meal History", systemImage: "clock.arrow.circlepath")
+                }
             }
             Section("Body") {
                 NavigationLink(destination: MeasurementsView()) {

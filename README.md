@@ -11,6 +11,7 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **Honest uncertainty**: every estimate shows a calorie range plus hidden-oil uncertainty by cooking method (stir-fried eggplant is treated as the oil sponge it is). Save your own frequent meals as reusable food presets.
 - **Menu Checker**: find restaurants nearby or anywhere in the world (list + map), browse their menus, and see estimated nutrition, a personalized **Health Score**, and a **Satiety Score** for every item. Official nutrition is shown as-is and never dressed up; estimates are rounded with a high/medium/low confidence and an inspectable breakdown. Oil is handled consistently — **steamed/raw = exactly zero added oil**, every other method estimated by food, breading, and portion, and overridable. Build a persistent meal cart (mix restaurants, add custom foods, tweak modifications/portions), then **Log This Meal** as breakfast/lunch/dinner/snack straight into your normal food history. See `PATCH_NOTES.md` for the full write-up.
 - **Speak your meal**: the manual Add Meal flow has a microphone — describe a meal out loud, review the parsed foods (with the same oil rules), and confirm before logging.
+- **Meal history**: a day-by-day record of everything logged — yesterday, the day before, or three months back — with each day's calories against the target that day actually had, its macros, and its meals (tap to edit). Reachable from the Food Log, the Today dashboard, and Trends; the Food Log itself steps a day at a time.
 - **Goals**: cut / maintain / lean bulk / aggressive bulk / custom, with trend weight (exponential smoothing), adaptive maintenance (formula blended with observed intake vs. weight trend), TEF, projected finish date, pace warnings, adherence score.
 - **Workouts**: generator (phase, equipment, time, fatigue, focus muscles), set-by-set logging (weight/reps/duration/RPE), templates, repeat workout, exercise history charts.
 - **Strength scores**: 0–1000 per movement pattern (squat, hinge, pushes, pulls, core, conditioning) from bodyweight-relative e1RM + progress + volume + consistency. Levels, badges, PR celebrations, weekly streaks, and a daily "Locked In" score.
@@ -56,7 +57,8 @@ LockedInFit/
   Models/MenuChecker/    Restaurant, MenuItem, cart, saved/recent (SwiftData)
   Services/MenuChecker/  Providers, oil/nutrition estimators, scoring, cart, logging, speech
   Views/MenuChecker/     Discovery, menu, item detail, cart, log flow
-LockedInFitTests/  Unit tests (oil rules, scoring, cart, logging, speech)
+LockedInFitTests/  Unit tests (oil rules, scoring, cart, logging, speech,
+                   numeric-field entry, meal history)
 ```
 
 Sample data (meals, weights, workouts, goal, presets) is seeded on first launch so every screen has content immediately.

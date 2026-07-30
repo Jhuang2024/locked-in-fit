@@ -221,9 +221,7 @@ struct SettingsView: View {
             HStack {
                 Text("Height")
                 Spacer()
-                TextField("cm", value: $settings.heightCm, format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
+                NumberField("cm", value: $settings.heightCm, fractionDigits: 1)
                     .frame(width: 80)
                 Text("cm").font(.caption).foregroundStyle(.secondary)
             }
@@ -285,9 +283,7 @@ struct SettingsView: View {
             HStack {
                 Text("Manual maintenance (0 = auto)")
                 Spacer()
-                TextField("kcal", value: $settings.manualMaintenanceOverride, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                NumberField("kcal", value: $settings.manualMaintenanceOverride, keyboard: .numberPad)
                     .frame(width: 80)
             }
         } header: {
@@ -307,9 +303,7 @@ struct SettingsView: View {
             HStack {
                 Text("Daily sodium limit")
                 Spacer()
-                TextField("mg", value: $settings.sodiumLimitMg, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                NumberField("mg", value: $settings.sodiumLimitMg, keyboard: .numberPad)
                     .frame(width: 90)
                 Text("mg").font(.caption).foregroundStyle(.secondary)
             }

@@ -184,7 +184,7 @@ struct ParsedEntryRow: View {
         HStack {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Spacer()
-            TextField("0", value: value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 70)
+            NumberField(value: value).frame(width: 70)
         }
     }
 }

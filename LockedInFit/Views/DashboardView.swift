@@ -968,10 +968,10 @@ struct DashboardView: View {
 
     private var mealsCard: some View {
         DashboardCard(title: "Today's Meals", systemImage: "fork.knife") {
-            if todayMeals.isEmpty {
-                EmptyStateView(systemImage: "fork.knife.circle", title: "No meals logged yet", message: "Add your first meal or analyze a photo when you eat.")
-            } else {
-                VStack(spacing: 10) {
+            VStack(spacing: 10) {
+                if todayMeals.isEmpty {
+                    EmptyStateView(systemImage: "fork.knife.circle", title: "No meals logged yet", message: "Add your first meal or analyze a photo when you eat.")
+                } else {
                     ForEach(todayMeals) { meal in
                         NavigationLink(destination: MealDetailView(meal: meal)) {
                             MealRowView(meal: meal)
@@ -979,6 +979,21 @@ struct DashboardView: View {
                         .buttonStyle(.pressable)
                     }
                 }
+                // The dashboard is where you look when you're wondering what
+                // you've eaten, so the answer for every day before today
+                // starts here too, not only from inside the Log tab.
+                Divider()
+                NavigationLink(destination: MealHistoryView()) {
+                    HStack {
+                        Label("Earlier days", systemImage: "clock.arrow.circlepath")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.pressable)
             }
         }
     }

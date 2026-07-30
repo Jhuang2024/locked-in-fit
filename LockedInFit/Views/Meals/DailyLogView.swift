@@ -39,8 +39,39 @@ struct DailyLogView: View {
     var body: some View {
         List {
             Section {
-                DatePicker("Day", selection: $selectedDate, displayedComponents: .date)
+                // Stepping a day at a time is how you actually read a food
+                // log ("what did I eat yesterday?"); the picker below stays
+                // for jumping somewhere specific.
+                HStack {
+                    Button {
+                        shiftDay(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left").font(.body.weight(.semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Previous day")
+                    Spacer()
+                    VStack(spacing: 2) {
+                        Text(Formatters.dayLabel(selectedDate))
+                            .font(.headline)
+                        Text(Formatters.mediumDate(selectedDate))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        shiftDay(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right").font(.body.weight(.semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Next day")
+                }
+                DatePicker("Jump to day", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
+                if !selectedDate.isToday {
+                    Button("Back to today") { selectedDate = Date().startOfDay }
+                }
             }
 
             Section("Totals") {
@@ -135,6 +166,17 @@ struct DailyLogView: View {
                         }
                     }
                 }
+                NavigationLink(destination: MealHistoryView(onOpenDay: { selectedDate = $0 })) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Meal History")
+                            Text("Every past day's meals, calories, and macros")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "clock.arrow.circlepath").foregroundStyle(.tint)
+                    }
+                }
                 NavigationLink(destination: HealthScanListView()) {
                     Label("Health Scans", systemImage: "text.magnifyingglass")
                 }
@@ -155,6 +197,11 @@ struct DailyLogView: View {
         }
         .sheet(isPresented: $showAddMeal) { AddMealView() }
         .sheet(isPresented: $showPhotoAnalysis) { MealPhotoAnalysisView() }
+    }
+
+    private func shiftDay(by days: Int) {
+        guard let shifted = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        selectedDate = shifted.startOfDay
     }
 
     private func sodiumColor(for sodium: Double) -> Color {

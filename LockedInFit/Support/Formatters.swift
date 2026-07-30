@@ -30,6 +30,21 @@ enum Formatters {
         date.formatted(.dateTime.month(.abbreviated).day())
     }
 
+    /// How a day reads when you're navigating between days: "Today",
+    /// "Yesterday", the weekday name inside the past week ("Monday"), and a
+    /// dated label beyond that ("Mon, Jul 28").
+    static func dayLabel(_ date: Date, relativeTo reference: Date = .now) -> String {
+        let days = Calendar.current
+            .dateComponents([.day], from: reference.startOfDay, to: date.startOfDay).day ?? 0
+        switch days {
+        case 0: return "Today"
+        case -1: return "Yesterday"
+        case 1: return "Tomorrow"
+        case -6 ... -2: return date.formatted(.dateTime.weekday(.wide))
+        default: return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        }
+    }
+
     static func mediumDate(_ date: Date) -> String {
         date.formatted(date: .abbreviated, time: .omitted)
     }

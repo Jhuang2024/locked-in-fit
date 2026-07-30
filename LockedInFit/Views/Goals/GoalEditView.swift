@@ -97,9 +97,8 @@ struct GoalEditView: View {
         HStack {
             Text(label)
             Spacer()
-            TextField("0", value: value, format: .number)
-                .keyboardType(.numbersAndPunctuation)
-                .multilineTextAlignment(.trailing)
+            NumberField(value: value, fractionDigits: 2, allowsNegative: true,
+                        keyboard: .numbersAndPunctuation)
                 .frame(width: 80)
             Text(unit).foregroundStyle(.secondary).font(.caption)
         }

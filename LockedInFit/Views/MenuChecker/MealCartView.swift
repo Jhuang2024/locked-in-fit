@@ -217,7 +217,7 @@ struct CustomFoodSheet: View {
     private func field(_ label: String, _ value: Binding<Double>, _ unit: String) -> some View {
         HStack {
             Text(label); Spacer()
-            TextField("0", value: value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 80)
+            NumberField(value: value).frame(width: 80)
             Text(unit).font(.caption).foregroundStyle(.secondary)
         }
     }
