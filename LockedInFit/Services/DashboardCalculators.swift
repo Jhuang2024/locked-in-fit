@@ -39,6 +39,10 @@ enum DailyNutritionCalculator {
 }
 
 struct ActivityAdjustmentSummary {
+    /// Today's active energy, already rounded to a whole kcal. Rounded once
+    /// here, at the source, so the Activity card's "Est. active" chip and the
+    /// calorie card's "Exercise" chip (which scales this same figure) can
+    /// never disagree by one from two display sites rounding independently.
     let baseActiveCalories: Double
     let adjustmentCalories: Double
     let multiplier: Double
@@ -78,18 +82,20 @@ enum ActivityAdjustmentCalculator {
         // reading from erasing the credit the day's steps and workouts earned,
         // while still deferring to Apple Health whenever it's the fuller number.
         if healthEnergy >= estimated && healthEnergy > 0 {
+            let base = healthEnergy.rounded()
             return ActivityAdjustmentSummary(
-                baseActiveCalories: healthEnergy,
-                adjustmentCalories: healthEnergy * multiplier,
+                baseActiveCalories: base,
+                adjustmentCalories: base * multiplier,
                 multiplier: multiplier,
                 sourceLabel: "Apple Health active energy",
                 isEstimated: false
             )
         }
 
+        let base = estimated.rounded()
         return ActivityAdjustmentSummary(
-            baseActiveCalories: estimated,
-            adjustmentCalories: estimated * multiplier,
+            baseActiveCalories: base,
+            adjustmentCalories: base * multiplier,
             multiplier: multiplier,
             sourceLabel: "steps and workouts",
             isEstimated: estimated > 0

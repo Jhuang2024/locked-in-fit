@@ -794,7 +794,8 @@ struct DashboardView: View {
             HStack {
                 StatChip(label: "Steps · goal \(compactStepTarget)", value: viewModel.stepsToday.formatted(),
                          color: viewModel.stepsToday >= viewModel.stepTarget ? .green : .orange)
-                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy", value: "\(Int(viewModel.activity.baseActiveCalories))", color: .green)
+                StatChip(label: viewModel.activity.isEstimated ? "Est. active" : "Active energy",
+                         value: "\(Int(viewModel.activity.baseActiveCalories.rounded()))", color: .green)
                 StatChip(label: "Workouts", value: "\(viewModel.completedWorkoutsToday)",
                          color: viewModel.completedWorkoutsToday > 0 ? .green : .secondary)
             }

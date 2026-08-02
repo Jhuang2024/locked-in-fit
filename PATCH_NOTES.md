@@ -37,6 +37,13 @@
 - Values are no longer silently rounded to what the field displays: a stored
   175.4 kcal shown as "175" stays 175.4 unless you actually edit it.
 
+### Dashboard
+- **Fixed:** the day's active energy could show as two different numbers on the
+  same screen. The Activity card's **Est. active** chip cut off the decimal
+  while the **Exercise** chip rounded it, so 451.6 kcal read as 451 in one place
+  and +452 in the other. Active energy is now rounded once, where it's
+  calculated, so every chip that shows it agrees.
+
 ## v1.1: Menu Checker
 
 A major new feature that turns eating out into first-class, honestly-estimated
