@@ -5,7 +5,9 @@ struct PatchNotesView: View {
     var body: some View {
         List {
             Section {
-                releaseHeader("Meal History & Editing", version: "1.3")
+                releaseHeader("Meal History, Editing & the Preset Cart", version: "1.3")
+                note("cart.badge.plus", "Build a meal from presets in one pass",
+                     "Adding saved foods to a meal no longer means one trip through the picker per food. Pick a food, say how much, and it drops into a running cart while the list stays open. A bar along the bottom keeps a live total, the Cart screen lets you change an amount, duplicate a helping, or drop a food, and Add to Meal empties the whole cart into the meal at once.")
                 note("clock.arrow.circlepath", "Meal history",
                      "A new Meal History screen shows every past day: what you ate, when, that day's calories against its target, and its protein, carbs, and fat. Open it from the Food Log, the Today dashboard, or Trends, tap any meal to edit it, or jump the Food Log straight to that day.")
                 note("chevron.left.forwardslash.chevron.right", "Step back a day at a time",

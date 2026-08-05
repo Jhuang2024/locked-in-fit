@@ -1,6 +1,25 @@
 # Locked In Fit: Patch Notes
 
-## v1.3: Meal History & Editing
+## v1.3: Meal History, Editing & the Preset Cart
+
+### Preset cart
+- Adding saved foods to a meal is now one trip instead of one trip per food.
+  **Add preset foods** opens the picker, and picking a food drops it into a
+  running cart and keeps the list open, so a five-food meal is five picks
+  rather than five rounds of open-picker, pick, close, reopen.
+- Each food still gets its own amount (grams or servings, with the same
+  "Weighed on a scale" option), because a preset has no default portion.
+- A live bar along the bottom shows what the cart adds up to: total calories
+  and how many foods are in it. Rows already in the cart are badged **In cart**
+  in the food list.
+- **Cart** opens the full review: every staged food with its amount, calories,
+  and protein/carbs/fat, plus cart totals. Tap a food to change its amount,
+  swipe to remove it, or duplicate it for a second helping at the same portion.
+- **Add to Meal** empties the whole cart into the meal's Foods list in one
+  action, appended after anything already there (a photo, speech, or manual
+  pass), and every food stays editable exactly as before. Nothing is logged
+  until you save the meal, and closing the picker with a full cart asks before
+  discarding it.
 
 ### Meal history
 - New **Meal History** screen: every past day, newest first, with that day's
