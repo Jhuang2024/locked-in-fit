@@ -36,8 +36,10 @@ struct MealRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if meal.hiddenOilHigh > 0 {
-                    Text("Oil +\(Int(meal.hiddenOilLow))–\(Int(meal.hiddenOilHigh)) kcal possible")
+                // Leads with the number that's actually applied to the day, not
+                // just the range around it: see HiddenOilEstimator.countedLabel.
+                if let oil = HiddenOilEstimator.countedLabel(low: meal.hiddenOilLow, high: meal.hiddenOilHigh) {
+                    Text(oil)
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }

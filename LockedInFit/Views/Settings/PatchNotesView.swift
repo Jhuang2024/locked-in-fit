@@ -6,6 +6,10 @@ struct PatchNotesView: View {
         List {
             Section {
                 releaseHeader("Meal History, Editing & the Preset Cart", version: "1.3")
+                note("drop.fill", "No more oil on an apple",
+                     "Raw, steamed, boiled, and poached food was being charged cooking oil it never had, and the food-name rules ignored how a food was cooked, so a boiled rice noodle got a stir-fried one's oil. Those four methods are now exactly zero oil, no range, and a no-oil method beats every name rule. Meals you already logged are repaired once on the next launch, handing those calories back to the days they were taken from.")
+                note("plusminus.circle", "See the oil that's actually counted",
+                     "Meal rows used to show only a range while quietly counting its midpoint against your day. They now lead with the figure that's applied, with the range after it, and a meal's Uncertainty section spells out what Counted as oil means.")
                 note("cart.badge.plus", "Build a meal from presets in one pass",
                      "Adding saved foods to a meal no longer means one trip through the picker per food. Pick a food, say how much, and it drops into a running cart while the list stays open. A bar along the bottom keeps a live total, the Cart screen lets you change an amount, duplicate a helping, or drop a food, and Add to Meal empties the whole cart into the meal at once.")
                 note("clock.arrow.circlepath", "Meal history",

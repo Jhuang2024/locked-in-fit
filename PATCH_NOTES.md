@@ -2,6 +2,29 @@
 
 ## v1.3: Meal History, Editing & the Preset Cart
 
+### Hidden oil
+- **Fixed:** raw, steamed, boiled, and poached food was charged cooking oil it
+  never had. An apple came out as "Oil +0-9 kcal", steamed corn and boiled rice
+  noodles the same. These four cooking methods are now exactly **0** oil, no
+  range, matching the rule Menu Checker has always enforced.
+- **Fixed:** the food-name rules ran no matter how the food was cooked, so a
+  *boiled* rice noodle was handed a stir-fried noodle's oil budget, and steamed
+  eggplant was treated as an oil sponge. A no-oil cooking method now wins over
+  every name rule.
+- A food logged without a stated cooking method but whose name says it plainly
+  ("steamed corn", "boiled rice noodles") is now read as that method instead of
+  being charged the unknown-preparation oil assumption.
+- Meals already logged are repaired once, on the next launch: their stored oil
+  is recomputed from their own foods, and the calories those phantom oil
+  estimates were spending come back to those days. Meals logged as plain totals
+  with no itemized foods are left alone, and a hidden-oil figure you edited by
+  hand is never overwritten again after that pass.
+- **The oil actually counted is now on screen.** The meal row used to show only
+  a range ("Oil +16-85 kcal possible") while quietly counting the midpoint
+  against your day. Rows now read "Oil +51 kcal counted (range 16-85)", and the
+  meal's Uncertainty section adds a **Counted as oil** figure explaining that
+  it's the midpoint, and that it's what's subtracted from your remaining target.
+
 ### Preset cart
 - Adding saved foods to a meal is now one trip instead of one trip per food.
   **Add preset foods** opens the picker, and picking a food drops it into a

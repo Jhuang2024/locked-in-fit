@@ -92,11 +92,22 @@ struct MealDetailView: View {
                 field("Sodium", value: $meal.sodium, unit: "mg")
             }
 
-            Section("Uncertainty") {
+            Section {
                 field("Range low", value: $meal.calorieLow, unit: "kcal")
                 field("Range high", value: $meal.calorieHigh, unit: "kcal")
                 field("Hidden oil low", value: $meal.hiddenOilLow, unit: "kcal")
                 field("Hidden oil high", value: $meal.hiddenOilHigh, unit: "kcal")
+                // The oil range is the estimate's spread; this is the single
+                // number taken out of it and actually applied. Read-only
+                // because it's the midpoint of the two fields above: edit
+                // those to change it.
+                LabeledContent("Counted as oil",
+                               value: "+\(Int(meal.hiddenOilCalories.rounded())) kcal")
+                    .foregroundStyle(.orange)
+            } header: {
+                Text("Uncertainty")
+            } footer: {
+                Text("Counted as oil is the midpoint of the hidden oil range, and it's the figure that actually counts: it's added to this meal's calories for the day and subtracted from your remaining target. Raw, steamed, boiled, and poached foods are always exactly 0.")
             }
 
             Section("Notes") {

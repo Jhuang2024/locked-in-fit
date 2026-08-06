@@ -86,7 +86,9 @@ final class MealLog {
             text += ", likely range \(Int(calorieLow))–\(Int(calorieHigh))"
         }
         if hiddenOilHigh > 0 {
-            text += ", oil uncertainty +\(Int(hiddenOilLow)) to +\(Int(hiddenOilHigh))"
+            // The counted figure first: the range is what's uncertain, but the
+            // midpoint is what actually lands in the day's calories.
+            text += ", oil +\(Int(hiddenOilCalories.rounded())) counted (range \(Int(hiddenOilLow))–\(Int(hiddenOilHigh)))"
         }
         return text
     }

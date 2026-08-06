@@ -234,6 +234,11 @@ struct RootTabView: View {
             // performBackup already refuses to write an empty snapshot over
             // an existing non-empty backup.
             var lastSampledCount = DataLossGuard.currentRecordCount(context: context)
+            // One-shot repair of hidden-oil figures stored on meals logged
+            // before raw/steamed/boiled/poached foods were pinned to zero oil.
+            // Safe to sit here: it's a no-op after its single pass, and a no-op
+            // on an empty store, so it can't race the recovery/restore paths.
+            HiddenOilBackfill.runIfNeeded(context: context)
             // One-shot, delayed a few seconds to give the App Group lookup
             // (started in App.init, background/non-blocking) time to
             // resolve. See PersistenceGuard.logAppGroupContentsIfAvailable.

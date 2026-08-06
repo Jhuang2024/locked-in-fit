@@ -346,9 +346,13 @@ struct FoodItemEditorRow: View {
                 .labelsHidden()
                 .font(.caption)
                 Spacer()
+                // Orange is a warning color; "No added oil" is the opposite of
+                // a warning, so a steamed item doesn't get flagged like a
+                // deep-fried one.
                 Text(HiddenOilEstimator.riskLabel(for: item.cookingMethod))
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(HiddenOilEstimator.zeroOilMethods.contains(item.cookingMethod)
+                                     ? Color.green : Color.orange)
             }
             Toggle(isOn: Binding(get: { item.weighed }, set: { item.weighed = $0; onChanged() })) {
                 Label("Weighed on a scale", systemImage: "scalemass")
