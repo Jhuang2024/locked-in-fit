@@ -95,7 +95,7 @@ enum SleepScoringService {
         // Consistency (25): tonight's bedtime vs. the median bedtime of the
         // last up-to-7 prior nights. Needs 3+ prior nights to be meaningful.
         let startMinutes = minutesSinceMidnight(sleepStart)
-        let priorMinutes = history
+        let priorMinutes = distinctNights(history)
             .filter { $0.date < nightDate(for: date) }
             .sorted { $0.date < $1.date }
             .suffix(7)
@@ -291,11 +291,26 @@ enum SleepScoringService {
         return max(0, baseAtLowerBound - under * 13)
     }
 
+    /// Unwrap clock times around a common anchor before taking a median.
+    /// Arithmetic median of 23:00, 23:30, 00:30, 01:00 is noon; the correct
+    /// clock-time baseline is midnight.
+    static func circularMedianMinutes(_ values: [Double]) -> Double {
+        guard let anchor = values.first else { return 0 }
+        let unwrapped = values.map { value -> Double in
+            var delta = (value - anchor).truncatingRemainder(dividingBy: 1440)
+            if delta > 720 { delta -= 1440 }
+            if delta < -720 { delta += 1440 }
+            return anchor + delta
+        }
+        let median = AppearanceScoringService.median(unwrapped).truncatingRemainder(dividingBy: 1440)
+        return median < 0 ? median + 1440 : median
+    }
+
     /// 0-25. Circular distance between tonight's bedtime and the median of up
     /// to the last 7 nights' bedtimes. Returns (points, hadEnoughHistory).
     private static func consistencyPoints(startMinutes: Double, history: [Double]) -> (Double, Bool) {
         guard history.count >= 3 else { return (18, false) }
-        let baseline = AppearanceScoringService.median(history)
+        let baseline = circularMedianMinutes(history)
         let rawDelta = abs(startMinutes - baseline)
         let delta = min(rawDelta, 1440 - rawDelta)
         return (max(0, min(25, 25 - delta / 12)), true)

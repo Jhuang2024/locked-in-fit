@@ -33,7 +33,7 @@ struct WHOOPSummaryCard: View {
                         StatChip(label: "Asleep", value: sleep?.sleepHours.map { String(format: "%.1f h", $0) } ?? "—")
                     }
                     if let date = recovery?.date {
-                        Text("Recovery cycle • \(Formatters.mediumDate(date))\(Date().timeIntervalSince(date) > 172800 ? " • Older reading" : "")")
+                        Text("Latest readings • Recovery cycle \(Formatters.mediumDate(date))\(Date().timeIntervalSince(date) > 172800 ? " • Older reading" : "")")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }

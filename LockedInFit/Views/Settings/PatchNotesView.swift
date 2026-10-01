@@ -1,9 +1,18 @@
 import SwiftUI
 
-/// In-app patch notes. The latest release headlines Menu Checker.
+/// In-app patch notes, newest release first.
 struct PatchNotesView: View {
     var body: some View {
         List {
+            Section {
+                releaseHeader("WHOOP & a Fresh Interface", version: "1.4")
+                note("waveform.path.ecg", "WHOOP in your daily overview",
+                     "Connect WHOOP through Settings for recovery, HRV, resting heart rate, blood oxygen, skin temperature, sleep stages, naps, respiratory rate, strain, cycle steps and detailed workouts. Select a metric to inspect its trend. An HTTPS connector is required for secure account authorization.")
+                note("square.stack.3d.up", "A consistent new interface",
+                     "Charcoal surfaces, orange accents, spacious cards, clearer metric hierarchy and updated screen backgrounds across Today, Log, Train, Looks and Trends. All existing tools remain available.")
+                note("checkmark.shield", "More reliable tracking",
+                     "Fixed duplicate step sources, same-day weight rates, sick-day allowances in past logs, sleep consistency around midnight, Menu Checker oil being counted twice after editing, and backup fields that omitted meal analysis and workout calorie overrides. Malformed backups now fail visibly instead of silently dropping categories.")
+            }
             Section {
                 releaseHeader("Meal History, Editing & the Preset Cart", version: "1.3")
                 note("drop.fill", "No more oil on an apple",

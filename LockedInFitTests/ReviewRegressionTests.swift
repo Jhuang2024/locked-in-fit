@@ -74,4 +74,21 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertEqual(model.calories.baseTarget, 2000)
     }
 
+    func testMalformedBackupFailsInsteadOfSilentlyDiscardingMeals() {
+        XCTAssertThrowsError(try JSONDecoder().decode(ExportImportService.Snapshot.self, from: Data("{\"meals\":\"broken\"}".utf8)))
+    }
+    func testNumericOverflowIsRejected() {
+        XCTAssertNil(NumberText.parse(String(repeating: "9", count: 400)))
+    }
+
+    func testSleepBaselineAcrossMidnightIsNotNoon() {
+        XCTAssertEqual(SleepScoringService.circularMedianMinutes([1380, 1410, 30, 60]), 0, accuracy: 0.001)
+        XCTAssertEqual(SleepScoringService.circularMedianMinutes([30, 60, 1380, 1410]), 0, accuracy: 0.001)
+    }
+    func testWorkoutCalorieOverrideSurvivesSnapshotCoding() throws {
+        let dto = ExportImportService.WorkoutDTO(date: .now, title: "Walk", type: WorkoutType.conditioning.rawValue, duration: 30, notes: "", perceivedDifficulty: 5, completed: true, isTemplate: false, exercises: [], caloriesBurned: 321)
+        let restored = try JSONDecoder().decode(ExportImportService.WorkoutDTO.self, from: JSONEncoder().encode(dto))
+        XCTAssertEqual(restored.caloriesBurned, 321)
+    }
+
 }

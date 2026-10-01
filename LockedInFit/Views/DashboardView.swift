@@ -101,7 +101,7 @@ struct DashboardView: View {
     /// either way instead of going silent.
     private var sleepGoalHitToday: Bool {
         if !sleepLogs.isEmpty {
-            return sleepLogs.contains { $0.date.isToday }
+            return sleepLogs.contains { $0.sleepEnd.isToday }
         }
         return !sleepChecklistItemsDueToday.isEmpty && sleepChecklistItemsDueToday.allSatisfy { DailyChecklistService.isCompleted($0) }
     }

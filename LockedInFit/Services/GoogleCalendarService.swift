@@ -93,9 +93,11 @@ final class GoogleCalendarService: NSObject {
     @MainActor
     func connect() async throws -> String {
         guard let clientID else { throw GoogleCalendarError.notConfigured }
+        guard !isAuthenticating else { throw GoogleCalendarError.api("Sign-in is already in progress.") }
         isAuthenticating = true
         defer { isAuthenticating = false }
 
+        let state = UUID().uuidString + UUID().uuidString
         let verifier = Self.randomURLSafeString(length: 64)
         let challenge = Self.codeChallenge(for: verifier)
         let scheme = Self.reversedClientScheme(clientID: clientID)
@@ -119,6 +121,7 @@ final class GoogleCalendarService: NSObject {
             URLQueryItem(name: "redirect_uri", value: redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: Self.scopes),
+            URLQueryItem(name: "state", value: state),
             URLQueryItem(name: "code_challenge", value: challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256")
         ]
@@ -143,6 +146,10 @@ final class GoogleCalendarService: NSObject {
             }
         }
 
+        let returnedState = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "state" }?.value
+        guard callbackURL.scheme == scheme, returnedState == state else {
+            throw GoogleCalendarError.api("Sign-in response did not match this authorization request.")
+        }
         guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
             throw GoogleCalendarError.api("Google didn't return an authorization code.")

@@ -47,28 +47,28 @@ enum ExportImportService {
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             whoopRecords = try c.decodeIfPresent([WHOOPDTO].self, forKey: .whoopRecords) ?? []
-            exportedAt = (try? c.decode(Date.self, forKey: .exportedAt)) ?? .now
-            meals = (try? c.decode([MealDTO].self, forKey: .meals)) ?? []
-            presets = (try? c.decode([PresetDTO].self, forKey: .presets)) ?? []
-            weights = (try? c.decode([WeightDTO].self, forKey: .weights)) ?? []
-            bodyFats = (try? c.decode([BodyFatDTO].self, forKey: .bodyFats)) ?? []
-            measurements = (try? c.decode([MeasurementDTO].self, forKey: .measurements)) ?? []
-            steps = (try? c.decode([StepDTO].self, forKey: .steps)) ?? []
-            activeEnergy = (try? c.decode([ActiveEnergyDTO].self, forKey: .activeEnergy)) ?? []
-            goals = (try? c.decode([GoalDTO].self, forKey: .goals)) ?? []
-            workouts = (try? c.decode([WorkoutDTO].self, forKey: .workouts)) ?? []
-            exercisePresets = (try? c.decode([ExercisePresetDTO].self, forKey: .exercisePresets)) ?? []
-            progressPhotos = (try? c.decode([ProgressPhotoDTO].self, forKey: .progressPhotos)) ?? []
-            checklistItems = (try? c.decode([ChecklistItemDTO].self, forKey: .checklistItems)) ?? []
-            sleepLogs = (try? c.decode([SleepLogDTO].self, forKey: .sleepLogs)) ?? []
-            napLogs = (try? c.decode([NapLogDTO].self, forKey: .napLogs)) ?? []
-            strengthScores = (try? c.decode([StrengthScoreDTO].self, forKey: .strengthScores)) ?? []
-            appearanceCheckIns = (try? c.decode([AppearanceCheckInDTO].self, forKey: .appearanceCheckIns)) ?? []
-            appearanceSuggestions = (try? c.decode([AppearanceSuggestionDTO].self, forKey: .appearanceSuggestions)) ?? []
-            workoutSchedules = (try? c.decode([WorkoutScheduleDTO].self, forKey: .workoutSchedules)) ?? []
-            healthScans = (try? c.decode([HealthScanDTO].self, forKey: .healthScans)) ?? []
-            menuItemRatings = (try? c.decode([MenuItemRatingDTO].self, forKey: .menuItemRatings)) ?? []
-            userSettings = (try? c.decode([UserSettingsDTO].self, forKey: .userSettings)) ?? []
+            exportedAt = try c.decodeIfPresent(Date.self, forKey: .exportedAt) ?? .now
+            meals = try c.decodeIfPresent([MealDTO].self, forKey: .meals) ?? []
+            presets = try c.decodeIfPresent([PresetDTO].self, forKey: .presets) ?? []
+            weights = try c.decodeIfPresent([WeightDTO].self, forKey: .weights) ?? []
+            bodyFats = try c.decodeIfPresent([BodyFatDTO].self, forKey: .bodyFats) ?? []
+            measurements = try c.decodeIfPresent([MeasurementDTO].self, forKey: .measurements) ?? []
+            steps = try c.decodeIfPresent([StepDTO].self, forKey: .steps) ?? []
+            activeEnergy = try c.decodeIfPresent([ActiveEnergyDTO].self, forKey: .activeEnergy) ?? []
+            goals = try c.decodeIfPresent([GoalDTO].self, forKey: .goals) ?? []
+            workouts = try c.decodeIfPresent([WorkoutDTO].self, forKey: .workouts) ?? []
+            exercisePresets = try c.decodeIfPresent([ExercisePresetDTO].self, forKey: .exercisePresets) ?? []
+            progressPhotos = try c.decodeIfPresent([ProgressPhotoDTO].self, forKey: .progressPhotos) ?? []
+            checklistItems = try c.decodeIfPresent([ChecklistItemDTO].self, forKey: .checklistItems) ?? []
+            sleepLogs = try c.decodeIfPresent([SleepLogDTO].self, forKey: .sleepLogs) ?? []
+            napLogs = try c.decodeIfPresent([NapLogDTO].self, forKey: .napLogs) ?? []
+            strengthScores = try c.decodeIfPresent([StrengthScoreDTO].self, forKey: .strengthScores) ?? []
+            appearanceCheckIns = try c.decodeIfPresent([AppearanceCheckInDTO].self, forKey: .appearanceCheckIns) ?? []
+            appearanceSuggestions = try c.decodeIfPresent([AppearanceSuggestionDTO].self, forKey: .appearanceSuggestions) ?? []
+            workoutSchedules = try c.decodeIfPresent([WorkoutScheduleDTO].self, forKey: .workoutSchedules) ?? []
+            healthScans = try c.decodeIfPresent([HealthScanDTO].self, forKey: .healthScans) ?? []
+            menuItemRatings = try c.decodeIfPresent([MenuItemRatingDTO].self, forKey: .menuItemRatings) ?? []
+            userSettings = try c.decodeIfPresent([UserSettingsDTO].self, forKey: .userSettings) ?? []
         }
 
         /// Total record count across every category, used to detect sudden
@@ -177,6 +177,7 @@ enum ExportImportService {
         var date: Date; var title: String; var type: String; var duration: Double
         var notes: String; var perceivedDifficulty: Int; var completed: Bool; var isTemplate: Bool
         var exercises: [ExerciseDTO]
+        var caloriesBurned: Double? = nil
 
         struct ExerciseDTO: Codable {
             var name: String; var pattern: String; var equipment: String; var muscles: [String]
@@ -471,7 +472,7 @@ enum ExportImportService {
                                            duration: $0.duration, distance: $0.distance,
                                            rpe: $0.rpe, completed: $0.completed)
                                  })
-                       })
+                       }, caloriesBurned: workout.caloriesBurned)
         }
         snapshot.exercisePresets = try context.fetch(FetchDescriptor<ExercisePreset>()).map {
             ExercisePresetDTO(name: $0.name, pattern: $0.movementPatternRaw, equipment: $0.equipmentRaw,
@@ -680,6 +681,7 @@ enum ExportImportService {
                                   duration: w.duration, notes: w.notes,
                                   perceivedDifficulty: w.perceivedDifficulty,
                                   completed: w.completed, isTemplate: w.isTemplate)
+            workout.caloriesBurned = w.caloriesBurned ?? 0
             for ex in w.exercises {
                 let exercise = Exercise(name: ex.name,
                                         muscleGroups: ex.muscles.compactMap { MuscleGroup(rawValue: $0) },

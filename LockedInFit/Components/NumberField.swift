@@ -60,7 +60,8 @@ enum NumberText {
         if normalized.hasPrefix(".") { normalized = "0" + normalized }
         if normalized.hasPrefix("-.") { normalized = "-0" + normalized.dropFirst() }
         guard !normalized.isEmpty, normalized != "-" else { return nil }
-        return Double(normalized)
+        guard let number = Double(normalized), number.isFinite else { return nil }
+        return number
     }
 
     /// How a value reads when the field isn't being typed in. Zero renders as
