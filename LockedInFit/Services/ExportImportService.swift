@@ -75,12 +75,13 @@ enum ExportImportService {
         /// data loss and to decide whether a snapshot is "empty" before it's
         /// allowed to overwrite or rotate out a non-empty backup.
         var totalRecordCount: Int {
-            meals.count + presets.count + weights.count + bodyFats.count + measurements.count
-                + steps.count + activeEnergy.count + goals.count + workouts.count + exercisePresets.count
-                + progressPhotos.count
-                + checklistItems.count + sleepLogs.count + napLogs.count + strengthScores.count
-                + appearanceCheckIns.count + appearanceSuggestions.count + workoutSchedules.count
-                + healthScans.count + menuItemRatings.count + whoopRecords.count
+            let nutrition = meals.count + presets.count + menuItemRatings.count
+            let body = weights.count + bodyFats.count + measurements.count + progressPhotos.count
+            let activity = steps.count + activeEnergy.count + workouts.count + exercisePresets.count
+            let routines = goals.count + checklistItems.count + sleepLogs.count + napLogs.count
+            let appearance = appearanceCheckIns.count + appearanceSuggestions.count
+            let other = strengthScores.count + workoutSchedules.count + healthScans.count + whoopRecords.count
+            return nutrition + body + activity + routines + appearance + other
         }
     }
 
@@ -96,6 +97,15 @@ enum ExportImportService {
         var foodItems: [ItemDTO]
         // Optional so snapshots exported before ratings existed still decode.
         var rating: Int?
+        var cookingOilIncluded: Bool? = nil
+        var photoPath: String? = nil
+        var extraPhotoPaths: [String]? = nil
+        var healthScore: Double? = nil
+        var satietyScore: Double? = nil
+        var facts: [String]? = nil
+        var concerns: [String]? = nil
+        var analysisSummary: String? = nil
+        var analysisState: String? = nil
 
         struct ItemDTO: Codable {
             var name: String; var grams: Double; var calories: Double; var protein: Double
@@ -305,7 +315,11 @@ enum ExportImportService {
                               cookingMethod: $0.cookingMethodRaw, confidence: $0.confidence,
                               fromPreset: $0.fromPreset, weighed: $0.weighed)
                     },
-                    rating: meal.rating)
+                    rating: meal.rating, cookingOilIncluded: meal.hasIncludedCookingOil,
+                    photoPath: meal.photoPath, extraPhotoPaths: meal.extraPhotoPaths,
+                    healthScore: meal.healthScore, satietyScore: meal.satietyScore,
+                    facts: meal.facts, concerns: meal.concerns,
+                    analysisSummary: meal.analysisSummary, analysisState: meal.analysisStateRaw)
         }
         snapshot.presets = try context.fetch(FetchDescriptor<FoodPreset>()).map {
             PresetDTO(name: $0.name, serving: $0.serving, referenceGrams: $0.referenceGrams,
@@ -562,6 +576,15 @@ enum ExportImportService {
                                             weighed: item.weighed ?? false)
                                })
             meal.rating = m.rating ?? 0
+            meal.cookingOilIncluded = m.cookingOilIncluded ?? meal.hasIncludedCookingOil
+            meal.photoPath = m.photoPath
+            meal.extraPhotoPaths = m.extraPhotoPaths ?? []
+            meal.healthScore = m.healthScore ?? 0
+            meal.satietyScore = m.satietyScore ?? 0
+            meal.facts = m.facts ?? []
+            meal.concerns = m.concerns ?? []
+            meal.analysisSummary = m.analysisSummary ?? ""
+            meal.analysisStateRaw = m.analysisState ?? MealAnalysisState.notAnalyzed.rawValue
             context.insert(meal); count += 1
         }
         var existingPresetSignatures = Set((try? context.fetch(FetchDescriptor<FoodPreset>()))?.map {

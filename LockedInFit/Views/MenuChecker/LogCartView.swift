@@ -24,6 +24,7 @@ struct LogCartView: View {
     @State private var saveReusable = false
     @State private var photoItem: PhotosPickerItem?
     @State private var photoPath: String?
+    @State private var saveError: String?
     @State private var isLogging = false
     @State private var didLog = false
 
@@ -95,6 +96,9 @@ struct LogCartView: View {
                 Task { await loadPhoto(item) }
             }
         }
+        .alert("Meal not saved", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK") { saveError = nil }
+        } message: { Text(saveError ?? "") }
     }
 
     private func loadPhoto(_ item: PhotosPickerItem?) async {
@@ -124,6 +128,8 @@ struct LogCartView: View {
             MealCartLogger.clearCart(lines, context: context)
             onLogged()
             dismiss()
+        case .saveFailed:
+            saveError = "Could not save the meal. Your cart has been kept. Try again."
         case .emptyCart:
             dismiss()
         }

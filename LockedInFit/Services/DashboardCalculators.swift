@@ -235,7 +235,7 @@ struct DashboardViewModel {
          activeEnergy: [ActiveEnergyEntry],
          workouts: [Workout],
          date: Date = .now) {
-        let isSickToday = settings?.isSickToday ?? false
+        let isSickToday = settings?.sickDayDate.map { Calendar.current.isDate($0, inSameDayAs: date) } ?? false
         let maintenance = settings.map {
             Analytics.estimateMaintenance(settings: $0, weights: weights, meals: meals, steps: steps)
         } ?? 2400
@@ -302,7 +302,7 @@ struct DashboardViewModel {
 
     private static func weeklyCalorieAverage(meals: [MealLog], date: Date) -> Double? {
         let cutoff = date.daysAgo(6).startOfDay
-        let grouped = Analytics.dailyCalories(meals.filter { $0.date >= cutoff && $0.date < date.startOfDay.addingTimeInterval(86400) })
+        let grouped = Analytics.dailyCalories(meals.filter { $0.date >= cutoff && $0.date < (Calendar.current.date(byAdding: .day, value: 1, to: date.startOfDay) ?? date) })
         guard !grouped.isEmpty else { return nil }
         return grouped.values.reduce(0, +) / Double(grouped.count)
     }

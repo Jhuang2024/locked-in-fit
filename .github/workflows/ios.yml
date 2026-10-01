@@ -16,12 +16,22 @@ jobs:
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for k,vs in d["devices"].items() if "iOS" in k for v in vs if "iPhone" in v["name"]))')
           echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
       - name: Build and test
-        run: xcodebuild test -project LockedInFit.xcodeproj -scheme LockedInFit -destination "platform=iOS Simulator,id=$DEVICE_ID" CODE_SIGNING_ALLOWED=NO -resultBundlePath TestResults.xcresult
+        run: xcodebuild test -project LockedInFit.xcodeproj -scheme LockedInFit -destination "platform=iOS Simulator,id=$DEVICE_ID" CODE_SIGNING_ALLOWED=NO -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult
+      - name: Capture dashboard
+        run: |
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" DerivedData/Build/Products/Debug-iphonesimulator/LockedInFit.app
+          xcrun simctl launch "$DEVICE_ID" com.jerryhuang.LockedInFit
+          sleep 5
+          xcrun simctl io "$DEVICE_ID" screenshot Dashboard.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ios-test-results
-          path: TestResults.xcresult
+          path: |
+            TestResults.xcresult
+            Dashboard.png
   broker:
     runs-on: ubuntu-latest
     steps:

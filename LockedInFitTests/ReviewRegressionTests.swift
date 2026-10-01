@@ -49,4 +49,29 @@ final class ReviewRegressionTests: XCTestCase {
         let legacy = try JSONDecoder().decode(ExportImportService.Snapshot.self, from: Data("{}".utf8))
         XCTAssertTrue(legacy.whoopRecords.isEmpty)
     }
+    func testMenuCheckerOilRemainsIncludedDuringBackfill() {
+        let meal = MealLog(calories: 600, notes: "Logged from Menu Checker · Cafe", foodItems: [FoodItem(name: "Fried rice", grams: 200, calories: 600, cookingMethod: .stirFried)])
+        XCTAssertTrue(meal.hasIncludedCookingOil)
+        HiddenOilBackfill.repair([meal])
+        XCTAssertEqual(meal.hiddenOilCalories, 0)
+    }
+    func testOneDayScheduleReallyHasOneSession() {
+        var request = WorkoutScheduleGeneratorService.ScheduleRequest()
+        request.daysPerWeek = 1
+        request.preferredWeekdays = [2, 2]
+        let schedule = WorkoutScheduleGeneratorService.generate(request: request)
+        XCTAssertEqual(schedule.daysPerWeek, 1)
+        XCTAssertEqual(schedule.sessions?.count, 1)
+    }
+    func testSickAllowanceBelongsToSelectedDay() {
+        let today = Date()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
+        let settings = UserSettings()
+        settings.sickDayDate = today
+        let goal = Goal(phase: .maintain, targetWeightKg: 70, calorieTarget: 2000)
+        let model = DashboardViewModel(settings: settings, goal: goal, meals: [], weights: [], steps: [], activeEnergy: [], workouts: [], date: yesterday)
+        XCTAssertFalse(model.isSickToday)
+        XCTAssertEqual(model.calories.baseTarget, 2000)
+    }
+
 }

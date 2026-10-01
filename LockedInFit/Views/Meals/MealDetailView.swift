@@ -159,7 +159,7 @@ struct MealDetailView: View {
         meal.fat = items.reduce(0) { $0 + $1.fat }
         meal.fiber = items.reduce(0) { $0 + $1.fiber }
         meal.sodium = items.reduce(0) { $0 + $1.sodium }
-        let oil = HiddenOilEstimator.estimate(forFoodItems: items)
+        let oil = meal.hasIncludedCookingOil ? (low: 0.0, high: 0.0) : HiddenOilEstimator.estimate(forFoodItems: items)
         meal.hiddenOilLow = oil.low.rounded()
         meal.hiddenOilHigh = oil.high.rounded()
         meal.calorieLow = (meal.calories * 0.85).rounded()

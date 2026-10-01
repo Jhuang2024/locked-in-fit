@@ -157,6 +157,14 @@ final class WHOOPService: NSObject, ASWebAuthenticationPresentationContextProvid
             for cycle in cycles {
                 if let id = cycle["id"] as? NSNumber, let date = WHOOPData.date(cycle["start"]) { cycleDates[id.stringValue] = date }
             }
+            // Recovery is filtered by its related sleep, so a boundary record
+            // can reference a cycle outside the cycle collection's window.
+            for record in recovery {
+                if let id = record["cycle_id"] as? NSNumber, cycleDates[id.stringValue] == nil {
+                    let cycle = try await get("cycle/\(id.stringValue)")
+                    if let date = WHOOPData.date(cycle["start"]) { cycleDates[id.stringValue] = date }
+                }
+            }
             var dtos: [ExportImportService.WHOOPDTO] = []
             for (kind, values) in [("cycle", cycles), ("recovery", recovery), ("sleep", sleep), ("workout", workouts), ("body", [body])] {
                 for payload in values {

@@ -338,6 +338,7 @@ struct TrendsHomeView: View {
 
     var body: some View {
         List {
+            Section("WHOOP") { WHOOPContextLink() }
             Section("This Week") {
                 summaryRow("Workouts", "\(workoutsThisWeek)", systemImage: "dumbbell")
                 summaryRow("Protein target hit", "\(proteinHitDaysThisWeek)/\(daysElapsedThisWeek) days", systemImage: "fish")
@@ -386,6 +387,10 @@ struct TrendsHomeView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .listSectionSpacing(18)
+        .brandScreenBackground()
+        .navigationDestination(for: WHOOPRoute.self) { _ in WHOOPDashboardView() }
         .navigationTitle("Trends")
     }
 

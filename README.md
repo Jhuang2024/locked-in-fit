@@ -1,6 +1,6 @@
 # Locked In Fit
 
-Private, local-first iPhone tracker for calories, bodyweight, body fat, measurements, steps, workouts, and gamified strength progress. One user, no accounts, no backend, no cloud.
+Private, local-first iPhone tracker for calories, bodyweight, body fat, measurements, steps, workouts, and gamified strength progress. One user, on-device history. Optional WHOOP connection uses a small OAuth connector server; health data stays on the phone.
 
 ## What's inside
 
@@ -15,7 +15,7 @@ Private, local-first iPhone tracker for calories, bodyweight, body fat, measurem
 - **Goals**: cut / maintain / lean bulk / aggressive bulk / custom, with trend weight (exponential smoothing), adaptive maintenance (formula blended with observed intake vs. weight trend), TEF, projected finish date, pace warnings, adherence score.
 - **Workouts**: generator (phase, equipment, time, fatigue, focus muscles), set-by-set logging (weight/reps/duration/RPE), templates, repeat workout, exercise history charts.
 - **Strength scores**: 0–1000 per movement pattern (squat, hinge, pushes, pulls, core, conditioning) from bodyweight-relative e1RM + progress + volume + consistency. Levels, badges, PR celebrations, weekly streaks, and a daily "Locked In" score.
-- **HealthKit** (optional): reads steps, body mass, body fat %, active energy; Renpho data flows in via Apple Health. The app works fully without the permission. Auto-syncs every second while the app is open, and instantly in the background via HKObserverQuery whenever new Health data lands (HealthKit has no true background polling interval; this is the event-driven equivalent).
+- **HealthKit** (optional): reads steps, body mass, body fat %, active energy; Renpho data flows in via Apple Health. The app works fully without the permission. Auto-syncs every minute while the app is open, and instantly in the background via HKObserverQuery whenever new Health data lands (HealthKit has no true background polling interval; this is the event-driven equivalent).
 - **Export/import**: JSON and CSV export via share sheet, JSON import. All data stays on device.
 
 ## Cross-app sharing (optional)
@@ -61,4 +61,24 @@ LockedInFitTests/  Unit tests (oil rules, scoring, cart, logging, speech,
                    numeric-field entry, meal history)
 ```
 
-Sample data (meals, weights, workouts, goal, presets) is seeded on first launch so every screen has content immediately.
+Real user history starts empty. Reference settings are initialized on first launch; sample history is restricted to debug previews.
+
+
+## WHOOP 5.0 / Peak
+
+Settings → WHOOP connects via OAuth to recovery, HRV, resting HR, SpO₂, skin
+ temperature, sleep stages/need/performance/consistency/efficiency, respiratory
+rate, naps, strain, cycle steps/energy, workout HR zones/distance/elevation,
+and body profile data. The Today card and Sleep/Train/Trends shortcuts lead to
+an overview with selectable history charts. Existing features remain available.
+
+Live sync requires your WHOOP developer application and an HTTPS connector.
+See [WHOOP connector setup](WHOOPBroker/README.md). The app never embeds a client
+secret. Stress/Healthspan/WHOOP Age/journal features are unavailable in WHOOP's
+public API and are identified as such in the UI. WHOOP total energy is kept
+separate from Apple Health active energy to avoid duplicate calorie credits.
+
+## Validation
+
+[GitHub Actions](.github/workflows/ios.yml) builds/tests on an iOS simulator and
+runs the Node connector tests. The shared Xcode scheme is `LockedInFit`.

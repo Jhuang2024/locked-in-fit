@@ -21,6 +21,12 @@ final class MealLog {
     var confidence: Double = 1.0
     var calorieLow: Double = 0
     var calorieHigh: Double = 0
+    /// Menu estimates already contain cooking oil. Keep that provenance when
+    /// editing/recomputing totals; otherwise cooking oil is charged twice.
+    var cookingOilIncluded: Bool = false
+    var hasIncludedCookingOil: Bool {
+        cookingOilIncluded || notes.contains("Logged from Menu Checker") || analysisSummary.hasPrefix("Menu Checker:")
+    }
     var hiddenOilLow: Double = 0
     var hiddenOilHigh: Double = 0
     var notes: String = ""

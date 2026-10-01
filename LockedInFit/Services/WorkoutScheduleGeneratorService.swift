@@ -60,7 +60,8 @@ enum WorkoutScheduleGeneratorService {
     /// 4 = Upper/Lower ×2, 5 = PPL + Upper/Lower, 6 = PPL ×2.
     static func split(daysPerWeek: Int, experience: WorkoutExperienceLevel) -> [SessionFocus] {
         switch daysPerWeek {
-        case ...2: return [.fullBodyA, .fullBodyB]
+        case ...1: return [.fullBodyA]
+        case 2: return [.fullBodyA, .fullBodyB]
         case 3: return experience == .beginner
             ? [.fullBodyA, .fullBodyB, .fullBodyC]
             : [.push, .pull, .legs]
@@ -117,7 +118,7 @@ enum WorkoutScheduleGeneratorService {
     /// Fill weekdays: use preferences first, then spread remaining sessions
     /// across free days with rest days in between where possible.
     private static func resolvedWeekdays(request: ScheduleRequest, count: Int) -> [Int] {
-        var days = request.preferredWeekdays.filter { (1...7).contains($0) }.sorted()
+        var days = Array(Set(request.preferredWeekdays.filter { (1...7).contains($0) })).sorted()
         if days.count > count { days = Array(days.prefix(count)) }
         // Sensible default orderings that space sessions out.
         let fallbackOrder: [Int] = [2, 5, 4, 7, 3, 6, 1] // Mon, Thu, Wed, Sat, Tue, Fri, Sun

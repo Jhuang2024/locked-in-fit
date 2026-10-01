@@ -27,6 +27,7 @@ enum MealCartLogger {
         /// from creating two meals.
         case duplicateIgnored
         case emptyCart
+        case saveFailed
     }
 
     // Recent log signatures → timestamp, guarding against accidental double logs.
@@ -46,7 +47,6 @@ enum MealCartLogger {
         if let last = recentSignatures[signature], now.timeIntervalSince(last) < duplicateWindow {
             return .duplicateIgnored
         }
-        recentSignatures[signature] = now
 
         let fraction = options.ateFullAmount ? 1.0 : max(0, min(1, options.portionPercent / 100))
         let summary = CartManager.summary(for: lines)
@@ -100,6 +100,7 @@ enum MealCartLogger {
             concerns: summary.warnings.isEmpty ? ["No major concerns for a balanced day."] : summary.warnings,
             analysisSummary: "Menu Checker: \(Int(summary.combinedHealthScore))/100 health, \(Int(summary.combinedSatietyScore))/100 satiety.",
             analysisState: .completed)
+        meal.cookingOilIncluded = true
         context.insert(meal)
 
         if options.saveAsReusableMeal {
@@ -107,7 +108,14 @@ enum MealCartLogger {
                              total: total, context: context)
         }
 
-        try? context.save()
+        do {
+            try context.save()
+            recentSignatures[signature] = now
+        } catch {
+            // Never claim success or clear a cart when the meal wasn't saved.
+            context.rollback()
+            return .saveFailed
+        }
         // NOTE: the cart is cleared by the caller (`clearCart`) once logging has
         // succeeded, kept separate so the duplicate guard can inspect the same
         // lines on a rapid second tap.

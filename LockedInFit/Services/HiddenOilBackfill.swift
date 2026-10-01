@@ -42,7 +42,7 @@ enum HiddenOilBackfill {
         var reclaimed = 0.0
         for meal in meals {
             let items = meal.items
-            guard !items.isEmpty else { continue }
+            guard !items.isEmpty, !meal.hasIncludedCookingOil else { continue }
             let oil = HiddenOilEstimator.estimate(forFoodItems: items)
             let low = oil.low.rounded()
             let high = oil.high.rounded()
