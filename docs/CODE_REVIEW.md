@@ -16,6 +16,7 @@ additive; schema version 6 triggers the existing pre-migration store snapshot.
 | Maintenance | Intake window and trend-weight interval were different; short/sparse histories pretended to span 21 days | Uses actual matching interval and requires at least 80% logged coverage |
 | Food history | Today's sick allowance changed past-day food targets | Allowance belongs to the selected date |
 | Aggregations | Future workouts and meals could enter current weekly totals; weekly intake counted eight calendar days | Future records bounded; intake window counts seven calendar days |
+| Meal parsing | Drinks inherited unknown or neighboring cooking methods and gained phantom oil calories | Drink profiles use raw preparation and ignore nearby food cooking words |
 | Menu Checker | Editing a meal or running oil backfill charged oil already included in menu nutrition | Persistent oil provenance plus recognition of older Menu Checker meals |
 | Menu Checker | Save errors were swallowed and the caller cleared the cart anyway | Failed save is surfaced; cart is retained; duplicate guard marks only successful saves |
 | Backups | Meal photos' references, analysis results and oil provenance were omitted | Optional additive DTO fields retain those values |

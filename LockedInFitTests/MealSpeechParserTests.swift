@@ -45,6 +45,15 @@ final class MealSpeechParserTests: XCTestCase {
         XCTAssertLessThan(diet?.nutrition.calories ?? 99, 5, "Diet soda should be ~0 kcal")
     }
 
+    func testDrinksNeverInheritCookingOil() {
+        for phrase in ["Coke Zero", "fried chicken and Coke Zero", "orange juice", "milk", "beer", "smoothie"] {
+            let preview = MealSpeechParser.parse(phrase)
+            let drinks = preview.entries.filter { ["Diet soda", "Orange juice", "Milk", "Beer", "Smoothie"].contains($0.name) }
+            XCTAssertFalse(drinks.isEmpty, phrase)
+            for drink in drinks { XCTAssertEqual(drink.oilCalories, 0, phrase) }
+        }
+    }
+
     func testMealTypeDetectedFromPhrase() {
         let preview = MealSpeechParser.parse("for lunch I had a grilled chicken burrito bowl")
         XCTAssertEqual(preview.mealType, .lunch)

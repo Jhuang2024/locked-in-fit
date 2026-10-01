@@ -26,7 +26,7 @@ struct FoodProfile {
         self.keywords = keywords
         self.per100g = ResolvedNutrition(calories: kcal, protein: p, carbs: c, fat: f, fiber: fiber, sodium: sodium)
         self.kind = kind
-        self.defaultMethod = method
+        self.defaultMethod = kind == .drinkBase ? .raw : method
         self.typicalGrams = grams
         self.dietaryTags = diet
         self.carriesOwnFat = ownFat

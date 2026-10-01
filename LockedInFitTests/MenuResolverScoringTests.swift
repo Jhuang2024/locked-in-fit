@@ -65,7 +65,7 @@ final class MenuResolverScoringTests: XCTestCase {
 
     func testHealthScoreRecalculatesWithOilLevel() {
         let item = estimatedFriedItem()
-        var none = ItemConfiguration(); none.oilLevelOverride = .none
+        var none = ItemConfiguration(); none.oilLevelOverride = OilLevel.none
         var heavy = ItemConfiguration(); heavy.oilLevelOverride = .heavy
         let low = MenuItemResolver.resolve(item: item, config: none)
         let high = MenuItemResolver.resolve(item: item, config: heavy)

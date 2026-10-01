@@ -111,7 +111,10 @@ enum IngredientParser {
             // A component keeps its own method unless the dish states one that
             // clearly applies to the protein/carb (e.g. "steamed fish").
             var method = profile.defaultMethod
-            if let overall = overallMethod, profile.kind == .protein || profile.kind == .carbBase || profile.kind == .vegetable || profile.kind == .main {
+            if profile.kind == .drinkBase {
+                // Nearby cooking words belong to food, never the beverage.
+                method = .raw
+            } else if let overall = overallMethod, profile.kind == .protein || profile.kind == .carbBase || profile.kind == .vegetable || profile.kind == .main {
                 // Component-local method words win over the dish-wide one.
                 if let local = componentLocalMethod(for: keyword, in: text) {
                     method = local
