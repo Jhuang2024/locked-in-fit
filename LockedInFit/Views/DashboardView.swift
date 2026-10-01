@@ -207,15 +207,9 @@ struct DashboardView: View {
             // flat fill: on the committed dark look this gives the page
             // an ambient light source the cards sit under, rather than
             // gray boxes floating on plain black.
-            .background {
-                ZStack {
-                    Color(.systemGroupedBackground)
-                    LinearGradient(colors: [BrandPalette.accent.opacity(0.12), .clear],
-                                   startPoint: .top, endPoint: .center)
-                }
-                .ignoresSafeArea()
-            }
+            .brandScreenBackground()
             .refreshable {
+                await WHOOPService.shared.syncIfNeeded(context: context)
                 await healthKit.sync(context: context)
                 await refreshReminderSchedules()
             }
@@ -237,6 +231,7 @@ struct DashboardView: View {
         case .goalEdit: GoalEditView()
         case .notifications: NotificationSettingsView()
         case .aiSettings: AISettingsView()
+        case .whoop: WHOOPDashboardView()
         case .healthKitSync: HealthKitSyncView()
         case .looksSettings: LooksSettingsView()
         case .socialClimber: SocialClimberLinkView()
@@ -269,10 +264,12 @@ struct DashboardView: View {
 
     private var dashboardScrollView: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            VStack(spacing: CardMetrics.spacing) {
                 header.cardEntrance(0)
                 sickDayBanner.cardEntrance(1)
                 quickActions.cardEntrance(2)
+                WHOOPSummaryCard().cardEntrance(3)
+                SectionLabel(text: "Daily essentials").frame(maxWidth: .infinity, alignment: .leading)
                 checklistCard.cardEntrance(3)
                 socialReadinessCardIfPresent.cardEntrance(4)
                 calorieCard.cardEntrance(5)
@@ -503,7 +500,7 @@ struct DashboardView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                AppBrandMark(size: 36)
+                IconBadge(systemImage: "bolt.fill", size: 42)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(Date.now.formatted(date: .complete, time: .omitted))
                         .font(.caption)
@@ -516,8 +513,8 @@ struct DashboardView: View {
             }
 
             Text(briefingHeadline.text)
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .tracking(1.0)
+                .font(.system(.title, design: .rounded, weight: .semibold))
+                .tracking(-0.6)
                 .foregroundStyle(briefingHeadline.color)
                 .contentTransition(.opacity)
                 .animation(.snappy(duration: 0.3), value: briefingHeadline.text)
@@ -544,7 +541,7 @@ struct DashboardView: View {
                             .tracking(0.5)
                     }
                 }
-                .frame(width: 72, height: 72)
+                .frame(width: 92, height: 92)
                 .onAppear { heroAppeared = true }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Locked In Score \(viewModel.lockedInScore) of 100")
@@ -559,7 +556,7 @@ struct DashboardView: View {
                 Spacer()
             }
         }
-        .padding(16)
+        .padding(CardMetrics.padding)
         .heroCardBackground()
     }
 
@@ -611,6 +608,7 @@ struct DashboardView: View {
             quickActionButton("Sync", systemImage: "arrow.triangle.2.circlepath", spinning: healthKit.syncing, badge: healthKit.autoSyncEnabled) {
                 Task {
                     await healthKit.sync(context: context)
+                    await WHOOPService.shared.syncIfNeeded(context: context)
                     await refreshReminderSchedules()
                 }
             }

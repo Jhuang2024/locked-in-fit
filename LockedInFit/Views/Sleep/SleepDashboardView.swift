@@ -36,6 +36,7 @@ struct SleepDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
+                WHOOPContextLink()
                 scoreCard
                 statsCard
                 if !logs.isEmpty {
@@ -55,6 +56,7 @@ struct SleepDashboardView: View {
             .padding(.bottom, 24)
         }
         .brandScreenBackground()
+        .navigationDestination(for: WHOOPRoute.self) { _ in WHOOPDashboardView() }
         .navigationTitle("Sleep")
         .sheet(isPresented: $showLogSheet) { NavigationStack { SleepLogEntryView() } }
         .sheet(isPresented: $showNapSheet) { NavigationStack { NapLogEntryView() } }

@@ -52,7 +52,7 @@ struct LockedInFitApp: App {
                     WorkoutSchedule.self, WorkoutScheduleSession.self, CalendarConnectionState.self,
                     SleepLog.self, NapLog.self,
                     CartLine.self, SavedRestaurantRecord.self, SavedMenuItemRecord.self, RecentRestaurantRecord.self,
-                    MenuItemRatingRecord.self)
+                    MenuItemRatingRecord.self, WHOOPRecord.self)
             }
         } catch {
             fatalError("Failed to create model container: \(error)")
@@ -118,6 +118,9 @@ struct LockedInFitApp: App {
         // returns immediately. The content-hash dedupe inside performBackup
         // makes ordinary app switching with no changes a no-op.
         .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task { @MainActor in await WHOOPService.shared.syncIfNeeded(context: container.mainContext) }
+            }
             guard newPhase == .background else { return }
             try? container.mainContext.save()
             BackupService.backupOnBackgrounding(container: container)
@@ -233,6 +236,7 @@ struct RootTabView: View {
             // onAppear isn't guaranteed): harmless either way, since
             // performBackup already refuses to write an empty snapshot over
             // an existing non-empty backup.
+            await WHOOPService.shared.syncIfNeeded(context: context)
             var lastSampledCount = DataLossGuard.currentRecordCount(context: context)
             // One-shot repair of hidden-oil figures stored on meals logged
             // before raw/steamed/boiled/poached foods were pinned to zero oil.

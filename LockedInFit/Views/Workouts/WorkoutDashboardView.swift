@@ -61,6 +61,7 @@ struct WorkoutDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
+                WHOOPContextLink()
                 HStack(spacing: 8) {
                     Button { showGenerator = true } label: {
                         Label("Workout", systemImage: "wand.and.stars")
@@ -206,6 +207,7 @@ struct WorkoutDashboardView: View {
             .padding(.bottom, 24)
         }
         .brandScreenBackground()
+        .navigationDestination(for: WHOOPRoute.self) { _ in WHOOPDashboardView() }
         .navigationTitle("Training")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

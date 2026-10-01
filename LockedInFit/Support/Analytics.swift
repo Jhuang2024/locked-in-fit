@@ -30,9 +30,11 @@ enum Analytics {
 
     static func avgDailySteps(_ steps: [StepEntry], days: Int = 14) -> Int {
         let cutoff = Date().daysAgo(days).startOfDay
-        let recent = steps.filter { $0.date >= cutoff }
-        guard !recent.isEmpty else { return 7000 }
-        return recent.reduce(0) { $0 + $1.steps } / recent.count
+        let recent = steps.filter { $0.date >= cutoff && $0.date <= .now }
+        let byDay = Dictionary(grouping: recent) { $0.date.startOfDay }
+            .mapValues { $0.map(\.steps).max() ?? 0 }
+        guard !byDay.isEmpty else { return 7000 }
+        return byDay.values.reduce(0, +) / byDay.count
     }
 
     /// Best current maintenance estimate: formula blended with observed intake-vs-trend data.
@@ -55,21 +57,21 @@ enum Analytics {
         // Observed window: last 21 days of intake + trend change.
         let windowDays = 21
         let cutoff = Date().daysAgo(windowDays).startOfDay
-        let calorieByDay = dailyCalories(meals.filter { $0.date >= cutoff })
-        let intakes = Array(calorieByDay.values)
-        let trendPoints = WeightTrendCalculator.trend(entries: weights)
-        let startTrend = trendPoints.last(where: { $0.date <= cutoff })?.trendKg ?? trendPoints.first?.trendKg
-        let endTrend = trendPoints.last?.trendKg
-
+        let trendPoints = WeightTrendCalculator.trend(entries: weights.filter { $0.date >= cutoff && $0.date <= .now })
         var observed: Double?
-        if let startTrend, let endTrend {
-            observed = NutritionCalculator.observedMaintenance(
-                dailyIntakes: intakes,
-                trendWeightStartKg: startTrend,
-                trendWeightEndKg: endTrend,
-                days: windowDays)
+        var observationDays = 0
+        if let start = trendPoints.first, let end = trendPoints.last, start.date < end.date {
+            // Align intake and weight change to the SAME actual interval. Exclude
+            // today's incomplete intake and never stretch a short history to 21 days.
+            let intakes = dailyCalories(meals.filter { $0.date >= start.date && $0.date < end.date })
+            let span = Calendar.current.dateComponents([.day], from: start.date, to: end.date).day ?? 0
+            observationDays = intakes.count
+            if span >= 10, intakes.count >= Int(ceil(Double(span) * 0.8)) {
+                observed = NutritionCalculator.observedMaintenance(dailyIntakes: Array(intakes.values),
+                    trendWeightStartKg: start.trendKg, trendWeightEndKg: end.trendKg, days: span)
+            }
         }
-        return NutritionCalculator.blendedMaintenance(formula: formula, observed: observed, observationDays: intakes.count).rounded()
+        return NutritionCalculator.blendedMaintenance(formula: formula, observed: observed, observationDays: observationDays).rounded()
     }
 
     /// "Locked In" daily score 0–100, entirely earned from today's logged behavior.

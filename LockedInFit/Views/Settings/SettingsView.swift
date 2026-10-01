@@ -21,6 +21,7 @@ enum SettingsRoute: Hashable {
     case goalEdit
     case notifications
     case aiSettings
+    case whoop
     case healthKitSync
     case looksSettings
     case socialClimber
@@ -97,6 +98,9 @@ struct SettingsView: View {
             goalSection
 
             Section("Integrations") {
+                NavigationLink(value: SettingsRoute.whoop) {
+                    Label("WHOOP • Recovery & Health", systemImage: "waveform.path.ecg")
+                }
                 NavigationLink(value: SettingsRoute.notifications) {
                     Label("Notifications", systemImage: "bell.badge")
                 }
@@ -155,9 +159,12 @@ struct SettingsView: View {
                     Label("What's New", systemImage: "sparkles")
                 }
             } footer: {
-                Text("Locked In Fit is local-first. No accounts, no cloud, no analytics. The only network call is meal analysis via OpenRouter or BazaarLink when you enable it.")
+                Text("Locked In Fit is local-first. No accounts, no cloud, no analytics. Optional integrations contact their providers only when enabled. WHOOP credentials stay in Keychain; health history stays on this device.")
             }
         }
+        .scrollContentBackground(.hidden)
+        .listSectionSpacing(18)
+        .brandScreenBackground()
         .navigationTitle("Settings")
         .keyboardDoneToolbar()
         .sheet(item: Binding(

@@ -185,6 +185,9 @@ struct DailyLogView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .listSectionSpacing(18)
+        .brandScreenBackground()
         .navigationTitle("Food Log")
         // Registered at the Log tab's NavigationStack root so Menu Checker's
         // value-based links resolve from every pushed screen.

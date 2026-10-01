@@ -23,9 +23,9 @@ extension View {
 // MARK: - Design tokens
 
 enum CardMetrics {
-    static let cornerRadius: CGFloat = 18
-    static let padding: CGFloat = 16
-    static let spacing: CGFloat = 14
+    static let cornerRadius: CGFloat = 24
+    static let padding: CGFloat = 20
+    static let spacing: CGFloat = 18
 }
 
 /// A small palette built from the app's one AccentColor (see
@@ -40,9 +40,12 @@ enum CardMetrics {
 /// not a rung on the same ramp.
 enum BrandPalette {
     static let accent = Color.accentColor
+    static let canvas = Color(red: 0.045, green: 0.052, blue: 0.068)
+    static let surface = Color(red: 0.085, green: 0.095, blue: 0.12)
+    static let cool = Color(red: 0.38, green: 0.72, blue: 0.95)
     /// Accent's hue, so tone(_:of:) stays visually tied to AccentColor even
     /// if the asset's exact RGB ever changes.
-    private static let accentHue = 0.40
+    private static let accentHue = 0.075
 
     static func tone(_ level: Int, of total: Int) -> Color {
         let t = total > 1 ? Double(max(0, min(level, total - 1))) / Double(total - 1) : 1
@@ -67,6 +70,7 @@ enum BrandPalette {
 /// on local `@State`: no ongoing cost once settled, no effect on layout or
 /// hit-testing before/after.
 struct CardEntrance: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let index: Int
     @State private var appeared = false
 
@@ -75,6 +79,7 @@ struct CardEntrance: ViewModifier {
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 10)
             .onAppear {
+                if reduceMotion { appeared = true; return }
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.85).delay(Double(index) * 0.04)) {
                     appeared = true
                 }
@@ -117,12 +122,13 @@ struct RollingNumberText: View, Animatable {
 /// one product: see the design rule that every screen should feel
 /// related to every other screen.
 struct BrandScreenBackground: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     func body(content: Content) -> some View {
         content
             .background {
                 ZStack {
-                    Color(.systemGroupedBackground)
-                    LinearGradient(colors: [BrandPalette.accent.opacity(0.10), .clear],
+                    colorScheme == .dark ? BrandPalette.canvas : Color(.systemGroupedBackground)
+                    LinearGradient(colors: [BrandPalette.accent.opacity(0.08), .clear],
                                    startPoint: .top, endPoint: .center)
                 }
                 .ignoresSafeArea()
@@ -150,8 +156,8 @@ struct CardBackground: ViewModifier {
         content
             .background {
                 ZStack {
-                    Color(.secondarySystemGroupedBackground)
-                    LinearGradient(colors: [.white.opacity(colorScheme == .dark ? 0.07 : 0.25), .clear],
+                    colorScheme == .dark ? BrandPalette.surface : Color(.secondarySystemGroupedBackground)
+                    LinearGradient(colors: [.white.opacity(colorScheme == .dark ? 0.04 : 0.25), .clear],
                                    startPoint: .top, endPoint: .center)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: CardMetrics.cornerRadius, style: .continuous))
@@ -164,7 +170,7 @@ struct CardBackground: ViewModifier {
                                        startPoint: .top, endPoint: .bottom),
                         lineWidth: 1)
             )
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.04), radius: 14, x: 0, y: 8)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.04), radius: 18, x: 0, y: 6)
     }
 }
 
@@ -188,7 +194,7 @@ struct HeroCardBackground: ViewModifier {
         content
             .background {
                 ZStack {
-                    Color(.secondarySystemGroupedBackground)
+                    colorScheme == .dark ? BrandPalette.surface : Color(.secondarySystemGroupedBackground)
                     LinearGradient(colors: [BrandPalette.accent.opacity(0.18), BrandPalette.accent.opacity(0.03)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
                 }
@@ -252,17 +258,19 @@ struct DashboardCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BrandPalette.accent)
+                        .frame(width: 28, height: 28)
+                        .background(BrandPalette.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
                 }
                 Text(title)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
-                    .tracking(1.4)
+                    .tracking(1.0)
                     .textCase(.uppercase)
                 Spacer()
             }
@@ -284,7 +292,7 @@ struct MacroRingView: View {
     let color: Color
     @State private var appeared = false
 
-    private var progress: Double { target > 0 ? min(1.2, current / target) : 0 }
+    private var progress: Double { target > 0 ? max(0, min(1.2, current / target)) : 0 }
 
     var body: some View {
         VStack(spacing: 6) {
@@ -584,7 +592,8 @@ struct StatChip: View {
             Text(value)
                 .font(.system(.title3, design: .rounded, weight: .heavy))
                 .foregroundStyle(color)
-                .minimumScaleFactor(0.6)
+                .monospacedDigit()
+                .minimumScaleFactor(0.7)
                 .lineLimit(1)
             Text(label)
                 .font(.system(size: 10, weight: .semibold))
@@ -595,8 +604,9 @@ struct StatChip: View {
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.vertical, 14)
+        .padding(.horizontal, 4)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)

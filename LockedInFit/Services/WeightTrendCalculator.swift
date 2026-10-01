@@ -34,7 +34,7 @@ enum WeightTrendCalculator {
         var previousDay = first
         for day in sortedDays {
             let weight = byDay[day]!
-            let gapDays = day.timeIntervalSince(previousDay) / 86400
+            let gapDays = Double(calendar.dateComponents([.day], from: previousDay, to: day).day ?? 0)
             let alpha = 1 - exp(-gapDays / tau)   // 0 on the seed day, →1 after long gaps
             trend += alpha * (weight - trend)
             points.append(TrendPoint(date: day, weightKg: weight, trendKg: trend))
@@ -70,14 +70,13 @@ enum WeightTrendCalculator {
     /// Returns nil when there is no earlier entry to compare against, or when
     /// both entries share the same day (no measurable weekly span).
     static func weeklyChangeFromEntries(entries: [BodyWeightEntry]) -> Double? {
-        let sorted = entries.sorted { $0.date < $1.date }
-        guard sorted.count >= 2 else { return nil }
-        let latest = sorted[sorted.count - 1]
-        let previous = sorted[sorted.count - 2]
-        let daysBetween = latest.date.timeIntervalSince(previous.date) / 86400
-        let weeksBetween = daysBetween / 7.0
-        guard weeksBetween > 0 else { return nil }
-        return (latest.weightKg - previous.weightKg) / weeksBetween
+        let points = trend(entries: entries)
+        guard points.count >= 2 else { return nil }
+        let latest = points[points.count - 1]
+        let previous = points[points.count - 2]
+        let days = Calendar.current.dateComponents([.day], from: previous.date, to: latest.date).day ?? 0
+        guard days > 0 else { return nil }
+        return (latest.weightKg - previous.weightKg) / Double(days) * 7
     }
 
     /// kg/week change of the trend line over roughly the last `days`.

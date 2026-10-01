@@ -64,7 +64,7 @@ enum ActivityAdjustmentCalculator {
         // quantity measured a cruder way, never something to add on top. Uses
         // the same weight-scaled step formula as trends and maintenance, so a
         // step burns identical calories everywhere in the app.
-        let stepCount = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
+        let stepCount = steps.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }.map(\.steps).max() ?? 0
         let stepCalories = NutritionCalculator.stepCalories(steps: stepCount, weightKg: bodyWeightKg > 0 ? bodyWeightKg : 70)
         let workoutCalories = workouts
             .filter { $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date) }
@@ -269,12 +269,12 @@ struct DashboardViewModel {
             tefCalories: tefCalories,
             portionUplift: portionUplift
         )
-        let todaySteps = steps.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?.steps ?? 0
+        let todaySteps = steps.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }.map(\.steps).max() ?? 0
         let todayWorkouts = workouts.filter {
             $0.completed && !$0.isTemplate && Calendar.current.isDate($0.date, inSameDayAs: date)
         }.count
         let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: date)?.start ?? date.daysAgo(7)
-        let workoutsThisWeek = workouts.filter { $0.completed && !$0.isTemplate && $0.date >= weekStart }.count
+        let workoutsThisWeek = workouts.filter { $0.completed && !$0.isTemplate && $0.date >= weekStart && $0.date <= date }.count
 
         self.nutrition = nutrition
         self.activity = activity
@@ -301,8 +301,8 @@ struct DashboardViewModel {
     }
 
     private static func weeklyCalorieAverage(meals: [MealLog], date: Date) -> Double? {
-        let cutoff = date.daysAgo(7).startOfDay
-        let grouped = Analytics.dailyCalories(meals.filter { $0.date >= cutoff })
+        let cutoff = date.daysAgo(6).startOfDay
+        let grouped = Analytics.dailyCalories(meals.filter { $0.date >= cutoff && $0.date < date.startOfDay.addingTimeInterval(86400) })
         guard !grouped.isEmpty else { return nil }
         return grouped.values.reduce(0, +) / Double(grouped.count)
     }

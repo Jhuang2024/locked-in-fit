@@ -84,9 +84,14 @@ final class HealthKitManager {
         guard isAvailable else { return }
         for case let sampleType as HKSampleType in readTypes {
             let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] _, completionHandler, error in
-                defer { completionHandler() }
-                guard let self, error == nil, let container = self.container else { return }
-                Task { @MainActor in await self.syncRecent(context: container.mainContext) }
+                guard let self, error == nil, let container = self.container else {
+                    completionHandler()
+                    return
+                }
+                Task { @MainActor in
+                    await self.syncRecent(context: container.mainContext)
+                    completionHandler()
+                }
             }
             store.execute(query)
             store.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { _, _ in }
@@ -140,6 +145,7 @@ final class HealthKitManager {
                 importAll(steps: steps, activeEnergy: activeEnergy,
                           weights: weights, bodyFats: bodyFats, context: context)
             }
+            try context.save()
             lastSync = .now
             lastSyncSummary = imported > 0 ? "Imported \(imported) new entries." : "Already up to date."
             // Keep the Brief feed's step/energy/weight numbers current as
@@ -168,7 +174,7 @@ final class HealthKitManager {
         let existingSteps = (try? context.fetch(FetchDescriptor<StepEntry>(
             predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
         let stepDays = Set(existingSteps.map { $0.date.startOfDay })
-        for (day, count) in steps where count > 0 {
+        for (day, count) in steps {
             if let existing = existingSteps.first(where: { $0.date.startOfDay == day }) {
                 if existing.steps != count { existing.steps = count; imported += 1 }
             } else if !stepDays.contains(day) {
@@ -180,7 +186,7 @@ final class HealthKitManager {
         let existingEnergy = (try? context.fetch(FetchDescriptor<ActiveEnergyEntry>(
             predicate: #Predicate { $0.sourceRaw == hk }))) ?? []
         let energyDays = Set(existingEnergy.map { $0.date.startOfDay })
-        for (day, calories) in activeEnergy where calories > 0 {
+        for (day, calories) in activeEnergy {
             if let existing = existingEnergy.first(where: { $0.date.startOfDay == day }) {
                 if abs(existing.calories - calories) >= 1 { existing.calories = calories; imported += 1 }
             } else if !energyDays.contains(day) {

@@ -12,6 +12,7 @@ enum ExportImportService {
     /// This is the additive-safe-migration policy applied to the file format
     /// itself: new fields are always optional on read.
     struct Snapshot: Codable {
+        var whoopRecords: [WHOOPDTO] = []
         var exportedAt: Date = .now
         var meals: [MealDTO] = []
         var presets: [PresetDTO] = []
@@ -38,13 +39,14 @@ enum ExportImportService {
         init() {}
 
         private enum CodingKeys: String, CodingKey {
-            case exportedAt, meals, presets, weights, bodyFats, measurements, steps, activeEnergy,
+            case whoopRecords, exportedAt, meals, presets, weights, bodyFats, measurements, steps, activeEnergy,
                  goals, workouts, exercisePresets, progressPhotos, checklistItems, sleepLogs, napLogs, strengthScores,
                  appearanceCheckIns, appearanceSuggestions, workoutSchedules, healthScans, menuItemRatings, userSettings
         }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
+            whoopRecords = try c.decodeIfPresent([WHOOPDTO].self, forKey: .whoopRecords) ?? []
             exportedAt = (try? c.decode(Date.self, forKey: .exportedAt)) ?? .now
             meals = (try? c.decode([MealDTO].self, forKey: .meals)) ?? []
             presets = (try? c.decode([PresetDTO].self, forKey: .presets)) ?? []
@@ -78,8 +80,12 @@ enum ExportImportService {
                 + progressPhotos.count
                 + checklistItems.count + sleepLogs.count + napLogs.count + strengthScores.count
                 + appearanceCheckIns.count + appearanceSuggestions.count + workoutSchedules.count
-                + healthScans.count + menuItemRatings.count
+                + healthScans.count + menuItemRatings.count + whoopRecords.count
         }
+    }
+
+    struct WHOOPDTO: Codable {
+        var key: String; var kind: String; var date: Date; var json: Data; var syncedAt: Date
     }
 
     struct MealDTO: Codable {
@@ -284,6 +290,9 @@ enum ExportImportService {
 
     static func makeSnapshot(context: ModelContext) throws -> Snapshot {
         var snapshot = Snapshot()
+        snapshot.whoopRecords = try context.fetch(FetchDescriptor<WHOOPRecord>()).map {
+            WHOOPDTO(key: $0.key, kind: $0.kind, date: $0.date, json: $0.json, syncedAt: $0.syncedAt)
+        }
         snapshot.meals = try context.fetch(FetchDescriptor<MealLog>()).map { meal in
             MealDTO(date: meal.date, mealType: meal.mealTypeRaw, calories: meal.calories,
                     protein: meal.protein, carbs: meal.carbs, fat: meal.fat, fiber: meal.fiber,
@@ -529,6 +538,8 @@ enum ExportImportService {
         let snapshot = try decoder.decode(Snapshot.self, from: data)
 
         var count = 0
+        try WHOOPService.upsert(snapshot.whoopRecords, context: context)
+        count += snapshot.whoopRecords.count
         var existingMealSignatures = Set((try? context.fetch(FetchDescriptor<MealLog>()))?.map {
             "\(sec($0.date))|\($0.mealTypeRaw)|\($0.calories)|\($0.protein)|\($0.carbs)|\($0.fat)|\($0.notes)"
         } ?? [])
